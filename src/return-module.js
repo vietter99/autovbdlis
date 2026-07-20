@@ -1,36 +1,16 @@
 import { topWin, clickElement, isSystemLoading } from './utils.js';
+import { createModuleRuntime } from './module-runtime.js';
 
     const ReturnModule = (function () {
         const defaultConfig = { delayOpen: 500, delayAction: 500, delayNext: 500 };
-        function loadConfig() {
-            const saved = localStorage.getItem('mplis_auto_trahoso_config');
-            if (saved) {
-                try { return { ...defaultConfig, ...JSON.parse(saved) }; } catch (e) { }
-            }
-            return defaultConfig;
-        }
 
-        if (window === window.top) {
-            if (!topWin.MPLIS_AUTO_TRAHOSO_STATE) {
-                topWin.MPLIS_AUTO_TRAHOSO_STATE = {
-                    isRunning: false, successCount: 0, lastActionTime: 0, currentLockDuration: 1200, config: loadConfig(),
-                    writeLog: function (text) { console.log("[MPLIS TraHoSo] " + text); const el = document.getElementById('mplis-step-log-return'); if (el) el.textContent = text; },
-                    updateStatus: function (text, type) {
-                        const statusText = document.getElementById('mplis-status-text-return');
-                        const statusDot = document.getElementById('mplis-status-dot-return');
-                        if (statusText) statusText.textContent = text;
-                        if (statusDot) { statusDot.className = 'mplis-status-dot'; if (type === 'active') statusDot.classList.add('active'); if (type === 'waiting') statusDot.classList.add('waiting'); }
-                    },
-                    incrementSuccess: function () { this.successCount++; const el = document.getElementById('mplis-counter-val-return'); if (el) el.textContent = this.successCount; }
-                };
-            }
-        }
-
-        function getTopState() { return topWin.MPLIS_AUTO_TRAHOSO_STATE; }
-        function writeLog(text) { const s = getTopState(); if (s) s.writeLog(text); }
-        function updateStatus(text, type) { const s = getTopState(); if (s) s.updateStatus(text, type); }
-        function incrementSuccess() { const s = getTopState(); if (s) s.incrementSuccess(); }
-        function setLastActionTime(time, lockDuration = 1200) { const s = getTopState(); if (s) { s.lastActionTime = time; s.currentLockDuration = lockDuration; } }
+        const { getTopState, writeLog, updateStatus, incrementSuccess, setLastActionTime, saveConfig } = createModuleRuntime({
+            globalStateKey: 'MPLIS_AUTO_TRAHOSO_STATE',
+            configStorageKey: 'mplis_auto_trahoso_config',
+            defaultConfig,
+            logPrefix: '[MPLIS TraHoSo] ',
+            domSuffix: 'return'
+        });
 
         async function scanAndExecute() {
             try {
@@ -226,7 +206,7 @@ import { topWin, clickElement, isSystemLoading } from './utils.js';
         setInterval(scanAndExecute, 1200);
 
         return {
-            getTopState, saveConfig: function (cfg) { const s = getTopState(); if (s) { s.config = { ...s.config, ...cfg }; localStorage.setItem('mplis_auto_trahoso_config', JSON.stringify(s.config)); } }
+            getTopState, saveConfig
         };
     })();
 

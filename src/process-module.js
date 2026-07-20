@@ -1,4 +1,5 @@
 import { topWin, clickElement, isSystemLoading, querySelectorAllCustom } from './utils.js';
+import { createModuleRuntime } from './module-runtime.js';
 
     const ProcessModule = (function () {
         const defaultConfig = {
@@ -11,39 +12,13 @@ import { topWin, clickElement, isSystemLoading, querySelectorAllCustom } from '.
             selectorConfirm: "button:contains('Đồng ý'), button:contains('Xác nhận'), button:contains('OK'), button:contains('Có')"
         };
 
-        function loadConfig() {
-            const saved = localStorage.getItem('mplis_auto_config_v4_1');
-            if (saved) {
-                try {
-                    const parsed = JSON.parse(saved);
-                    if (parsed.activeWorkflow && !parsed.activeWorkflows) parsed.activeWorkflows = [parsed.activeWorkflow];
-                    return { ...defaultConfig, ...parsed };
-                } catch (e) { }
-            }
-            return defaultConfig;
-        }
-
-        if (window === window.top) {
-            if (!topWin.MPLIS_AUTO_STATE) {
-                topWin.MPLIS_AUTO_STATE = {
-                    isRunning: false, successCount: 0, lastActionTime: 0, currentLockDuration: 1200, config: loadConfig(),
-                    writeLog: function (text) { console.log("[MPLIS QT] " + text); const el = document.getElementById('mplis-step-log-process'); if (el) el.textContent = text; },
-                    updateStatus: function (text, type) {
-                        const statusText = document.getElementById('mplis-status-text-process');
-                        const statusDot = document.getElementById('mplis-status-dot-process');
-                        if (statusText) statusText.textContent = text;
-                        if (statusDot) { statusDot.className = 'mplis-status-dot'; if (type === 'active') statusDot.classList.add('active'); if (type === 'waiting') statusDot.classList.add('waiting'); }
-                    },
-                    incrementSuccess: function () { this.successCount++; const el = document.getElementById('mplis-counter-val-process'); if (el) el.textContent = this.successCount; }
-                };
-            }
-        }
-
-        function getTopState() { return topWin.MPLIS_AUTO_STATE; }
-        function writeLog(text) { const s = getTopState(); if (s) s.writeLog(text); }
-        function updateStatus(text, type) { const s = getTopState(); if (s) s.updateStatus(text, type); }
-        function incrementSuccess() { const s = getTopState(); if (s) s.incrementSuccess(); }
-        function setLastActionTime(time, lockDuration = 1200) { const s = getTopState(); if (s) { s.lastActionTime = time; s.currentLockDuration = lockDuration; } }
+        const { getTopState, writeLog, updateStatus, incrementSuccess, setLastActionTime, saveConfig } = createModuleRuntime({
+            globalStateKey: 'MPLIS_AUTO_STATE',
+            configStorageKey: 'mplis_auto_config_v4_1',
+            defaultConfig,
+            logPrefix: '[MPLIS QT] ',
+            domSuffix: 'process'
+        });
 
         function getTaskText(tName) {
             if (tName === 'QT1') return 'cập nhật dữ liệu pháp lý';
@@ -1141,7 +1116,7 @@ import { topWin, clickElement, isSystemLoading, querySelectorAllCustom } from '.
         setInterval(scanAndExecute, 1200);
 
         return {
-            getTopState, saveConfig: function (cfg) { const s = getTopState(); if (s) { s.config = { ...s.config, ...cfg }; localStorage.setItem('mplis_auto_config_v4_1', JSON.stringify(s.config)); } }
+            getTopState, saveConfig
         };
     })();
 
