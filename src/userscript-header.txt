@@ -1,0 +1,18 @@
+// ==UserScript==
+// @name         MPLIS Auto Tool
+// @namespace    http://tampermonkey.net/
+// @version      8.0
+// @description  Bản gộp Toàn Diện: Xử lý Quy trình (QT), Trả hồ sơ và Cảnh báo trễ hạn. Giao diện v8: thiết kế lại toàn bộ UI, thêm tab Cài đặt, escape dữ liệu hiển thị, và công tắc bật/tắt tự động xác nhận hộp thoại. TOÀN BỘ LOGIC TỰ ĐỘNG HÓA GIỮ NGUYÊN như bản 7.0.
+// @author       Việt
+// @match        *://*.mplis.gov.vn/*
+// @match        *://dla.mplis.gov.vn/*
+// @match        *://*.vbdlis.vn/*
+// @match        *://vbdlis.vn/*
+// @include      *mplis.gov.vn*
+// @include      *vbdlis.vn*
+// @grant        GM_addStyle
+// @grant        unsafeWindow
+// @grant        GM_setClipboard
+// @run-at       document-end
+// @allFrames    true
+// ==/UserScript==
