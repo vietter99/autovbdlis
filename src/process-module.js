@@ -121,6 +121,18 @@ import { createModuleRuntime } from './module-runtime.js';
                         const isQT5Confirm = msgLower.includes('chuyển bước') || msgLower.includes('chuyển tiếp') || msgLower.includes('chuyển tác vụ') || msgLower.includes('chuyển');
 
                         if (isQT1Confirm || isQT4Confirm || isQT5Confirm) {
+                            // Tiêu đề hộp cảnh báo của MPLIS thay đổi tùy trường hợp nên không lọc được
+                            // bằng từ khóa. Nhưng về nghiệp vụ, 1 lượt bấm "Thực hiện" cập nhật pháp lý (QT1)
+                            // chỉ nên hỏi "Đồng ý" ĐÚNG 1 LẦN. Nếu hộp thoại có nút Đồng ý này bật lên
+                            // LẦN 2 liên tiếp mà chưa bấm lại "Thực hiện", rất có thể đây là hộp CẢNH BÁO
+                            // (VD: dữ liệu bất thường) chứ không phải xác nhận hợp lệ -> dừng để kiểm tra tay.
+                            if (isQT1Confirm && (topState.qt1ConfirmStreak || 0) >= 1) {
+                                writeLog("⚠️ Hộp 'Đồng ý' cập nhật pháp lý xuất hiện LẦN 2 liên tiếp (tiêu đề: '" + jcTitle.trim() + "'). Có thể là cảnh báo. DỪNG AUTO để kiểm tra.");
+                                updateStatus("Nghi cảnh báo - Dừng", "idle");
+                                if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function') topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LỖI: HỘP XÁC NHẬN CẬP NHẬT PHÁP LÝ LẶP LẠI LẦN 2!");
+                                return;
+                            }
+
                             // Đúng hộp thoại mong đợi: bấm Đồng ý
                             const agreeBtn = jconfirmBox.querySelector('.jconfirm-buttons .btn-orange, .jconfirm-buttons button:first-child');
                             if (agreeBtn && !agreeBtn.hasAttribute('data-mplis-clicked')) {
@@ -135,6 +147,8 @@ import { createModuleRuntime } from './module-runtime.js';
                                 const jq = (typeof unsafeWindow !== 'undefined' && unsafeWindow.$) ? unsafeWindow.$ : null;
                                 if (jq) jq(agreeBtn).click();
                                 else clickElement(agreeBtn);
+
+                                if (isQT1Confirm) topState.qt1ConfirmStreak = (topState.qt1ConfirmStreak || 0) + 1;
 
                                 incrementSuccess();
                                 updateStatus("Chờ xử lý...", "waiting");
@@ -1020,6 +1034,7 @@ import { createModuleRuntime } from './module-runtime.js';
                         const execBtn = visibleExecBtns[0];
                         setLastActionTime(now, topState.config.delayAction);
                         writeLog("Tìm thấy nút 'Thực hiện'. Đang click...");
+                        topState.qt1ConfirmStreak = 0; // Bắt đầu lượt cập nhật pháp lý mới, reset đếm lặp hộp xác nhận
                         clickElement(execBtn);
                         updateStatus("Chờ xác nhận...", "waiting");
                         return;
