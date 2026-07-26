@@ -228,11 +228,26 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         // Tabs
         document.querySelectorAll('.mplis-tab').forEach(tab => {
             tab.onclick = () => {
+                const content = document.querySelector('.mplis-content');
+                const startHeight = content.getBoundingClientRect().height;
+
                 document.querySelectorAll('.mplis-tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.mplis-panel-body').forEach(b => b.classList.remove('active'));
                 tab.classList.add('active');
                 const targetId = tab.getAttribute('data-tab');
                 document.getElementById(targetId).classList.add('active');
+
+                // Các tab có độ dài nội dung khác nhau rất nhiều (VD: "Xử lý quy trình" dài hơn hẳn
+                // "Trả hồ sơ"), nên đổi tab tức thì làm cả khung panel (neo theo "bottom") nhảy cao/thấp
+                // đột ngột, nhìn giật. Thay vì chặn cứng 1 chiều cao, đo chiều cao thật của tab mới rồi
+                // chuyển min-height mượt từ chiều cao cũ sang chiều cao mới (kỹ thuật FLIP).
+                content.style.transition = 'none';
+                content.style.minHeight = '0px';
+                const endHeight = content.scrollHeight;
+                content.style.minHeight = startHeight + 'px';
+                void content.offsetHeight; // ép trình duyệt áp dụng ngay chiều cao cũ trước khi bật lại transition
+                content.style.transition = '';
+                requestAnimationFrame(() => { content.style.minHeight = endHeight + 'px'; });
 
                 // Pause the other tools automatically when switching tabs
                 if (targetId === 'tab-process') {

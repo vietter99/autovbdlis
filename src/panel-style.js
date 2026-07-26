@@ -45,7 +45,7 @@
         .mplis-tab-toggle:hover { color: var(--mplis-text); }
         .mplis-tab-toggle.expanded { color: var(--mplis-accent-2); }
 
-        .mplis-content { flex: 1; min-width: 0; min-height: 320px; overflow-y: auto; padding: 18px; }
+        .mplis-content { flex: 1; min-width: 0; min-height: 320px; overflow-y: auto; padding: 18px; transition: min-height 0.22s ease; }
         .mplis-content::-webkit-scrollbar, .mplis-tabs::-webkit-scrollbar { width: 6px; }
         .mplis-content::-webkit-scrollbar-thumb, .mplis-tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 

@@ -210,7 +210,7 @@
         .mplis-tab-toggle:hover { color: var(--mplis-text); }
         .mplis-tab-toggle.expanded { color: var(--mplis-accent-2); }
 
-        .mplis-content { flex: 1; min-width: 0; min-height: 320px; overflow-y: auto; padding: 18px; }
+        .mplis-content { flex: 1; min-width: 0; min-height: 320px; overflow-y: auto; padding: 18px; transition: min-height 0.22s ease; }
         .mplis-content::-webkit-scrollbar, .mplis-tabs::-webkit-scrollbar { width: 6px; }
         .mplis-content::-webkit-scrollbar-thumb, .mplis-tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 
@@ -3287,11 +3287,22 @@
     };
     document.querySelectorAll(".mplis-tab").forEach((tab) => {
       tab.onclick = () => {
+        const content = document.querySelector(".mplis-content");
+        const startHeight = content.getBoundingClientRect().height;
         document.querySelectorAll(".mplis-tab").forEach((t) => t.classList.remove("active"));
         document.querySelectorAll(".mplis-panel-body").forEach((b) => b.classList.remove("active"));
         tab.classList.add("active");
         const targetId = tab.getAttribute("data-tab");
         document.getElementById(targetId).classList.add("active");
+        content.style.transition = "none";
+        content.style.minHeight = "0px";
+        const endHeight = content.scrollHeight;
+        content.style.minHeight = startHeight + "px";
+        void content.offsetHeight;
+        content.style.transition = "";
+        requestAnimationFrame(() => {
+          content.style.minHeight = endHeight + "px";
+        });
         if (targetId === "tab-process") {
           if (ReturnModule.getTopState()?.isRunning) toggleReturn();
         } else if (targetId === "tab-return") {
