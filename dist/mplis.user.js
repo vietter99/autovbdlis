@@ -2451,6 +2451,75 @@
     return { init };
   }();
 
+  // src/so-dia-chinh-shared.js
+  var LOGGED_KEY = "mplis_sodiachinh_logged";
+  var SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
+  var _pendingKeys = /* @__PURE__ */ new Set();
+  function isSoDiaChinhLogged(key) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(LOGGED_KEY) || "{}");
+      return !!stored[key];
+    } catch (e) {
+      return false;
+    }
+  }
+  function isSoDiaChinhPendingOrLogged(key) {
+    return _pendingKeys.has(key) || isSoDiaChinhLogged(key);
+  }
+  function markSoDiaChinhLogged(key) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(LOGGED_KEY) || "{}");
+      stored[key] = true;
+      localStorage.setItem(LOGGED_KEY, JSON.stringify(stored));
+    } catch (e) {
+    }
+    _pendingKeys.delete(key);
+  }
+  function getSoDiaChinhSheetUrl() {
+    try {
+      return (localStorage.getItem(SHEET_URL_KEY) || "").trim();
+    } catch (e) {
+      return "";
+    }
+  }
+  function setSoDiaChinhStatus(text, ok) {
+    const el = document.getElementById("excel-sheet-status");
+    if (!el) return;
+    el.textContent = text;
+    el.style.color = ok ? "#22c55e" : "#f43f5e";
+  }
+  function pushSoDiaChinh(key, record) {
+    const url = getSoDiaChinhSheetUrl();
+    if (!url) return;
+    if (typeof GM_xmlhttpRequest === "undefined") return;
+    _pendingKeys.add(key);
+    GM_xmlhttpRequest({
+      method: "POST",
+      url,
+      data: JSON.stringify({ bucket: "sodiachinh", ...record }),
+      headers: { "Content-Type": "application/json" },
+      onload: function(res) {
+        try {
+          const body = JSON.parse(res.responseText);
+          if (body.ok) {
+            setSoDiaChinhStatus("✅ đã đồng bộ (Sổ địa chính)", true);
+            markSoDiaChinhLogged(key);
+          } else {
+            setSoDiaChinhStatus("❌ " + (body.error || "lỗi"), false);
+            _pendingKeys.delete(key);
+          }
+        } catch (e) {
+          setSoDiaChinhStatus("❌ phản hồi lạ", false);
+          _pendingKeys.delete(key);
+        }
+      },
+      onerror: function() {
+        setSoDiaChinhStatus("❌ lỗi kết nối", false);
+        _pendingKeys.delete(key);
+      }
+    });
+  }
+
   // src/excel-module.js
   var ExcelModule = function() {
     const BIEN_DONG_CODE_MAP = {
@@ -2495,7 +2564,7 @@
         return "";
       }
     }
-    function getSheetUrl2() {
+    function getSheetUrl() {
       try {
         return (localStorage.getItem(SHEET_URL_KEY2) || "").trim();
       } catch (e) {
@@ -2511,7 +2580,7 @@
     function pushRecordToSheet(r) {
       const bucket = getBucket(r);
       if (!PUSHABLE_BUCKETS.includes(bucket)) return;
-      const url = getSheetUrl2();
+      const url = getSheetUrl();
       if (!url) return;
       if (typeof GM_xmlhttpRequest === "undefined") return;
       const payload = {
@@ -2555,7 +2624,7 @@
       renderTable();
       const sheetUrlInput = document.getElementById("cfg-excel-sheet-url");
       if (sheetUrlInput) {
-        sheetUrlInput.value = getSheetUrl2();
+        sheetUrlInput.value = getSheetUrl();
         sheetUrlInput.oninput = () => {
           try {
             localStorage.setItem(SHEET_URL_KEY2, sheetUrlInput.value.trim());
@@ -2828,6 +2897,33 @@
           }
         }
         if (!gcn) gcn = "CHƯA RÕ";
+        if (gcnAnchor && gcn && gcn !== "CHƯA RÕ" && !isSoDiaChinhPendingOrLogged(gcn)) {
+          const fullText = gcnAnchor.textContent;
+          let ngayVaoSo = "";
+          const mNgay = fullText.match(/Ngày vào sổ:\s*([\d\/]+)/i);
+          if (mNgay) ngayVaoSo = mNgay[1].trim();
+          let xaGCN = "";
+          const mXa = fullText.match(/Đơn vị hành chính:\s*([^,]+)/i);
+          if (mXa) xaGCN = mXa[1].trim().replace(/^xã |^phường |^thị trấn /i, "").toUpperCase();
+          let nguoiDuocCapGCN = "";
+          const thongTinChuLi = Array.from(gcnLi.querySelectorAll("li.jstree-node")).find((li) => {
+            const a = li.querySelector(":scope > a.jstree-anchor");
+            return a && a.textContent.includes("Thông tin chủ");
+          });
+          if (thongTinChuLi) {
+            const ownerNames = Array.from(thongTinChuLi.querySelectorAll("a.jstree-anchor")).map((a) => {
+              const mOwner = a.textContent.match(/(?:Ông|Bà):\s*([^-]+?)\s*-/);
+              return mOwner ? mOwner[1].trim() : "";
+            }).filter(Boolean);
+            nguoiDuocCapGCN = ownerNames.join(", ").toUpperCase();
+          }
+          pushSoDiaChinh(gcn, {
+            nguoiDuocCap: nguoiDuocCapGCN,
+            soPhatHanh: gcn,
+            ngayKyGCN: ngayVaoSo,
+            xa: xaGCN
+          });
+        }
         const thuaNodes = Array.from(gcnLi.querySelectorAll("li.jstree-node")).filter((li) => {
           const a = li.querySelector(":scope > a.jstree-anchor");
           return a && a.textContent.includes("Thửa đất");
@@ -3628,128 +3724,6 @@
     if (!maHS) return;
     saveBienDongCode(maHS, code);
   }, 1e3);
-
-  // src/so-dia-chinh-capture.js
-  var LOGGED_KEY = "mplis_sodiachinh_logged";
-  var SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
-  function isLogged(soPhatHanh) {
-    try {
-      const stored = JSON.parse(localStorage.getItem(LOGGED_KEY) || "{}");
-      return !!stored[soPhatHanh];
-    } catch (e) {
-      return false;
-    }
-  }
-  function markLogged(soPhatHanh) {
-    try {
-      const stored = JSON.parse(localStorage.getItem(LOGGED_KEY) || "{}");
-      stored[soPhatHanh] = true;
-      localStorage.setItem(LOGGED_KEY, JSON.stringify(stored));
-    } catch (e) {
-    }
-  }
-  function getSheetUrl() {
-    try {
-      return (localStorage.getItem(SHEET_URL_KEY) || "").trim();
-    } catch (e) {
-      return "";
-    }
-  }
-  function setStatus(text, ok) {
-    const el = document.getElementById("excel-sheet-status");
-    if (!el) return;
-    el.textContent = text;
-    el.style.color = ok ? "#22c55e" : "#f43f5e";
-  }
-  function findXaForMaHS(maHS) {
-    if (!maHS) return "";
-    const trs = Array.from(document.querySelectorAll('tr[role="row"]'));
-    for (const tr of trs) {
-      if (tr.textContent.includes(maHS)) {
-        const col1 = tr.querySelector(".col-md-3:nth-child(1)");
-        if (col1) {
-          const mapMarker = col1.querySelector(".fa-map-marker");
-          if (mapMarker && mapMarker.parentNode) {
-            let fullAddr = mapMarker.parentNode.textContent.trim();
-            fullAddr = fullAddr.split("(")[0].trim();
-            fullAddr = fullAddr.replace(/xã |phường |thị trấn /gi, "").trim();
-            return fullAddr.toUpperCase();
-          }
-        }
-        break;
-      }
-    }
-    return "";
-  }
-  function pushSoDiaChinh(record, onSuccess) {
-    const url = getSheetUrl();
-    if (!url) return;
-    if (typeof GM_xmlhttpRequest === "undefined") return;
-    GM_xmlhttpRequest({
-      method: "POST",
-      url,
-      data: JSON.stringify({ bucket: "sodiachinh", ...record }),
-      headers: { "Content-Type": "application/json" },
-      onload: function(res) {
-        try {
-          const body = JSON.parse(res.responseText);
-          if (body.ok) {
-            setStatus("✅ đã đồng bộ (Sổ địa chính)", true);
-            if (onSuccess) onSuccess();
-          } else {
-            setStatus("❌ " + (body.error || "lỗi"), false);
-          }
-        } catch (e) {
-          setStatus("❌ phản hồi lạ", false);
-        }
-      },
-      onerror: function() {
-        setStatus("❌ lỗi kết nối", false);
-      }
-    });
-  }
-  var _lastDebugLog = 0;
-  setInterval(() => {
-    const table = document.getElementById("tblGiayChungNhan");
-    if (!table) return;
-    try {
-      if (table.getBoundingClientRect().width === 0) return;
-    } catch (e) {
-      return;
-    }
-    const maHS = findCurrentMaHS();
-    const xa = findXaForMaHS(maHS);
-    const rows = Array.from(table.querySelectorAll('tbody tr[role="row"]'));
-    const now = Date.now();
-    if (now - _lastDebugLog > 5e3) {
-      _lastDebugLog = now;
-      console.log(`[SoDiaChinh] Thấy bảng #tblGiayChungNhan, ${rows.length} dòng. maHS=${maHS || "(rỗng)"}, xa=${xa || "(rỗng)"}, sheetUrl=${getSheetUrl() ? "đã cấu hình" : "(CHƯA DÁN LINK)"}`);
-      rows.forEach((tr, i) => {
-        const cells = Array.from(tr.querySelectorAll("td"));
-        const loaiGiay = cells[0] ? (cells[0].textContent || "").trim() : "(không đủ cột)";
-        const soPhatHanh = cells[2] ? (cells[2].textContent || "").trim() : "";
-        const ngayVaoSo = cells[5] ? (cells[5].textContent || "").trim() : "";
-        console.log(`[SoDiaChinh] Dòng ${i}: loaiGiay="${loaiGiay}" | soPhatHanh="${soPhatHanh}" | ngayVaoSo="${ngayVaoSo}" | đã ghi trước đó=${soPhatHanh ? isLogged(soPhatHanh) : "n/a"}`);
-      });
-    }
-    rows.forEach((tr) => {
-      const cells = Array.from(tr.querySelectorAll("td"));
-      if (cells.length < 6) return;
-      const loaiGiay = (cells[0].textContent || "").trim();
-      if (loaiGiay !== "Giấy in mới") return;
-      const nguoiDuocCap = (cells[1].textContent || "").trim().toUpperCase();
-      const soPhatHanh = (cells[2].textContent || "").trim();
-      const ngayVaoSo = (cells[5].textContent || "").trim();
-      if (!soPhatHanh || !ngayVaoSo) return;
-      if (isLogged(soPhatHanh)) return;
-      pushSoDiaChinh({
-        nguoiDuocCap,
-        soPhatHanh,
-        ngayKyGCN: ngayVaoSo,
-        xa
-      }, () => markLogged(soPhatHanh));
-    });
-  }, 1500);
 
   // src/main.js
   if (window === window.top) {

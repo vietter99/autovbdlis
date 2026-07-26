@@ -1,4 +1,5 @@
 import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './utils.js';
+import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shared.js';
 
     const ExcelModule = (function () {
         // Mã loại biến động (bắt lúc QT1 bởi bien-dong-capture.js) -> tên gọi đầy đủ.
@@ -407,6 +408,44 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
                     }
                 }
                 if (!gcn) gcn = 'CHƯA RÕ';
+
+                // Sổ địa chính: nguồn DUY NHẤT là cây QT3 (đã bỏ nguồn dự phòng #tblGiayChungNhan
+                // ở QT1/QT2 vì 2 nguồn cùng ghi gây trùng dữ liệu trên Sheet). Đẩy 1 lần cho mỗi
+                // GCN (không lặp theo từng thửa bên trong). Không có "Ngày vào sổ" thì vẫn đẩy
+                // (để trống ngày) - người dùng tự ghi tay cột đó trong Sheet.
+                if (gcnAnchor && gcn && gcn !== 'CHƯA RÕ' && !isSoDiaChinhPendingOrLogged(gcn)) {
+                    const fullText = gcnAnchor.textContent;
+
+                    let ngayVaoSo = '';
+                    const mNgay = fullText.match(/Ngày vào sổ:\s*([\d\/]+)/i);
+                    if (mNgay) ngayVaoSo = mNgay[1].trim();
+
+                    let xaGCN = '';
+                    const mXa = fullText.match(/Đơn vị hành chính:\s*([^,]+)/i);
+                    if (mXa) xaGCN = mXa[1].trim().replace(/^xã |^phường |^thị trấn /i, '').toUpperCase();
+
+                    let nguoiDuocCapGCN = '';
+                    const thongTinChuLi = Array.from(gcnLi.querySelectorAll('li.jstree-node')).find(li => {
+                        const a = li.querySelector(':scope > a.jstree-anchor');
+                        return a && a.textContent.includes('Thông tin chủ');
+                    });
+                    if (thongTinChuLi) {
+                        const ownerNames = Array.from(thongTinChuLi.querySelectorAll('a.jstree-anchor'))
+                            .map(a => {
+                                const mOwner = a.textContent.match(/(?:Ông|Bà):\s*([^-]+?)\s*-/);
+                                return mOwner ? mOwner[1].trim() : '';
+                            })
+                            .filter(Boolean);
+                        nguoiDuocCapGCN = ownerNames.join(', ').toUpperCase();
+                    }
+
+                    pushSoDiaChinh(gcn, {
+                        nguoiDuocCap: nguoiDuocCapGCN,
+                        soPhatHanh: gcn,
+                        ngayKyGCN: ngayVaoSo,
+                        xa: xaGCN
+                    });
+                }
 
                 // Tìm các Thửa đất nằm bên trong GCN này (Hỗ trợ 1 GCN nhiều Thửa)
                 const thuaNodes = Array.from(gcnLi.querySelectorAll('li.jstree-node')).filter(li => {
