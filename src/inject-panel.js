@@ -122,6 +122,7 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                             <button class="mplis-excel-filter" data-excel-bucket="thechap" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Thế chấp</button>
                             <button class="mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
                             <button class="mplis-excel-filter" data-excel-bucket="khac" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Khác</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="sodiachinh" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Địa chính</button>
                         </div>
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
                             <button id="btn-toggle-sheet-cfg" class="mplis-btn-ghost" style="padding:4px 7px; font-size:11px; border-radius:6px; flex-shrink:0;" title="Cấu hình link Google Sheet (của tôi)">🔗</button>

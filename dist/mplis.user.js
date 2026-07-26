@@ -2540,10 +2540,14 @@
       ...MY_COMMUNES.map((c) => ({ key: c.key, label: c.label, rich: true })),
       { key: "thechap", label: "Thế chấp", rich: false },
       { key: "xacnhan", label: "Xác nhận", rich: false },
-      { key: "khac", label: "Khác", rich: true }
+      { key: "khac", label: "Khác", rich: true },
+      // Bảng riêng để xem lại dữ liệu đã đẩy vào "Sổ địa chính" (kiểm tra bằng mắt, không
+      // qua getBucket() vì đây là 1 tập dữ liệu hoàn toàn khác cấu trúc - xem sodiachinhRecords).
+      { key: "sodiachinh", label: "Địa chính", rich: false, isSoDiaChinh: true }
     ];
     let state = {
       records: [],
+      sodiachinhRecords: [],
       currentBucket: "all"
     };
     const SHEET_URL_KEY2 = "mplis_excel_sheet_url_mine";
@@ -2646,8 +2650,13 @@
           e.stopPropagation();
           const bucketDef = BUCKETS.find((b) => b.key === state.currentBucket);
           if (unsafeWindow.confirm(`Xóa toàn bộ hồ sơ trong bảng "${bucketDef ? bucketDef.label : ""}" đang xem?`)) {
-            state.records = state.currentBucket === "all" ? [] : state.records.filter((r) => getBucket(r) !== state.currentBucket);
-            saveState();
+            if (state.currentBucket === "sodiachinh") {
+              state.sodiachinhRecords = [];
+              saveSoDiaChinhCart();
+            } else {
+              state.records = state.currentBucket === "all" ? [] : state.records.filter((r) => getBucket(r) !== state.currentBucket);
+              saveState();
+            }
             renderTable();
           }
           return;
@@ -2672,7 +2681,13 @@
           e.preventDefault();
           e.stopPropagation();
           const idx = parseInt(btnDeleteRow.getAttribute("data-idx"));
-          if (!isNaN(idx) && state.records[idx]) {
+          if (state.currentBucket === "sodiachinh") {
+            if (!isNaN(idx) && state.sodiachinhRecords[idx]) {
+              state.sodiachinhRecords.splice(idx, 1);
+              saveSoDiaChinhCart();
+              renderTable();
+            }
+          } else if (!isNaN(idx) && state.records[idx]) {
             state.records.splice(idx, 1);
             saveState();
             renderTable();
@@ -2697,9 +2712,17 @@
         if (stored) state.records = JSON.parse(stored);
       } catch (e) {
       }
+      try {
+        const storedSDC = localStorage.getItem("mplis_sodiachinh_cart");
+        if (storedSDC) state.sodiachinhRecords = JSON.parse(storedSDC);
+      } catch (e) {
+      }
     }
     function saveState() {
       localStorage.setItem("mplis_excel_cart", JSON.stringify(state.records));
+    }
+    function saveSoDiaChinhCart() {
+      localStorage.setItem("mplis_sodiachinh_cart", JSON.stringify(state.sodiachinhRecords));
     }
     function renderFilterTabs() {
       const bar = document.getElementById("excel-filter-bar");
@@ -2709,6 +2732,9 @@
       });
     }
     function getVisibleRecords() {
+      if (state.currentBucket === "sodiachinh") {
+        return state.sodiachinhRecords.map((r, idx) => ({ r, idx }));
+      }
       const all = state.records.map((r, idx) => ({ r, idx }));
       if (state.currentBucket === "all") return all;
       return all.filter(({ r }) => getBucket(r) === state.currentBucket);
@@ -2721,7 +2747,27 @@
       const bucketDef = BUCKETS.find((b) => b.key === state.currentBucket) || BUCKETS[0];
       const visible = getVisibleRecords();
       count.textContent = visible.length;
-      if (bucketDef.rich) {
+      if (bucketDef.isSoDiaChinh) {
+        thead.innerHTML = `
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">NGƯỜI ĐƯỢC CẤP</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">SỐ PHÁT HÀNH</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">NGÀY KÝ GCN</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">XÃ</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
+                `;
+        tbody.innerHTML = visible.map(({ r, idx }) => `
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.nguoiDuocCap || "")}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.soPhatHanh || "")}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.ngayKyGCN || "")}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.xa || "")}</td>
+                        <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
+                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
+                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
+                        </td>
+                    </tr>
+                `).join("");
+      } else if (bucketDef.rich) {
         thead.innerHTML = `
                     <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">TTHC</th>
                     <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">B.NHẬN</th>
@@ -2807,10 +2853,14 @@
         r.dtSKC || ""
       ].join("	");
     }
+    function getSoDiaChinhRowText(r) {
+      return [r.nguoiDuocCap || "", r.soPhatHanh || "", r.ngayKyGCN || "", r.xa || ""].join("	");
+    }
     function copyRowToExcel(idx, btn) {
-      const r = state.records[idx];
+      const isSDC = state.currentBucket === "sodiachinh";
+      const r = isSDC ? state.sodiachinhRecords[idx] : state.records[idx];
       if (!r) return;
-      const text = getRowText(r);
+      const text = isSDC ? getSoDiaChinhRowText(r) : getRowText(r);
       fallbackCopyTextToClipboard(text).then(() => {
         btn.className = "fa fa-check btn-copy-row";
         btn.style.color = "#10b981";
@@ -2826,7 +2876,8 @@
         unsafeWindow.alert("Không có dữ liệu trong bảng đang xem!");
         return;
       }
-      const text = visible.map(({ r }) => getRowText(r)).join("\n");
+      const textFn = state.currentBucket === "sodiachinh" ? getSoDiaChinhRowText : getRowText;
+      const text = visible.map(({ r }) => textFn(r)).join("\n");
       fallbackCopyTextToClipboard(text).then(() => {
         const btn = document.getElementById("btn-excel-copy");
         const oldText = btn.innerHTML;
@@ -2917,12 +2968,18 @@
             }).filter(Boolean);
             nguoiDuocCapGCN = ownerNames.join(", ").toUpperCase();
           }
-          pushSoDiaChinh(gcn, {
+          const sdcRecord = {
             nguoiDuocCap: nguoiDuocCapGCN,
             soPhatHanh: gcn,
             ngayKyGCN: ngayVaoSo,
             xa: xaGCN
-          });
+          };
+          if (!state.sodiachinhRecords.some((r) => r.soPhatHanh === gcn)) {
+            state.sodiachinhRecords.push(sdcRecord);
+            saveSoDiaChinhCart();
+            renderTable();
+          }
+          pushSoDiaChinh(gcn, sdcRecord);
         }
         const thuaNodes = Array.from(gcnLi.querySelectorAll("li.jstree-node")).filter((li) => {
           const a = li.querySelector(":scope > a.jstree-anchor");
@@ -3476,6 +3533,7 @@
                             <button class="mplis-excel-filter" data-excel-bucket="thechap" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Thế chấp</button>
                             <button class="mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
                             <button class="mplis-excel-filter" data-excel-bucket="khac" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Khác</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="sodiachinh" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Địa chính</button>
                         </div>
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
                             <button id="btn-toggle-sheet-cfg" class="mplis-btn-ghost" style="padding:4px 7px; font-size:11px; border-radius:6px; flex-shrink:0;" title="Cấu hình link Google Sheet (của tôi)">🔗</button>
