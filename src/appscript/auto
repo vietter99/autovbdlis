@@ -1,0 +1,114 @@
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    if (data.bucket === 'sodiachinh') {
+      return handleSoDiaChinh(ss, data);
+    }
+    if (data.bucket === 'thechap') {
+      return handleTheChap(ss, data);
+    }
+    return handleXaTable(ss, data);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: String(err) }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// Ghi vào 1 trong 5 tab theo xã (Krông Năng / Phú Xuân / Tam Giang / Dliê Ya / Khác)
+function handleXaTable(ss, data) {
+  var TAB_NAMES = {
+    krongnang: 'Krông Năng',
+    phuxuan: 'Phú Xuân',
+    tamgiang: 'Tam Giang',
+    dlieya: 'Dliê Ya',
+    khac: 'Khác'
+  };
+
+  var tabName = TAB_NAMES[data.bucket];
+  if (!tabName) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Unknown bucket: ' + data.bucket }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var sheet = ss.getSheetByName(tabName);
+  if (!sheet) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sheet not found: ' + tabName }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Tìm dòng trống kế tiếp dựa theo cột C (Tên TTHC), KHÔNG dùng getLastRow()
+  // vì cột B có công thức kéo sẵn xuống nhiều dòng, sẽ làm getLastRow() trả về sai.
+  var colC = sheet.getRange('C:C').getValues();
+  var lastRow = colC.length;
+  while (lastRow > 0 && colC[lastRow - 1][0] === '') lastRow--;
+  var targetRow = lastRow + 1;
+  if (targetRow < 7) targetRow = 7; // dữ liệu bắt đầu từ dòng 7
+
+  // Ghi từ cột C (Tên TTHC) đến cột O (HNK)
+  sheet.getRange(targetRow, 3, 1, 13).setValues([[
+    data.tenTTHC || '', data.maHS || '', data.hoTen || '', data.xa || '',
+    data.gcn || '', data.thua || '', data.to || '', data.dienTich || '',
+    data.datO || '', data.cln || '', data.lua || '', data.nts || '', data.hnk || ''
+  ]]);
+
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, row: targetRow }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Ghi vào tab "Sổ địa chính" (sổ cấp GCN)
+function handleSoDiaChinh(ss, data) {
+  var sheet = ss.getSheetByName('Sổ địa chính');
+  if (!sheet) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sheet not found: Sổ địa chính' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Tìm dòng trống kế tiếp dựa theo cột B (Tên người được cấp), tương tự lý do ở trên
+  var colB = sheet.getRange('B:B').getValues();
+  var lastRow = colB.length;
+  while (lastRow > 0 && colB[lastRow - 1][0] === '') lastRow--;
+  var targetRow = lastRow + 1;
+  if (targetRow < 13) targetRow = 13; // dữ liệu bắt đầu từ dòng 13
+
+  // Ghi cột B (Tên người được cấp), C (Số phát hành), D (Ngày ký GCN)
+  sheet.getRange(targetRow, 2, 1, 3).setValues([[
+    data.nguoiDuocCap || '', data.soPhatHanh || '', data.ngayKyGCN || ''
+  ]]);
+  // Cột G (Xã) - không liền với B:D nên ghi riêng
+  sheet.getRange(targetRow, 7, 1, 1).setValue(data.xa || '');
+
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, row: targetRow }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Ghi vào tab "Thế chấp" (chỉ 1 dòng tiêu đề, dữ liệu bắt đầu từ dòng 2)
+function handleTheChap(ss, data) {
+  var sheet = ss.getSheetByName('Thế chấp');
+  if (!sheet) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sheet not found: Thế chấp' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Tìm dòng trống kế tiếp dựa theo cột C (Mã hồ sơ)
+  var colC = sheet.getRange('C:C').getValues();
+  var lastRow = colC.length;
+  while (lastRow > 0 && colC[lastRow - 1][0] === '') lastRow--;
+  var targetRow = lastRow + 1;
+  if (targetRow < 2) targetRow = 2; // dữ liệu bắt đầu từ dòng 2
+
+  sheet.getRange(targetRow, 1).setValue(targetRow - 1); // STT = số thứ tự dòng
+
+  // Ghi từ cột B (Loại HS) đến cột P (Ngày)
+  sheet.getRange(targetRow, 2, 1, 15).setValues([[
+    data.loaiHS || '', data.maHS || '', data.hoTen || '', data.diaChi || '',
+    data.gcn || '', data.thua || '', data.to || '', data.dienTich || '',
+    data.datO || '', data.cln || '', data.tsn || '', data.lua || '', data.hnk || '',
+    data.skc || '', data.ngay || ''
+    // Cột Q (Giờ hẹn trả) cố tình bỏ trống - ghi tay
+  ]]);
+
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, row: targetRow }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
