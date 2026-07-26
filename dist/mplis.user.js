@@ -2452,6 +2452,18 @@
           copyRowToExcel(idx, btnCopyRow, true);
           return;
         }
+        const btnDeleteRow = e.target.closest(".btn-delete-row");
+        if (btnDeleteRow) {
+          e.preventDefault();
+          e.stopPropagation();
+          const idx = parseInt(btnDeleteRow.getAttribute("data-idx"));
+          if (!isNaN(idx) && state.records[idx]) {
+            state.records.splice(idx, 1);
+            saveState();
+            renderTable();
+          }
+          return;
+        }
       }, true);
       setInterval(scanTree, 1e3);
     }
@@ -2477,8 +2489,9 @@
                     <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
                     <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
                     <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
-                    <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center;">
+                    <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
                         <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
+                        <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
                     </td>
                 </tr>
             `).join("");
