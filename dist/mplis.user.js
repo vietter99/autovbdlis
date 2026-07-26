@@ -200,13 +200,17 @@
         /* ---- Shell: nav rail (trái) + nội dung (phải) ---- */
         .mplis-shell { display: flex; flex: 1; min-height: 0; }
 
-        .mplis-tabs { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 56px; flex-shrink: 0; padding: 12px 0; background: rgba(0,0,0,0.18); border-right: 1px solid var(--mplis-border); overflow-y: auto; }
-        .mplis-tab { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 11px; color: var(--mplis-text-dim); font-size: 18px; cursor: pointer; transition: all 0.15s ease; position: relative; }
+        .mplis-tabs { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 56px; flex-shrink: 0; padding: 12px 0; background: rgba(0,0,0,0.18); border-right: 1px solid var(--mplis-border); overflow-y: auto; overflow-x: visible; }
+        .mplis-tab { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 11px; color: var(--mplis-text-dim); font-size: 18px; cursor: pointer; transition: all 0.15s ease; position: relative; flex-shrink: 0; }
         .mplis-tab:hover { color: var(--mplis-text); background: var(--mplis-surface); }
         .mplis-tab.active { color: #fff; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5); box-shadow: 0 4px 14px rgba(99,102,241,0.45); }
         .mplis-tab[title]:hover::after { content: attr(title); position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 10px; background: #1e293b; color: #f1f5f9; font-size: 11px; font-weight: 600; padding: 5px 9px; border-radius: 6px; white-space: nowrap; box-shadow: 0 6px 16px rgba(0,0,0,0.4); pointer-events: none; z-index: 10; }
 
-        .mplis-content { flex: 1; min-width: 0; overflow-y: auto; padding: 18px; }
+        .mplis-tab-toggle { width: 40px; height: 26px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-top: 1px dashed var(--mplis-border); margin-top: 6px; color: var(--mplis-text-dim); font-size: 15px; letter-spacing: 1px; cursor: pointer; transition: color 0.15s ease; }
+        .mplis-tab-toggle:hover { color: var(--mplis-text); }
+        .mplis-tab-toggle.expanded { color: var(--mplis-accent-2); }
+
+        .mplis-content { flex: 1; min-width: 0; min-height: 320px; overflow-y: auto; padding: 18px; }
         .mplis-content::-webkit-scrollbar, .mplis-tabs::-webkit-scrollbar { width: 6px; }
         .mplis-content::-webkit-scrollbar-thumb, .mplis-tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 
@@ -3100,9 +3104,10 @@
                     <button class="mplis-tab active" data-tab="tab-process" title="Xử lý Quy trình">⚙️</button>
                     <button class="mplis-tab" data-tab="tab-alert" title="Nhắc nhở hồ sơ trễ hạn">⏰</button>
                     <button class="mplis-tab" data-tab="tab-excel" title="Xuất dữ liệu Excel">📊</button>
-                    <button class="mplis-tab" data-tab="tab-return" title="Trả hồ sơ">📬</button>
-                    <button class="mplis-tab" data-tab="tab-update" title="Auto sửa Thửa/Tờ">🔄</button>
                     <button class="mplis-tab" data-tab="tab-settings" title="Cài đặt">🛠️</button>
+                    <button class="mplis-tab mplis-tab-extra" data-tab="tab-return" title="Trả hồ sơ" style="display:none;">📬</button>
+                    <button class="mplis-tab mplis-tab-extra" data-tab="tab-update" title="Auto sửa Thửa/Tờ" style="display:none;">🔄</button>
+                    <button class="mplis-tab-toggle" id="mplis-btn-toggle-extra" title="Hiện thêm tab (Trả hồ sơ / Auto sửa Thửa-Tờ)">⋯</button>
                 </div>
 
                 <div class="mplis-content">
@@ -3293,6 +3298,30 @@
         }
       };
     });
+    const extraTabs = document.querySelectorAll(".mplis-tab-extra");
+    const btnToggleExtra = document.getElementById("mplis-btn-toggle-extra");
+    function setExtraTabsVisible(visible) {
+      extraTabs.forEach((t) => {
+        t.style.display = visible ? "" : "none";
+      });
+      if (btnToggleExtra) {
+        btnToggleExtra.classList.toggle("expanded", visible);
+        btnToggleExtra.title = visible ? "Ẩn bớt tab (Trả hồ sơ / Auto sửa Thửa-Tờ)" : "Hiện thêm tab (Trả hồ sơ / Auto sửa Thửa-Tờ)";
+      }
+      localStorage.setItem("mplis_extra_tabs_visible", visible ? "true" : "false");
+    }
+    let extraTabsVisible = localStorage.getItem("mplis_extra_tabs_visible") === "true";
+    setExtraTabsVisible(extraTabsVisible);
+    if (btnToggleExtra) {
+      btnToggleExtra.onclick = () => {
+        extraTabsVisible = !extraTabsVisible;
+        setExtraTabsVisible(extraTabsVisible);
+        if (!extraTabsVisible) {
+          const activeExtra = Array.from(extraTabs).find((t) => t.classList.contains("active"));
+          if (activeExtra) document.querySelector('.mplis-tab[data-tab="tab-process"]').click();
+        }
+      };
+    }
     document.getElementById("chk-qt5").onchange = (e) => {
       const checked = e.target.checked;
       document.getElementById("fw-user-group").style.display = checked ? "block" : "none";

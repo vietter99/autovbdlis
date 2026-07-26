@@ -46,9 +46,10 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                     <button class="mplis-tab active" data-tab="tab-process" title="Xử lý Quy trình">⚙️</button>
                     <button class="mplis-tab" data-tab="tab-alert" title="Nhắc nhở hồ sơ trễ hạn">⏰</button>
                     <button class="mplis-tab" data-tab="tab-excel" title="Xuất dữ liệu Excel">📊</button>
-                    <button class="mplis-tab" data-tab="tab-return" title="Trả hồ sơ">📬</button>
-                    <button class="mplis-tab" data-tab="tab-update" title="Auto sửa Thửa/Tờ">🔄</button>
                     <button class="mplis-tab" data-tab="tab-settings" title="Cài đặt">🛠️</button>
+                    <button class="mplis-tab mplis-tab-extra" data-tab="tab-return" title="Trả hồ sơ" style="display:none;">📬</button>
+                    <button class="mplis-tab mplis-tab-extra" data-tab="tab-update" title="Auto sửa Thửa/Tờ" style="display:none;">🔄</button>
+                    <button class="mplis-tab-toggle" id="mplis-btn-toggle-extra" title="Hiện thêm tab (Trả hồ sơ / Auto sửa Thửa-Tờ)">⋯</button>
                 </div>
 
                 <div class="mplis-content">
@@ -241,6 +242,31 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                 }
             };
         });
+
+        // Ẩn/hiện 2 tab ít dùng (Trả hồ sơ, Auto sửa Thửa/Tờ) — mặc định ẩn, bấm nút "⋯" để hiện lại khi cần
+        const extraTabs = document.querySelectorAll('.mplis-tab-extra');
+        const btnToggleExtra = document.getElementById('mplis-btn-toggle-extra');
+        function setExtraTabsVisible(visible) {
+            extraTabs.forEach(t => { t.style.display = visible ? '' : 'none'; });
+            if (btnToggleExtra) {
+                btnToggleExtra.classList.toggle('expanded', visible);
+                btnToggleExtra.title = visible ? 'Ẩn bớt tab (Trả hồ sơ / Auto sửa Thửa-Tờ)' : 'Hiện thêm tab (Trả hồ sơ / Auto sửa Thửa-Tờ)';
+            }
+            localStorage.setItem('mplis_extra_tabs_visible', visible ? 'true' : 'false');
+        }
+        let extraTabsVisible = localStorage.getItem('mplis_extra_tabs_visible') === 'true';
+        setExtraTabsVisible(extraTabsVisible);
+        if (btnToggleExtra) {
+            btnToggleExtra.onclick = () => {
+                extraTabsVisible = !extraTabsVisible;
+                setExtraTabsVisible(extraTabsVisible);
+                // Nếu vừa ẩn đi mà tab đang mở lại chính là 1 trong 2 tab đó, tự quay về tab Xử lý quy trình
+                if (!extraTabsVisible) {
+                    const activeExtra = Array.from(extraTabs).find(t => t.classList.contains('active'));
+                    if (activeExtra) document.querySelector('.mplis-tab[data-tab="tab-process"]').click();
+                }
+            };
+        }
 
         // Config Process
         document.getElementById('chk-qt5').onchange = (e) => {
