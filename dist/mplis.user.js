@@ -161,6 +161,36 @@
     }
     return results;
   }
+  function findCurrentMaHS() {
+    const allNodes = Array.from(document.querySelectorAll("b, span, .modal-title, h4"));
+    const validNodes = [];
+    for (let node of allNodes) {
+      if (!node.textContent) continue;
+      const m = node.textContent.match(/[A-Z0-9]{2,}\.[A-Z0-9]{2,}\-\d{6}\-\d{4,}/i);
+      if (m) {
+        const rect = node.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          validNodes.push({ node, text: m[0] });
+        }
+      }
+    }
+    if (validNodes.length === 0) return "";
+    let targetNode = validNodes.find((item) => item.node.closest(".modal-title"));
+    if (!targetNode) {
+      const notInTable = validNodes.filter((item) => !item.node.closest("tr"));
+      if (notInTable.length > 0) targetNode = notInTable[notInTable.length - 1];
+    }
+    if (!targetNode) targetNode = validNodes[validNodes.length - 1];
+    const full = targetNode.text;
+    let maHS = "";
+    const parts = full.split("-");
+    if (parts.length >= 3) {
+      maHS = parts[1].slice(-2) + "-" + parts[2];
+    } else {
+      maHS = full.slice(-7);
+    }
+    return maHS.toUpperCase();
+  }
 
   // src/panel-style.js
   var panelStyle = `
@@ -2418,20 +2448,66 @@
   }();
 
   // src/excel-module.js
-  var ExcelModule = /* @__PURE__ */ function() {
-    let state = {
-      records: []
+  var ExcelModule = function() {
+    const BIEN_DONG_CODE_MAP = {
+      "CD": "Cấp đổi",
+      "TK": "Thừa kế"
     };
+    const MY_COMMUNES = [
+      { key: "krongnang", label: "Krông Năng", match: "KRÔNG NĂNG" },
+      { key: "phuxuan", label: "Phú Xuân", match: "PHÚ XUÂN" },
+      { key: "tamgiang", label: "Tam Giang", match: "TAM GIANG" },
+      { key: "dlieya", label: "Dliê Ya", match: "DLIÊ YA" }
+    ];
+    const BUCKETS = [
+      { key: "thechap", label: "Thế chấp", rich: false },
+      { key: "xacnhan", label: "Xác nhận", rich: false },
+      ...MY_COMMUNES.map((c) => ({ key: c.key, label: c.label, rich: true })),
+      { key: "khac", label: "Khác", rich: true }
+    ];
+    let state = {
+      records: [],
+      currentBucket: "thechap"
+    };
+    function getBucket(r) {
+      if (r.loaiHS === "TC" || r.loaiHS === "XTC") return "thechap";
+      if (r.loaiHS === "XN") return "xacnhan";
+      const dc = (r.diaChi || "").toUpperCase();
+      const commune = MY_COMMUNES.find((c) => dc === c.match);
+      return commune ? commune.key : "khac";
+    }
+    function getBienDongCode(maHS) {
+      if (!maHS) return "";
+      try {
+        const stored = JSON.parse(localStorage.getItem("mplis_bien_dong_codes") || "{}");
+        return stored[maHS] || "";
+      } catch (e) {
+        return "";
+      }
+    }
+    function findCurrentSoBienNhan() {
+      const items = Array.from(document.querySelectorAll("li.info"));
+      for (const li of items) {
+        const nameSpan = li.querySelector("span.name");
+        if (nameSpan && nameSpan.textContent.includes("Số biên nhận")) {
+          const valueSpan = li.querySelector("span.value");
+          if (valueSpan) return valueSpan.textContent.trim();
+        }
+      }
+      return "";
+    }
     function init() {
       loadState();
+      renderFilterTabs();
       renderTable();
       window.addEventListener("mousedown", (e) => {
         const btnClear = e.target.closest("#btn-excel-clear");
         if (btnClear) {
           e.preventDefault();
           e.stopPropagation();
-          if (unsafeWindow.confirm("Xóa toàn bộ hồ sơ đã lưu?")) {
-            state.records = [];
+          const bucketDef = BUCKETS.find((b) => b.key === state.currentBucket);
+          if (unsafeWindow.confirm(`Xóa toàn bộ hồ sơ trong bảng "${bucketDef ? bucketDef.label : ""}" đang xem?`)) {
+            state.records = state.records.filter((r) => getBucket(r) !== state.currentBucket);
             saveState();
             renderTable();
           }
@@ -2441,7 +2517,7 @@
         if (btnCopyAll) {
           e.preventDefault();
           e.stopPropagation();
-          copyToExcel(true);
+          copyToExcel();
           return;
         }
         const btnCopyRow = e.target.closest(".btn-copy-row");
@@ -2449,7 +2525,7 @@
           e.preventDefault();
           e.stopPropagation();
           const idx = parseInt(btnCopyRow.getAttribute("data-idx"));
-          copyRowToExcel(idx, btnCopyRow, true);
+          copyRowToExcel(idx, btnCopyRow);
           return;
         }
         const btnDeleteRow = e.target.closest(".btn-delete-row");
@@ -2462,6 +2538,15 @@
             saveState();
             renderTable();
           }
+          return;
+        }
+        const filterTab = e.target.closest(".mplis-excel-filter");
+        if (filterTab) {
+          e.preventDefault();
+          e.stopPropagation();
+          state.currentBucket = filterTab.getAttribute("data-excel-bucket");
+          renderFilterTabs();
+          renderTable();
           return;
         }
       }, true);
@@ -2477,30 +2562,80 @@
     function saveState() {
       localStorage.setItem("mplis_excel_cart", JSON.stringify(state.records));
     }
+    function renderFilterTabs() {
+      const bar = document.getElementById("excel-filter-bar");
+      if (!bar) return;
+      bar.querySelectorAll(".mplis-excel-filter").forEach((btn) => {
+        btn.classList.toggle("active", btn.getAttribute("data-excel-bucket") === state.currentBucket);
+      });
+    }
+    function getVisibleRecords() {
+      return state.records.map((r, idx) => ({ r, idx })).filter(({ r }) => getBucket(r) === state.currentBucket);
+    }
     function renderTable() {
+      const thead = document.getElementById("table-excel-cart-head");
       const tbody = document.querySelector("#table-excel-cart tbody");
       const count = document.getElementById("excel-count");
-      if (!tbody || !count) return;
-      count.textContent = state.records.length;
-      tbody.innerHTML = state.records.map((r, idx) => `
-                <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.maHS || "---")}</td>
-                    <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.gcn)}</td>
-                    <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
-                    <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
-                    <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
-                    <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
-                        <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
-                        <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
-                    </td>
-                </tr>
-            `).join("");
+      if (!thead || !tbody || !count) return;
+      const bucketDef = BUCKETS.find((b) => b.key === state.currentBucket) || BUCKETS[0];
+      const visible = getVisibleRecords();
+      count.textContent = `${visible.length}/${state.records.length}`;
+      if (bucketDef.rich) {
+        thead.innerHTML = `
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">TTHC</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">B.NHẬN</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">HỌ TÊN</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">GCN</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
+                `;
+        tbody.innerHTML = visible.map(({ r, idx }) => `
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.tenTTHCFull || "---")}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.soBienNhan || "")}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.nguoiNop || "")}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.gcn)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
+                        <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
+                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
+                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
+                        </td>
+                    </tr>
+                `).join("");
+      } else {
+        thead.innerHTML = `
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">MÃ HS</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">GCN</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
+                `;
+        tbody.innerHTML = visible.map(({ r, idx }) => `
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.maHS || "---")}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.gcn)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
+                        <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
+                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
+                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
+                        </td>
+                    </tr>
+                `).join("");
+      }
     }
-    function getRowText(r, isFull = false) {
-      if (isFull) {
+    function getRowText(r) {
+      const bucketDef = BUCKETS.find((b) => b.key === getBucket(r));
+      if (bucketDef && bucketDef.rich) {
         return [
-          r.loaiHS || "",
-          r.maHS || "",
+          r.tenTTHCFull || "",
+          r.soBienNhan || "",
           r.nguoiNop || "",
           r.diaChi || "",
           r.gcn,
@@ -2509,30 +2644,32 @@
           r.dt,
           r.dtO || "",
           r.dtCLN || "",
-          r.dtTSN || "",
           r.dtLUA || "",
-          r.dtHNK || "",
-          r.dtSKC || ""
-        ].join("	");
-      } else {
-        return [
-          r.gcn,
-          r.thua,
-          r.to,
-          r.dt,
-          r.dtO || "",
-          r.dtCLN || "",
           r.dtTSN || "",
-          r.dtLUA || "",
-          r.dtHNK || "",
-          r.dtSKC || ""
+          r.dtHNK || ""
         ].join("	");
       }
+      return [
+        r.loaiHS || "",
+        r.maHS || "",
+        r.nguoiNop || "",
+        r.diaChi || "",
+        r.gcn,
+        r.thua,
+        r.to,
+        r.dt,
+        r.dtO || "",
+        r.dtCLN || "",
+        r.dtTSN || "",
+        r.dtLUA || "",
+        r.dtHNK || "",
+        r.dtSKC || ""
+      ].join("	");
     }
-    function copyRowToExcel(idx, btn, isFull = false) {
+    function copyRowToExcel(idx, btn) {
       const r = state.records[idx];
       if (!r) return;
-      const text = getRowText(r, isFull);
+      const text = getRowText(r);
       fallbackCopyTextToClipboard(text).then(() => {
         btn.className = "fa fa-check btn-copy-row";
         btn.style.color = "#10b981";
@@ -2542,16 +2679,13 @@
         }, 1500);
       });
     }
-    function copyToExcel(isFull = false) {
-      if (state.records.length === 0) {
-        unsafeWindow.alert("Không có dữ liệu!");
+    function copyToExcel() {
+      const visible = getVisibleRecords();
+      if (visible.length === 0) {
+        unsafeWindow.alert("Không có dữ liệu trong bảng đang xem!");
         return;
       }
-      let lines = [];
-      state.records.forEach((r) => {
-        lines.push(getRowText(r, isFull));
-      });
-      const text = lines.join("\n");
+      const text = visible.map(({ r }) => getRowText(r)).join("\n");
       fallbackCopyTextToClipboard(text).then(() => {
         const btn = document.getElementById("btn-excel-copy");
         const oldText = btn.innerHTML;
@@ -2562,43 +2696,8 @@
     function scanTree() {
       const tree = document.getElementById("treeGiayChungNhan");
       if (!tree) return;
-      let maHS = "";
-      const allNodes = Array.from(document.querySelectorAll("b, span, .modal-title, h4"));
-      const validNodes = [];
-      for (let node of allNodes) {
-        if (!node.textContent) continue;
-        const m = node.textContent.match(/[A-Z0-9]{2,}\.[A-Z0-9]{2,}\-\d{6}\-\d{4,}/i);
-        if (m) {
-          const rect = node.getBoundingClientRect();
-          if (rect.width > 0 && rect.height > 0) {
-            validNodes.push({ node, text: m[0] });
-          }
-        }
-      }
-      if (validNodes.length > 0) {
-        let targetNode = null;
-        targetNode = validNodes.find((item) => item.node.closest(".modal-title"));
-        if (!targetNode) {
-          const notInTable = validNodes.filter((item) => !item.node.closest("tr"));
-          if (notInTable.length > 0) {
-            targetNode = notInTable[notInTable.length - 1];
-          }
-        }
-        if (!targetNode) {
-          targetNode = validNodes[validNodes.length - 1];
-        }
-        if (targetNode) {
-          const full = targetNode.text;
-          const parts = full.split("-");
-          if (parts.length >= 3) {
-            maHS = parts[1].slice(-2) + "-" + parts[2];
-          } else {
-            maHS = full.slice(-7);
-          }
-        }
-      }
-      if (maHS) maHS = maHS.toUpperCase();
-      let loaiHS = "", nguoiNop = "", diaChi = "";
+      const maHS = findCurrentMaHS();
+      let loaiHS = "", nguoiNop = "", diaChi = "", rawTitle = "";
       if (maHS) {
         const trs = Array.from(document.querySelectorAll('tr[role="row"]'));
         for (let tr of trs) {
@@ -2606,9 +2705,11 @@
             const col1 = tr.querySelector(".col-md-3:nth-child(1)");
             if (col1) {
               const titleDiv = col1.querySelector("div[title]");
-              const titleStr = titleDiv ? titleDiv.getAttribute("title").toLowerCase() : col1.textContent.toLowerCase();
+              rawTitle = titleDiv ? titleDiv.getAttribute("title") : col1.textContent.trim();
+              const titleStr = rawTitle.toLowerCase();
               if (titleStr.includes("xóa đăng ký thế chấp") || titleStr.includes("xóa đăng ký biện pháp bảo đảm")) loaiHS = "XTC";
               else if (titleStr.includes("đăng ký thế chấp") || titleStr.includes("đăng ký biện pháp bảo đảm")) loaiHS = "TC";
+              else if (titleStr.includes("xác nhận")) loaiHS = "XN";
               else if (titleStr.includes("tách thửa")) loaiHS = "TT";
               else if (titleStr.includes("đăng ký biến động")) loaiHS = "BĐ";
               const mapMarker = col1.querySelector(".fa-map-marker");
@@ -2628,6 +2729,12 @@
           }
         }
       }
+      const bienDongCode = getBienDongCode(maHS);
+      let tenTTHCFull = "";
+      if (bienDongCode && BIEN_DONG_CODE_MAP[bienDongCode]) tenTTHCFull = BIEN_DONG_CODE_MAP[bienDongCode];
+      else if (bienDongCode) tenTTHCFull = bienDongCode;
+      else tenTTHCFull = rawTitle;
+      const soBienNhan = findCurrentSoBienNhan();
       const gcnNodes = Array.from(tree.querySelectorAll("li.jstree-node")).filter((li) => {
         const a = li.querySelector(":scope > a.jstree-anchor");
         return a && (a.textContent.includes("Giấy chứng nhận") || a.textContent.includes("Số phát hành:"));
@@ -2683,6 +2790,8 @@
             state.records.push({
               maHS,
               loaiHS,
+              tenTTHCFull,
+              soBienNhan,
               nguoiNop,
               diaChi,
               gcn,
@@ -3185,25 +3294,27 @@
 
                     <!-- TAB 3: EXCEL -->
                     <div class="mplis-panel-body" id="tab-excel">
-                        <div style="font-size:11px; color:var(--mplis-text-dim); margin-bottom:10px;">Hồ sơ đã lưu: <b id="excel-count" style="color:#fde047;">0</b> · tự động quét khi mở QT</div>
-                        <div style="max-height:150px; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px;">
+                        <div id="excel-filter-bar" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;">
+                            <button class="mplis-filter-tab mplis-excel-filter active" data-excel-bucket="thechap" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Thế chấp</button>
+                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
+                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="krongnang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Krông Năng</button>
+                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="phuxuan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Phú Xuân</button>
+                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="tamgiang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tam Giang</button>
+                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="dlieya" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Dliê Ya</button>
+                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="khac" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Khác</button>
+                        </div>
+                        <div style="font-size:11px; color:var(--mplis-text-dim); margin-bottom:10px;">Hiển thị/Tổng: <b id="excel-count" style="color:#fde047;">0</b> · tự động quét khi mở QT</div>
+                        <div style="max-height:170px; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px;">
                             <table id="table-excel-cart" style="width:100%; font-size:10px; color:#f8fafc; border-collapse:collapse; text-align:center;">
                                 <thead>
-                                    <tr style="background:rgba(255,255,255,0.06);">
-                                        <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">MÃ HS</th>
-                                        <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">GCN</th>
-                                        <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
-                                        <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
-                                        <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
-                                        <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
-                                    </tr>
+                                    <tr style="background:rgba(255,255,255,0.06);" id="table-excel-cart-head"></tr>
                                 </thead>
                                 <tbody></tbody>
                             </table>
                         </div>
                         <div style="display:flex; gap:8px;">
-                            <button id="btn-excel-copy" class="mplis-btn-primary" style="flex:1; background:linear-gradient(135deg,#8b5cf6,#7c3aed);" title="Copy ĐẦY ĐỦ từ Loại HS">COPY</button>
-                            <button id="btn-excel-clear" class="mplis-btn-primary" style="flex:0.35; background:linear-gradient(135deg,#f43f5e,#e11d48);" title="Xóa">XÓA</button>
+                            <button id="btn-excel-copy" class="mplis-btn-primary" style="flex:1; background:linear-gradient(135deg,#8b5cf6,#7c3aed);" title="Copy bảng đang xem">COPY</button>
+                            <button id="btn-excel-clear" class="mplis-btn-primary" style="flex:0.35; background:linear-gradient(135deg,#f43f5e,#e11d48);" title="Xóa bảng đang xem">XÓA</button>
                         </div>
                     </div>
 
@@ -3404,6 +3515,33 @@
       }
     });
   }, 1500);
+
+  // src/bien-dong-capture.js
+  function saveBienDongCode(maHS, code) {
+    try {
+      const stored = JSON.parse(localStorage.getItem("mplis_bien_dong_codes") || "{}");
+      stored[maHS] = code;
+      localStorage.setItem("mplis_bien_dong_codes", JSON.stringify(stored));
+    } catch (e) {
+    }
+  }
+  setInterval(() => {
+    const lbl = document.getElementById("lbThongTinBienDong");
+    if (!lbl) return;
+    try {
+      if (lbl.getBoundingClientRect().width === 0) return;
+    } catch (e) {
+      return;
+    }
+    const text = lbl.textContent || "";
+    const m = text.match(/Mã loại biến động:\s*([A-ZĐ]{1,4})/i);
+    if (!m) return;
+    const code = m[1].trim().toUpperCase();
+    if (!code) return;
+    const maHS = findCurrentMaHS();
+    if (!maHS) return;
+    saveBienDongCode(maHS, code);
+  }, 1e3);
 
   // src/main.js
   if (window === window.top) {

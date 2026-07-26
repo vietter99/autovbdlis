@@ -1,12 +1,67 @@
-import { escapeHtml, fallbackCopyTextToClipboard } from './utils.js';
+import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './utils.js';
 
     const ExcelModule = (function () {
-        let state = {
-            records: []
+        // Mã loại biến động (bắt lúc QT1 bởi bien-dong-capture.js) -> tên gọi đầy đủ.
+        // Bổ sung dần khi gặp mã mới; loại nào chưa có ở đây sẽ tạm hiện mã hoặc tiêu đề gốc,
+        // không đoán bừa tên.
+        const BIEN_DONG_CODE_MAP = {
+            'CD': 'Cấp đổi',
+            'TK': 'Thừa kế'
         };
+
+        // 4 xã "của tôi" - mỗi xã 1 bảng riêng, lọc theo r.diaChi (đã chuẩn hóa hoa, bỏ tiền tố "Xã ")
+        const MY_COMMUNES = [
+            { key: 'krongnang', label: 'Krông Năng', match: 'KRÔNG NĂNG' },
+            { key: 'phuxuan', label: 'Phú Xuân', match: 'PHÚ XUÂN' },
+            { key: 'tamgiang', label: 'Tam Giang', match: 'TAM GIANG' },
+            { key: 'dlieya', label: 'Dliê Ya', match: 'DLIÊ YA' }
+        ];
+
+        // rich = true -> dùng bộ cột đầy đủ (Tên TTHC, Biên Nhận, Họ tên...) theo đúng mẫu Excel thật.
+        // rich = false -> giữ nguyên bộ cột đơn giản cũ (Mã HS, GCN, Thửa, Tờ...) cho Thế chấp/Xác nhận.
+        const BUCKETS = [
+            { key: 'thechap', label: 'Thế chấp', rich: false },
+            { key: 'xacnhan', label: 'Xác nhận', rich: false },
+            ...MY_COMMUNES.map(c => ({ key: c.key, label: c.label, rich: true })),
+            { key: 'khac', label: 'Khác', rich: true }
+        ];
+
+        let state = {
+            records: [],
+            currentBucket: 'thechap'
+        };
+
+        function getBucket(r) {
+            if (r.loaiHS === 'TC' || r.loaiHS === 'XTC') return 'thechap';
+            if (r.loaiHS === 'XN') return 'xacnhan';
+            const dc = (r.diaChi || '').toUpperCase();
+            const commune = MY_COMMUNES.find(c => dc === c.match);
+            return commune ? commune.key : 'khac';
+        }
+
+        function getBienDongCode(maHS) {
+            if (!maHS) return '';
+            try {
+                const stored = JSON.parse(localStorage.getItem('mplis_bien_dong_codes') || '{}');
+                return stored[maHS] || '';
+            } catch (e) { return ''; }
+        }
+
+        function findCurrentSoBienNhan() {
+            const items = Array.from(document.querySelectorAll('li.info'));
+            for (const li of items) {
+                const nameSpan = li.querySelector('span.name');
+                if (nameSpan && nameSpan.textContent.includes('Số biên nhận')) {
+                    const valueSpan = li.querySelector('span.value');
+                    if (valueSpan) return valueSpan.textContent.trim();
+                }
+            }
+            return '';
+        }
 
         function init() {
             loadState();
+            renderFilterTabs();
             renderTable();
 
             // Bắt sự kiện ở tầng cao nhất (Window) để đánh bại hoàn toàn các lớp chặn click của VBDLIS
@@ -14,8 +69,9 @@ import { escapeHtml, fallbackCopyTextToClipboard } from './utils.js';
                 const btnClear = e.target.closest('#btn-excel-clear');
                 if (btnClear) {
                     e.preventDefault(); e.stopPropagation();
-                    if (unsafeWindow.confirm('Xóa toàn bộ hồ sơ đã lưu?')) {
-                        state.records = [];
+                    const bucketDef = BUCKETS.find(b => b.key === state.currentBucket);
+                    if (unsafeWindow.confirm(`Xóa toàn bộ hồ sơ trong bảng "${bucketDef ? bucketDef.label : ''}" đang xem?`)) {
+                        state.records = state.records.filter(r => getBucket(r) !== state.currentBucket);
                         saveState();
                         renderTable();
                     }
@@ -25,7 +81,7 @@ import { escapeHtml, fallbackCopyTextToClipboard } from './utils.js';
                 const btnCopyAll = e.target.closest('#btn-excel-copy');
                 if (btnCopyAll) {
                     e.preventDefault(); e.stopPropagation();
-                    copyToExcel(true);
+                    copyToExcel();
                     return;
                 }
 
@@ -33,7 +89,7 @@ import { escapeHtml, fallbackCopyTextToClipboard } from './utils.js';
                 if (btnCopyRow) {
                     e.preventDefault(); e.stopPropagation();
                     const idx = parseInt(btnCopyRow.getAttribute('data-idx'));
-                    copyRowToExcel(idx, btnCopyRow, true);
+                    copyRowToExcel(idx, btnCopyRow);
                     return;
                 }
 
@@ -46,6 +102,15 @@ import { escapeHtml, fallbackCopyTextToClipboard } from './utils.js';
                         saveState();
                         renderTable();
                     }
+                    return;
+                }
+
+                const filterTab = e.target.closest('.mplis-excel-filter');
+                if (filterTab) {
+                    e.preventDefault(); e.stopPropagation();
+                    state.currentBucket = filterTab.getAttribute('data-excel-bucket');
+                    renderFilterTabs();
+                    renderTable();
                     return;
                 }
             }, true);
@@ -65,48 +130,102 @@ import { escapeHtml, fallbackCopyTextToClipboard } from './utils.js';
             localStorage.setItem('mplis_excel_cart', JSON.stringify(state.records));
         }
 
-        function renderTable() {
-            const tbody = document.querySelector('#table-excel-cart tbody');
-            const count = document.getElementById('excel-count');
-            if (!tbody || !count) return;
-
-            count.textContent = state.records.length;
-            tbody.innerHTML = state.records.map((r, idx) => `
-                <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.maHS || '---')}</td>
-                    <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.gcn)}</td>
-                    <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
-                    <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
-                    <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
-                    <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
-                        <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
-                        <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
-                    </td>
-                </tr>
-            `).join('');
+        function renderFilterTabs() {
+            const bar = document.getElementById('excel-filter-bar');
+            if (!bar) return;
+            bar.querySelectorAll('.mplis-excel-filter').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-excel-bucket') === state.currentBucket);
+            });
         }
 
-        function getRowText(r, isFull = false) {
-            if (isFull) {
-                return [
-                    r.loaiHS || '', r.maHS || '', r.nguoiNop || '', r.diaChi || '',
-                    r.gcn, r.thua, r.to, r.dt,
-                    r.dtO || '', r.dtCLN || '', r.dtTSN || '',
-                    r.dtLUA || '', r.dtHNK || '', r.dtSKC || ''
-                ].join('\t');
+        function getVisibleRecords() {
+            return state.records
+                .map((r, idx) => ({ r, idx }))
+                .filter(({ r }) => getBucket(r) === state.currentBucket);
+        }
+
+        function renderTable() {
+            const thead = document.getElementById('table-excel-cart-head');
+            const tbody = document.querySelector('#table-excel-cart tbody');
+            const count = document.getElementById('excel-count');
+            if (!thead || !tbody || !count) return;
+
+            const bucketDef = BUCKETS.find(b => b.key === state.currentBucket) || BUCKETS[0];
+            const visible = getVisibleRecords();
+            count.textContent = `${visible.length}/${state.records.length}`;
+
+            if (bucketDef.rich) {
+                thead.innerHTML = `
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">TTHC</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">B.NHẬN</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">HỌ TÊN</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">GCN</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
+                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
+                `;
+                tbody.innerHTML = visible.map(({ r, idx }) => `
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.tenTTHCFull || '---')}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.soBienNhan || '')}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.nguoiNop || '')}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.gcn)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
+                        <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
+                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
+                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
+                        </td>
+                    </tr>
+                `).join('');
             } else {
-                return [
-                    r.gcn, r.thua, r.to, r.dt,
-                    r.dtO || '', r.dtCLN || '', r.dtTSN || '',
-                    r.dtLUA || '', r.dtHNK || '', r.dtSKC || ''
-                ].join('\t');
+                thead.innerHTML = `
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">MÃ HS</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">GCN</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
+                `;
+                tbody.innerHTML = visible.map(({ r, idx }) => `
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.maHS || '---')}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.gcn)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
+                        <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
+                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
+                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
+                        </td>
+                    </tr>
+                `).join('');
             }
         }
 
-        function copyRowToExcel(idx, btn, isFull = false) {
+        function getRowText(r) {
+            const bucketDef = BUCKETS.find(b => b.key === getBucket(r));
+            if (bucketDef && bucketDef.rich) {
+                return [
+                    r.tenTTHCFull || '', r.soBienNhan || '', r.nguoiNop || '', r.diaChi || '',
+                    r.gcn, r.thua, r.to, r.dt,
+                    r.dtO || '', r.dtCLN || '', r.dtLUA || '', r.dtTSN || '', r.dtHNK || ''
+                ].join('\t');
+            }
+            return [
+                r.loaiHS || '', r.maHS || '', r.nguoiNop || '', r.diaChi || '',
+                r.gcn, r.thua, r.to, r.dt,
+                r.dtO || '', r.dtCLN || '', r.dtTSN || '',
+                r.dtLUA || '', r.dtHNK || '', r.dtSKC || ''
+            ].join('\t');
+        }
+
+        function copyRowToExcel(idx, btn) {
             const r = state.records[idx];
             if (!r) return;
-            const text = getRowText(r, isFull);
+            const text = getRowText(r);
             fallbackCopyTextToClipboard(text).then(() => {
                 btn.className = 'fa fa-check btn-copy-row';
                 btn.style.color = '#10b981';
@@ -117,18 +236,14 @@ import { escapeHtml, fallbackCopyTextToClipboard } from './utils.js';
             });
         }
 
-        function copyToExcel(isFull = false) {
-            if (state.records.length === 0) {
-                unsafeWindow.alert('Không có dữ liệu!');
+        function copyToExcel() {
+            const visible = getVisibleRecords();
+            if (visible.length === 0) {
+                unsafeWindow.alert('Không có dữ liệu trong bảng đang xem!');
                 return;
             }
 
-            let lines = [];
-            state.records.forEach(r => {
-                lines.push(getRowText(r, isFull));
-            });
-
-            const text = lines.join('\n');
+            const text = visible.map(({ r }) => getRowText(r)).join('\n');
             fallbackCopyTextToClipboard(text).then(() => {
                 const btn = document.getElementById('btn-excel-copy');
                 const oldText = btn.innerHTML;
@@ -142,58 +257,10 @@ import { escapeHtml, fallbackCopyTextToClipboard } from './utils.js';
             const tree = document.getElementById('treeGiayChungNhan');
             if (!tree) return;
 
-            let maHS = '';
+            const maHS = findCurrentMaHS();
 
-            // 1. Tìm tất cả các thẻ <b> hoặc <span> có chứa định dạng Mã HS (vd: H15.50-260706-1377)
-            const allNodes = Array.from(document.querySelectorAll('b, span, .modal-title, h4'));
-            const validNodes = [];
-
-            for (let node of allNodes) {
-                if (!node.textContent) continue;
-                const m = node.textContent.match(/[A-Z0-9]{2,}\.[A-Z0-9]{2,}\-\d{6}\-\d{4,}/i);
-                if (m) {
-                    // Bỏ qua các thẻ bị ẩn (display:none từ cha hoặc tự nó)
-                    const rect = node.getBoundingClientRect();
-                    if (rect.width > 0 && rect.height > 0) {
-                        validNodes.push({ node, text: m[0] });
-                    }
-                }
-            }
-
-            if (validNodes.length > 0) {
-                let targetNode = null;
-
-                // Ưu tiên 1: Nằm trong modal-title (chuẩn nhất)
-                targetNode = validNodes.find(item => item.node.closest('.modal-title'));
-
-                // Ưu tiên 2: KHÔNG nằm trong bảng (loại trừ ngay cái background table)
-                if (!targetNode) {
-                    const notInTable = validNodes.filter(item => !item.node.closest('tr'));
-                    if (notInTable.length > 0) {
-                        // Lấy cái xuất hiện CUỐI CÙNG trên DOM (vì modal/chi tiết thường đè lên cuối cùng)
-                        targetNode = notInTable[notInTable.length - 1];
-                    }
-                }
-
-                // Fallback: Nếu vẫn không có, cứ lấy cái hiển thị cuối cùng
-                if (!targetNode) {
-                    targetNode = validNodes[validNodes.length - 1];
-                }
-
-                if (targetNode) {
-                    const full = targetNode.text;
-                    const parts = full.split('-');
-                    if (parts.length >= 3) {
-                        maHS = parts[1].slice(-2) + '-' + parts[2];
-                    } else {
-                        maHS = full.slice(-7);
-                    }
-                }
-            }
-            if (maHS) maHS = maHS.toUpperCase();
-
-            // Truy tìm thêm thông tin: Loại HS, Người Nộp, Địa chỉ từ bảng nền
-            let loaiHS = '', nguoiNop = '', diaChi = '';
+            // Truy tìm thêm thông tin: Loại HS, Người Nộp, Địa chỉ, tiêu đề gốc từ bảng nền
+            let loaiHS = '', nguoiNop = '', diaChi = '', rawTitle = '';
             if (maHS) {
                 const trs = Array.from(document.querySelectorAll('tr[role="row"]'));
                 for (let tr of trs) {
@@ -201,9 +268,11 @@ import { escapeHtml, fallbackCopyTextToClipboard } from './utils.js';
                         const col1 = tr.querySelector('.col-md-3:nth-child(1)');
                         if (col1) {
                             const titleDiv = col1.querySelector('div[title]');
-                            const titleStr = titleDiv ? titleDiv.getAttribute('title').toLowerCase() : col1.textContent.toLowerCase();
+                            rawTitle = titleDiv ? titleDiv.getAttribute('title') : col1.textContent.trim();
+                            const titleStr = rawTitle.toLowerCase();
                             if (titleStr.includes('xóa đăng ký thế chấp') || titleStr.includes('xóa đăng ký biện pháp bảo đảm')) loaiHS = 'XTC';
                             else if (titleStr.includes('đăng ký thế chấp') || titleStr.includes('đăng ký biện pháp bảo đảm')) loaiHS = 'TC';
+                            else if (titleStr.includes('xác nhận')) loaiHS = 'XN';
                             else if (titleStr.includes('tách thửa')) loaiHS = 'TT';
                             else if (titleStr.includes('đăng ký biến động')) loaiHS = 'BĐ';
 
@@ -224,6 +293,17 @@ import { escapeHtml, fallbackCopyTextToClipboard } from './utils.js';
                     }
                 }
             }
+
+            // Tên TTHC đầy đủ (dùng cho các bảng "của tôi"): ưu tiên Mã loại biến động bắt được lúc
+            // QT1 (đáng tin hơn hẳn dò chữ tiêu đề - xem giải thích trong bien-dong-capture.js).
+            // Chưa có mã tương ứng trong bảng thì tạm hiện mã thô hoặc tiêu đề gốc, không đoán bừa.
+            const bienDongCode = getBienDongCode(maHS);
+            let tenTTHCFull = '';
+            if (bienDongCode && BIEN_DONG_CODE_MAP[bienDongCode]) tenTTHCFull = BIEN_DONG_CODE_MAP[bienDongCode];
+            else if (bienDongCode) tenTTHCFull = bienDongCode;
+            else tenTTHCFull = rawTitle;
+
+            const soBienNhan = findCurrentSoBienNhan();
 
             // Quét từng Giấy chứng nhận (Hỗ trợ 1 đơn nhiều GCN)
             const gcnNodes = Array.from(tree.querySelectorAll('li.jstree-node')).filter(li => {
@@ -289,7 +369,7 @@ import { escapeHtml, fallbackCopyTextToClipboard } from './utils.js';
                     const exists = state.records.some(r => r.gcn === gcn && r.thua === thua && r.to === to);
                     if (!exists) {
                         state.records.push({
-                            maHS, loaiHS, nguoiNop, diaChi, gcn, thua, to, dt,
+                            maHS, loaiHS, tenTTHCFull, soBienNhan, nguoiNop, diaChi, gcn, thua, to, dt,
                             dtO: datO, dtCLN: datCLN, dtTSN: datTSN,
                             dtLUA: datLUA, dtHNK: datHNK, dtSKC: datSKC
                         });

@@ -153,6 +153,43 @@
         return results;
     }
 
+    // Dò Mã hồ sơ (VD: H15.50-260706-1377 -> "06-1377") đang hiển thị trên màn hình hiện tại.
+    // Dùng chung bởi ExcelModule (quét cây QT3) và bien-dong-capture (bắt lúc QT1) để đảm bảo
+    // 2 module luôn suy ra CÙNG 1 khóa mã hồ sơ cho cùng 1 hồ sơ.
+    function findCurrentMaHS() {
+        const allNodes = Array.from(document.querySelectorAll('b, span, .modal-title, h4'));
+        const validNodes = [];
+
+        for (let node of allNodes) {
+            if (!node.textContent) continue;
+            const m = node.textContent.match(/[A-Z0-9]{2,}\.[A-Z0-9]{2,}\-\d{6}\-\d{4,}/i);
+            if (m) {
+                const rect = node.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    validNodes.push({ node, text: m[0] });
+                }
+            }
+        }
+        if (validNodes.length === 0) return '';
+
+        let targetNode = validNodes.find(item => item.node.closest('.modal-title'));
+        if (!targetNode) {
+            const notInTable = validNodes.filter(item => !item.node.closest('tr'));
+            if (notInTable.length > 0) targetNode = notInTable[notInTable.length - 1];
+        }
+        if (!targetNode) targetNode = validNodes[validNodes.length - 1];
+
+        const full = targetNode.text;
+        let maHS = '';
+        const parts = full.split('-');
+        if (parts.length >= 3) {
+            maHS = parts[1].slice(-2) + '-' + parts[2];
+        } else {
+            maHS = full.slice(-7);
+        }
+        return maHS.toUpperCase();
+    }
+
 export {
     fallbackCopyTextToClipboard,
     escapeHtml,
@@ -161,5 +198,6 @@ export {
     WORKFLOW_NAMES,
     clickElement,
     isSystemLoading,
-    querySelectorAllCustom
+    querySelectorAllCustom,
+    findCurrentMaHS
 };
