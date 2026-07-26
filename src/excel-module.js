@@ -5,11 +5,11 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
         // Bổ sung dần khi gặp mã mới; loại nào chưa có ở đây sẽ tạm hiện mã hoặc tiêu đề gốc,
         // không đoán bừa tên.
         const BIEN_DONG_CODE_MAP = {
-            'CD': 'Cấp đổi',
-            'TK': 'Thừa kế',
-            'SN': 'Đính chính',
-            'TN': 'Tách/hợp thửa',
-            'CN': 'Chuyển nhượng'
+            'CD': 'CẤP ĐỔI',
+            'TK': 'THỪA KẾ',
+            'SN': 'ĐÍNH CHÍNH',
+            'TN': 'TÁCH/HỢP THỬA',
+            'CN': 'CHUYỂN NHƯỢNG'
         };
 
         // 4 xã "của tôi" - mỗi xã 1 bảng riêng, lọc theo r.diaChi (đã chuẩn hóa hoa, bỏ tiền tố "Xã ")
@@ -345,7 +345,7 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
                             if (titleStr.includes('xóa đăng ký thế chấp') || titleStr.includes('xóa đăng ký biện pháp bảo đảm')) loaiHS = 'XTC';
                             else if (titleStr.includes('đăng ký thế chấp') || titleStr.includes('đăng ký biện pháp bảo đảm')) loaiHS = 'TC';
                             else if (titleStr.includes('xác nhận')) loaiHS = 'XN';
-                            else if (titleStr.includes('tách thửa')) loaiHS = 'Tách/hợp thửa';
+                            else if (titleStr.includes('tách thửa')) loaiHS = 'TÁCH/HỢP THỬA';
                             else if (titleStr.includes('đăng ký biến động')) loaiHS = 'BĐ';
 
                             const mapMarker = col1.querySelector('.fa-map-marker');
@@ -378,10 +378,10 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
             let tenTTHCFull = '';
             if (bienDongCode && BIEN_DONG_CODE_MAP[bienDongCode]) tenTTHCFull = BIEN_DONG_CODE_MAP[bienDongCode];
             else if (bienDongCode) tenTTHCFull = bienDongCode;
-            else if (titleStr.includes('cấp đổi')) tenTTHCFull = 'Cấp đổi';
-            else if (titleStr.includes('cấp lại')) tenTTHCFull = 'Cấp lại';
-            else if (titleStr.includes('tách thửa')) tenTTHCFull = 'Tách/hợp thửa';
-            else tenTTHCFull = rawTitle;
+            else if (titleStr.includes('cấp đổi')) tenTTHCFull = 'CẤP ĐỔI';
+            else if (titleStr.includes('cấp lại')) tenTTHCFull = 'CẤP LẠI';
+            else if (titleStr.includes('tách thửa')) tenTTHCFull = 'TÁCH/HỢP THỬA';
+            else tenTTHCFull = rawTitle.toUpperCase();
 
             // Biên Nhận và Mã hồ sơ (rút gọn) là một - dùng lại đúng giá trị maHS đã tính ở trên.
             const soBienNhan = maHS;

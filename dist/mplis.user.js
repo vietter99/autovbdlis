@@ -2454,11 +2454,11 @@
   // src/excel-module.js
   var ExcelModule = function() {
     const BIEN_DONG_CODE_MAP = {
-      "CD": "Cấp đổi",
-      "TK": "Thừa kế",
-      "SN": "Đính chính",
-      "TN": "Tách/hợp thửa",
-      "CN": "Chuyển nhượng"
+      "CD": "CẤP ĐỔI",
+      "TK": "THỪA KẾ",
+      "SN": "ĐÍNH CHÍNH",
+      "TN": "TÁCH/HỢP THỬA",
+      "CN": "CHUYỂN NHƯỢNG"
     };
     const MY_COMMUNES = [
       { key: "krongnang", label: "Krông Năng", match: "KRÔNG NĂNG" },
@@ -2782,7 +2782,7 @@
               if (titleStr.includes("xóa đăng ký thế chấp") || titleStr.includes("xóa đăng ký biện pháp bảo đảm")) loaiHS = "XTC";
               else if (titleStr.includes("đăng ký thế chấp") || titleStr.includes("đăng ký biện pháp bảo đảm")) loaiHS = "TC";
               else if (titleStr.includes("xác nhận")) loaiHS = "XN";
-              else if (titleStr.includes("tách thửa")) loaiHS = "Tách/hợp thửa";
+              else if (titleStr.includes("tách thửa")) loaiHS = "TÁCH/HỢP THỬA";
               else if (titleStr.includes("đăng ký biến động")) loaiHS = "BĐ";
               const mapMarker = col1.querySelector(".fa-map-marker");
               if (mapMarker && mapMarker.parentNode) {
@@ -2805,10 +2805,10 @@
       let tenTTHCFull = "";
       if (bienDongCode && BIEN_DONG_CODE_MAP[bienDongCode]) tenTTHCFull = BIEN_DONG_CODE_MAP[bienDongCode];
       else if (bienDongCode) tenTTHCFull = bienDongCode;
-      else if (titleStr.includes("cấp đổi")) tenTTHCFull = "Cấp đổi";
-      else if (titleStr.includes("cấp lại")) tenTTHCFull = "Cấp lại";
-      else if (titleStr.includes("tách thửa")) tenTTHCFull = "Tách/hợp thửa";
-      else tenTTHCFull = rawTitle;
+      else if (titleStr.includes("cấp đổi")) tenTTHCFull = "CẤP ĐỔI";
+      else if (titleStr.includes("cấp lại")) tenTTHCFull = "CẤP LẠI";
+      else if (titleStr.includes("tách thửa")) tenTTHCFull = "TÁCH/HỢP THỬA";
+      else tenTTHCFull = rawTitle.toUpperCase();
       const soBienNhan = maHS;
       const gcnNodes = Array.from(tree.querySelectorAll("li.jstree-node")).filter((li) => {
         const a = li.querySelector(":scope > a.jstree-anchor");
@@ -3737,7 +3737,7 @@
       if (cells.length < 6) return;
       const loaiGiay = (cells[0].textContent || "").trim();
       if (loaiGiay !== "Giấy in mới") return;
-      const nguoiDuocCap = (cells[1].textContent || "").trim();
+      const nguoiDuocCap = (cells[1].textContent || "").trim().toUpperCase();
       const soPhatHanh = (cells[2].textContent || "").trim();
       const ngayVaoSo = (cells[5].textContent || "").trim();
       if (!soPhatHanh || !ngayVaoSo) return;

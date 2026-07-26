@@ -119,7 +119,7 @@ setInterval(() => {
         const loaiGiay = (cells[0].textContent || '').trim();
         if (loaiGiay !== 'Giấy in mới') return;
 
-        const nguoiDuocCap = (cells[1].textContent || '').trim();
+        const nguoiDuocCap = (cells[1].textContent || '').trim().toUpperCase();
         const soPhatHanh = (cells[2].textContent || '').trim();
         const ngayVaoSo = (cells[5].textContent || '').trim();
 
