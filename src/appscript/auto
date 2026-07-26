@@ -92,13 +92,26 @@ function handleTheChap(ss, data) {
   }
 
   // Tìm dòng trống kế tiếp dựa theo cột C (Mã hồ sơ)
+  var colA = sheet.getRange('A:A').getValues();
   var colC = sheet.getRange('C:C').getValues();
   var lastRow = colC.length;
   while (lastRow > 0 && colC[lastRow - 1][0] === '') lastRow--;
   var targetRow = lastRow + 1;
   if (targetRow < 2) targetRow = 2; // dữ liệu bắt đầu từ dòng 2
 
-  sheet.getRange(targetRow, 1).setValue(targetRow - 1); // STT = số thứ tự dòng
+  // STT: 1 Mã hồ sơ có thể ra nhiều Giấy chứng nhận (nhiều dòng) - các dòng cùng Mã hồ sơ
+  // phải dùng CHUNG 1 STT (giống quy tắc bên "của tôi"), không đánh số tăng dần theo dòng.
+  var stt = null;
+  var maxStt = 0;
+  for (var row = 2; row < targetRow; row++) {
+    var existingStt = colA[row - 1][0];
+    if (existingStt) maxStt = Math.max(maxStt, existingStt);
+    if (data.maHS && colC[row - 1][0] === data.maHS) {
+      stt = existingStt;
+    }
+  }
+  if (!stt) stt = maxStt + 1;
+  sheet.getRange(targetRow, 1).setValue(stt);
 
   // Ghi từ cột B (Loại HS) đến cột P (Ngày)
   sheet.getRange(targetRow, 2, 1, 15).setValues([[
@@ -109,6 +122,6 @@ function handleTheChap(ss, data) {
     // Cột Q (Giờ hẹn trả) cố tình bỏ trống - ghi tay
   ]]);
 
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, row: targetRow }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, row: targetRow, stt: stt }))
     .setMimeType(ContentService.MimeType.JSON);
 }
