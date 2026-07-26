@@ -114,7 +114,8 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                     <!-- TAB 3: EXCEL -->
                     <div class="mplis-panel-body" id="tab-excel">
                         <div id="excel-filter-bar" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;">
-                            <button class="mplis-excel-filter active" data-excel-bucket="krongnang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Krông Năng</button>
+                            <button class="mplis-excel-filter active" data-excel-bucket="all" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tất cả</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="krongnang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Krông Năng</button>
                             <button class="mplis-excel-filter" data-excel-bucket="phuxuan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Phú Xuân</button>
                             <button class="mplis-excel-filter" data-excel-bucket="tamgiang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tam Giang</button>
                             <button class="mplis-excel-filter" data-excel-bucket="dlieya" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Dliê Ya</button>

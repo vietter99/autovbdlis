@@ -2465,6 +2465,7 @@
       { key: "dlieya", label: "Dliê Ya", match: "DLIÊ YA" }
     ];
     const BUCKETS = [
+      { key: "all", label: "Tất cả", rich: false },
       ...MY_COMMUNES.map((c) => ({ key: c.key, label: c.label, rich: true })),
       { key: "thechap", label: "Thế chấp", rich: false },
       { key: "xacnhan", label: "Xác nhận", rich: false },
@@ -2472,7 +2473,7 @@
     ];
     let state = {
       records: [],
-      currentBucket: "krongnang"
+      currentBucket: "all"
     };
     const SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
     const PUSHABLE_BUCKETS = MY_COMMUNES.map((c) => c.key).concat(["khac"]);
@@ -2574,7 +2575,7 @@
           e.stopPropagation();
           const bucketDef = BUCKETS.find((b) => b.key === state.currentBucket);
           if (unsafeWindow.confirm(`Xóa toàn bộ hồ sơ trong bảng "${bucketDef ? bucketDef.label : ""}" đang xem?`)) {
-            state.records = state.records.filter((r) => getBucket(r) !== state.currentBucket);
+            state.records = state.currentBucket === "all" ? [] : state.records.filter((r) => getBucket(r) !== state.currentBucket);
             saveState();
             renderTable();
           }
@@ -2637,7 +2638,9 @@
       });
     }
     function getVisibleRecords() {
-      return state.records.map((r, idx) => ({ r, idx })).filter(({ r }) => getBucket(r) === state.currentBucket);
+      const all = state.records.map((r, idx) => ({ r, idx }));
+      if (state.currentBucket === "all") return all;
+      return all.filter(({ r }) => getBucket(r) === state.currentBucket);
     }
     function renderTable() {
       const thead = document.getElementById("table-excel-cart-head");
@@ -3364,7 +3367,8 @@
                     <!-- TAB 3: EXCEL -->
                     <div class="mplis-panel-body" id="tab-excel">
                         <div id="excel-filter-bar" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;">
-                            <button class="mplis-excel-filter active" data-excel-bucket="krongnang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Krông Năng</button>
+                            <button class="mplis-excel-filter active" data-excel-bucket="all" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tất cả</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="krongnang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Krông Năng</button>
                             <button class="mplis-excel-filter" data-excel-bucket="phuxuan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Phú Xuân</button>
                             <button class="mplis-excel-filter" data-excel-bucket="tamgiang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tam Giang</button>
                             <button class="mplis-excel-filter" data-excel-bucket="dlieya" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Dliê Ya</button>

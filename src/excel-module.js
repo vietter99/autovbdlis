@@ -20,7 +20,10 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
 
         // rich = true -> dùng bộ cột đầy đủ (Tên TTHC, Biên Nhận, Họ tên...) theo đúng mẫu Excel thật.
         // rich = false -> giữ nguyên bộ cột đơn giản cũ (Mã HS, GCN, Thửa, Tờ...) cho Thế chấp/Xác nhận.
+        // 'all' là bảng gộp xem toàn bộ hồ sơ đã quét, không phân biệt loại - dùng bộ cột đơn giản
+        // vì đó là các cột chung mọi bản ghi đều có, bất kể thuộc bảng nào.
         const BUCKETS = [
+            { key: 'all', label: 'Tất cả', rich: false },
             ...MY_COMMUNES.map(c => ({ key: c.key, label: c.label, rich: true })),
             { key: 'thechap', label: 'Thế chấp', rich: false },
             { key: 'xacnhan', label: 'Xác nhận', rich: false },
@@ -29,7 +32,7 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
 
         let state = {
             records: [],
-            currentBucket: 'krongnang'
+            currentBucket: 'all'
         };
 
         // Đẩy tự động lên Google Sheet (Apps Script Web App) - chỉ áp dụng cho 5 bảng "của tôi".
@@ -136,7 +139,9 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
                     e.preventDefault(); e.stopPropagation();
                     const bucketDef = BUCKETS.find(b => b.key === state.currentBucket);
                     if (unsafeWindow.confirm(`Xóa toàn bộ hồ sơ trong bảng "${bucketDef ? bucketDef.label : ''}" đang xem?`)) {
-                        state.records = state.records.filter(r => getBucket(r) !== state.currentBucket);
+                        state.records = state.currentBucket === 'all'
+                            ? []
+                            : state.records.filter(r => getBucket(r) !== state.currentBucket);
                         saveState();
                         renderTable();
                     }
@@ -204,9 +209,9 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
         }
 
         function getVisibleRecords() {
-            return state.records
-                .map((r, idx) => ({ r, idx }))
-                .filter(({ r }) => getBucket(r) === state.currentBucket);
+            const all = state.records.map((r, idx) => ({ r, idx }));
+            if (state.currentBucket === 'all') return all;
+            return all.filter(({ r }) => getBucket(r) === state.currentBucket);
         }
 
         function renderTable() {
