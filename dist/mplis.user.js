@@ -3708,6 +3708,7 @@
       }
     });
   }
+  var _lastDebugLog = 0;
   setInterval(() => {
     const table = document.getElementById("tblGiayChungNhan");
     if (!table) return;
@@ -3719,6 +3720,18 @@
     const maHS = findCurrentMaHS();
     const xa = findXaForMaHS(maHS);
     const rows = Array.from(table.querySelectorAll('tbody tr[role="row"]'));
+    const now = Date.now();
+    if (now - _lastDebugLog > 5e3) {
+      _lastDebugLog = now;
+      console.log(`[SoDiaChinh] Thấy bảng #tblGiayChungNhan, ${rows.length} dòng. maHS=${maHS || "(rỗng)"}, xa=${xa || "(rỗng)"}, sheetUrl=${getSheetUrl() ? "đã cấu hình" : "(CHƯA DÁN LINK)"}`);
+      rows.forEach((tr, i) => {
+        const cells = Array.from(tr.querySelectorAll("td"));
+        const loaiGiay = cells[0] ? (cells[0].textContent || "").trim() : "(không đủ cột)";
+        const soPhatHanh = cells[2] ? (cells[2].textContent || "").trim() : "";
+        const ngayVaoSo = cells[5] ? (cells[5].textContent || "").trim() : "";
+        console.log(`[SoDiaChinh] Dòng ${i}: loaiGiay="${loaiGiay}" | soPhatHanh="${soPhatHanh}" | ngayVaoSo="${ngayVaoSo}" | đã ghi trước đó=${soPhatHanh ? isLogged(soPhatHanh) : "n/a"}`);
+      });
+    }
     rows.forEach((tr) => {
       const cells = Array.from(tr.querySelectorAll("td"));
       if (cells.length < 6) return;
