@@ -5,7 +5,7 @@ import { fallbackCopyTextToClipboard } from './utils.js';
         try { savedDetected = JSON.parse(sessionStorage.getItem('mplis_detected_dossiers')) || []; } catch (e) { }
 
         const state = {
-            alertThresholdMinutes: 30,
+            alertThresholdMinutes: 1440, // mặc định 1 ngày (1440 phút)
             detectedDossiers: savedDetected,
             allDossiers: [],
             currentTab: 'all',
@@ -147,7 +147,7 @@ import { fallbackCopyTextToClipboard } from './utils.js';
             state.allDossiers = [];
             let countWarning = 0;
             const now = new Date();
-            state.alertThresholdMinutes = parseFloat(document.getElementById('cfg-alert-minutes').value) || 30;
+            state.alertThresholdMinutes = parseFloat(document.getElementById('cfg-alert-minutes').value) || 1440;
             const msPerMinute = 60 * 1000;
 
             trs.forEach(tr => {
