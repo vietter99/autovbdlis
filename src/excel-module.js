@@ -7,7 +7,9 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
         const BIEN_DONG_CODE_MAP = {
             'CD': 'Cấp đổi',
             'TK': 'Thừa kế',
-            'SN': 'Đính chính'
+            'SN': 'Đính chính',
+            'TN': 'Tách/hợp thửa',
+            'CN': 'Chuyển nhượng'
         };
 
         // 4 xã "của tôi" - mỗi xã 1 bảng riêng, lọc theo r.diaChi (đã chuẩn hóa hoa, bỏ tiền tố "Xã ")

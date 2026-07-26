@@ -2456,7 +2456,9 @@
     const BIEN_DONG_CODE_MAP = {
       "CD": "Cấp đổi",
       "TK": "Thừa kế",
-      "SN": "Đính chính"
+      "SN": "Đính chính",
+      "TN": "Tách/hợp thửa",
+      "CN": "Chuyển nhượng"
     };
     const MY_COMMUNES = [
       { key: "krongnang", label: "Krông Năng", match: "KRÔNG NĂNG" },
