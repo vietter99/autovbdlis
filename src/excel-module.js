@@ -21,9 +21,9 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
         // rich = false -> giữ nguyên bộ cột đơn giản cũ (Mã HS, GCN, Thửa, Tờ...) cho Thế chấp/Xác nhận.
         const BUCKETS = [
             ...MY_COMMUNES.map(c => ({ key: c.key, label: c.label, rich: true })),
-            { key: 'khac', label: 'Khác', rich: true },
             { key: 'thechap', label: 'Thế chấp', rich: false },
-            { key: 'xacnhan', label: 'Xác nhận', rich: false }
+            { key: 'xacnhan', label: 'Xác nhận', rich: false },
+            { key: 'khac', label: 'Khác', rich: true }
         ];
 
         let state = {
