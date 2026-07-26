@@ -2551,7 +2551,18 @@
       currentBucket: "all"
     };
     const SHEET_URL_KEY2 = "mplis_excel_sheet_url_mine";
-    const PUSHABLE_BUCKETS = MY_COMMUNES.map((c) => c.key).concat(["khac"]);
+    const PUSHABLE_BUCKETS = MY_COMMUNES.map((c) => c.key).concat(["khac", "thechap"]);
+    function deriveNgayFromMaHS(maHS) {
+      if (!maHS) return "";
+      const m = maHS.match(/^(\d{1,2})-/);
+      if (!m) return "";
+      const day = parseInt(m[1], 10);
+      if (!day || day < 1 || day > 31) return "";
+      const now = /* @__PURE__ */ new Date();
+      const dd = String(day).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      return `${dd}/${mm}/${now.getFullYear()}`;
+    }
     function getBucket(r) {
       if (r.loaiHS === "TC" || r.loaiHS === "XTC") return "thechap";
       if (r.loaiHS === "XN") return "xacnhan";
@@ -2587,7 +2598,25 @@
       const url = getSheetUrl();
       if (!url) return;
       if (typeof GM_xmlhttpRequest === "undefined") return;
-      const payload = {
+      const payload = bucket === "thechap" ? {
+        bucket,
+        loaiHS: r.loaiHS || "",
+        maHS: r.maHS || "",
+        hoTen: r.nguoiNop || "",
+        diaChi: r.diaChi || "",
+        gcn: r.gcn || "",
+        thua: r.thua || "",
+        to: r.to || "",
+        dienTich: r.dt || "",
+        datO: r.dtO || "",
+        cln: r.dtCLN || "",
+        tsn: r.dtTSN || "",
+        lua: r.dtLUA || "",
+        hnk: r.dtHNK || "",
+        skc: r.dtSKC || "",
+        ngay: deriveNgayFromMaHS(r.maHS),
+        gioHenTra: ""
+      } : {
         bucket,
         tenTTHC: r.tenTTHCFull || "",
         maHS: r.maHS || "",

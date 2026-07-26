@@ -42,10 +42,27 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
             currentBucket: 'all'
         };
 
-        // Đẩy tự động lên Google Sheet (Apps Script Web App) - chỉ áp dụng cho 5 bảng "của tôi".
-        // Thế chấp/Xác nhận là sheet của đồng nghiệp, chưa có link riêng nên chưa đẩy.
+        // Đẩy tự động lên Google Sheet (Apps Script Web App) - áp dụng cho 5 bảng "của tôi" và
+        // Thế chấp (dùng chung 1 Web App URL, Apps Script tự tách theo "bucket" vào đúng tab).
+        // Xác nhận vẫn chưa có yêu cầu nên chưa đẩy.
         const SHEET_URL_KEY = 'mplis_excel_sheet_url_mine';
-        const PUSHABLE_BUCKETS = MY_COMMUNES.map(c => c.key).concat(['khac']);
+        const PUSHABLE_BUCKETS = MY_COMMUNES.map(c => c.key).concat(['khac', 'thechap']);
+
+        // Sheet Thế chấp không có "Ngày ký GCN" như của tôi, thay vào đó có cột NGÀY suy ra từ
+        // chính Mã hồ sơ: 2 số đầu của mã (VD "26-1919") là NGÀY, còn tháng/năm lấy theo thời điểm
+        // quét (hồ sơ luôn được đánh mã trong tháng đang xử lý). Giờ hẹn trả không có nguồn tự động,
+        // để trống cho người dùng tự ghi tay.
+        function deriveNgayFromMaHS(maHS) {
+            if (!maHS) return '';
+            const m = maHS.match(/^(\d{1,2})-/);
+            if (!m) return '';
+            const day = parseInt(m[1], 10);
+            if (!day || day < 1 || day > 31) return '';
+            const now = new Date();
+            const dd = String(day).padStart(2, '0');
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            return `${dd}/${mm}/${now.getFullYear()}`;
+        }
 
         function getBucket(r) {
             if (r.loaiHS === 'TC' || r.loaiHS === 'XTC') return 'thechap';
@@ -81,7 +98,25 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
             if (!url) return;
             if (typeof GM_xmlhttpRequest === 'undefined') return;
 
-            const payload = {
+            const payload = bucket === 'thechap' ? {
+                bucket,
+                loaiHS: r.loaiHS || '',
+                maHS: r.maHS || '',
+                hoTen: r.nguoiNop || '',
+                diaChi: r.diaChi || '',
+                gcn: r.gcn || '',
+                thua: r.thua || '',
+                to: r.to || '',
+                dienTich: r.dt || '',
+                datO: r.dtO || '',
+                cln: r.dtCLN || '',
+                tsn: r.dtTSN || '',
+                lua: r.dtLUA || '',
+                hnk: r.dtHNK || '',
+                skc: r.dtSKC || '',
+                ngay: deriveNgayFromMaHS(r.maHS),
+                gioHenTra: ''
+            } : {
                 bucket,
                 tenTTHC: r.tenTTHCFull || '',
                 maHS: r.maHS || '',
