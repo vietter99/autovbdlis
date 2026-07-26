@@ -2452,7 +2452,8 @@
   var ExcelModule = function() {
     const BIEN_DONG_CODE_MAP = {
       "CD": "Cấp đổi",
-      "TK": "Thừa kế"
+      "TK": "Thừa kế",
+      "SN": "Đính chính"
     };
     const MY_COMMUNES = [
       { key: "krongnang", label: "Krông Năng", match: "KRÔNG NĂNG" },
