@@ -2560,6 +2560,13 @@
           }
         };
       }
+      const btnToggleSheetCfg = document.getElementById("btn-toggle-sheet-cfg");
+      const sheetCfgRow = document.getElementById("excel-sheet-cfg-row");
+      if (btnToggleSheetCfg && sheetCfgRow) {
+        btnToggleSheetCfg.onclick = () => {
+          sheetCfgRow.style.display = sheetCfgRow.style.display === "none" ? "flex" : "none";
+        };
+      }
       window.addEventListener("mousedown", (e) => {
         const btnClear = e.target.closest("#btn-excel-clear");
         if (btnClear) {
@@ -2639,7 +2646,7 @@
       if (!thead || !tbody || !count) return;
       const bucketDef = BUCKETS.find((b) => b.key === state.currentBucket) || BUCKETS[0];
       const visible = getVisibleRecords();
-      count.textContent = `${visible.length}/${state.records.length}`;
+      count.textContent = visible.length;
       if (bucketDef.rich) {
         thead.innerHTML = `
                     <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">TTHC</th>
@@ -3365,12 +3372,15 @@
                             <button class="mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
                             <button class="mplis-excel-filter" data-excel-bucket="khac" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Khác</button>
                         </div>
-                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                            <button id="btn-toggle-sheet-cfg" class="mplis-btn-ghost" style="padding:4px 7px; font-size:11px; border-radius:6px; flex-shrink:0;" title="Cấu hình link Google Sheet (của tôi)">🔗</button>
+                            <span id="excel-sheet-status" style="font-size:10px; flex:1;"></span>
+                        </div>
+                        <div id="excel-sheet-cfg-row" style="display:none; align-items:center; gap:6px; margin-bottom:8px;">
                             <span style="font-size:10.5px; color:var(--mplis-text-dim); flex-shrink:0;">Sheet (của tôi):</span>
                             <input type="text" id="cfg-excel-sheet-url" placeholder="Dán link Web App Google Apps Script..." style="flex:1; min-width:0; padding:4px 6px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:10px;">
-                            <span id="excel-sheet-status" style="flex-shrink:0; font-size:10px;"></span>
                         </div>
-                        <div style="font-size:11px; color:var(--mplis-text-dim); margin-bottom:10px;">Hiển thị/Tổng: <b id="excel-count" style="color:#fde047;">0</b> · tự động quét khi mở QT</div>
+                        <div style="font-size:11px; color:var(--mplis-text-dim); margin-bottom:10px;">Số hồ sơ trong bảng: <b id="excel-count" style="color:#fde047;">0</b> · tự động quét khi mở QT</div>
                         <div style="max-height:170px; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px;">
                             <table id="table-excel-cart" style="width:100%; font-size:10px; color:#f8fafc; border-collapse:collapse; text-align:center;">
                                 <thead>

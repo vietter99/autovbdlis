@@ -121,6 +121,14 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
                 };
             }
 
+            const btnToggleSheetCfg = document.getElementById('btn-toggle-sheet-cfg');
+            const sheetCfgRow = document.getElementById('excel-sheet-cfg-row');
+            if (btnToggleSheetCfg && sheetCfgRow) {
+                btnToggleSheetCfg.onclick = () => {
+                    sheetCfgRow.style.display = sheetCfgRow.style.display === 'none' ? 'flex' : 'none';
+                };
+            }
+
             // Bắt sự kiện ở tầng cao nhất (Window) để đánh bại hoàn toàn các lớp chặn click của VBDLIS
             window.addEventListener('mousedown', (e) => {
                 const btnClear = e.target.closest('#btn-excel-clear');
@@ -209,7 +217,7 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
 
             const bucketDef = BUCKETS.find(b => b.key === state.currentBucket) || BUCKETS[0];
             const visible = getVisibleRecords();
-            count.textContent = `${visible.length}/${state.records.length}`;
+            count.textContent = visible.length;
 
             if (bucketDef.rich) {
                 thead.innerHTML = `
