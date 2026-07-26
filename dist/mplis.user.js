@@ -13,6 +13,8 @@
 // @grant        GM_addStyle
 // @grant        unsafeWindow
 // @grant        GM_setClipboard
+// @grant        GM_xmlhttpRequest
+// @connect      script.google.com
 // @run-at       document-end
 // @allFrames    true
 // ==/UserScript==
@@ -2471,6 +2473,8 @@
       records: [],
       currentBucket: "krongnang"
     };
+    const SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
+    const PUSHABLE_BUCKETS = MY_COMMUNES.map((c) => c.key).concat(["khac"]);
     function getBucket(r) {
       if (r.loaiHS === "TC" || r.loaiHS === "XTC") return "thechap";
       if (r.loaiHS === "XN") return "xacnhan";
@@ -2487,10 +2491,74 @@
         return "";
       }
     }
+    function getSheetUrl() {
+      try {
+        return (localStorage.getItem(SHEET_URL_KEY) || "").trim();
+      } catch (e) {
+        return "";
+      }
+    }
+    function setSheetStatus(text, ok) {
+      const el = document.getElementById("excel-sheet-status");
+      if (!el) return;
+      el.textContent = text;
+      el.style.color = ok ? "#22c55e" : "#f43f5e";
+    }
+    function pushRecordToSheet(r) {
+      const bucket = getBucket(r);
+      if (!PUSHABLE_BUCKETS.includes(bucket)) return;
+      const url = getSheetUrl();
+      if (!url) return;
+      if (typeof GM_xmlhttpRequest === "undefined") return;
+      const payload = {
+        bucket,
+        tenTTHC: r.tenTTHCFull || "",
+        maHS: r.maHS || "",
+        hoTen: r.nguoiNop || "",
+        xa: r.diaChi || "",
+        gcn: r.gcn || "",
+        thua: r.thua || "",
+        to: r.to || "",
+        dienTich: r.dt || "",
+        datO: r.dtO || "",
+        cln: r.dtCLN || "",
+        lua: r.dtLUA || "",
+        nts: r.dtTSN || "",
+        hnk: r.dtHNK || ""
+      };
+      GM_xmlhttpRequest({
+        method: "POST",
+        url,
+        data: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+        onload: function(res) {
+          try {
+            const body = JSON.parse(res.responseText);
+            if (body.ok) setSheetStatus("✅ đã đồng bộ", true);
+            else setSheetStatus("❌ " + (body.error || "lỗi"), false);
+          } catch (e) {
+            setSheetStatus("❌ phản hồi lạ", false);
+          }
+        },
+        onerror: function() {
+          setSheetStatus("❌ lỗi kết nối", false);
+        }
+      });
+    }
     function init() {
       loadState();
       renderFilterTabs();
       renderTable();
+      const sheetUrlInput = document.getElementById("cfg-excel-sheet-url");
+      if (sheetUrlInput) {
+        sheetUrlInput.value = getSheetUrl();
+        sheetUrlInput.oninput = () => {
+          try {
+            localStorage.setItem(SHEET_URL_KEY, sheetUrlInput.value.trim());
+          } catch (e) {
+          }
+        };
+      }
       window.addEventListener("mousedown", (e) => {
         const btnClear = e.target.closest("#btn-excel-clear");
         if (btnClear) {
@@ -2778,7 +2846,7 @@
           const datSKC = dienTichCacLoai.SKC || 0;
           const exists = state.records.some((r) => r.gcn === gcn && r.thua === thua && r.to === to);
           if (!exists) {
-            state.records.push({
+            const newRecord = {
               maHS,
               loaiHS,
               tenTTHCFull,
@@ -2795,9 +2863,11 @@
               dtLUA: datLUA,
               dtHNK: datHNK,
               dtSKC: datSKC
-            });
+            };
+            state.records.push(newRecord);
             saveState();
             renderTable();
+            pushRecordToSheet(newRecord);
             tree.style.boxShadow = "0 0 10px #10b981";
             setTimeout(() => tree.style.boxShadow = "none", 1e3);
           }
@@ -3293,6 +3363,11 @@
                             <button class="mplis-excel-filter" data-excel-bucket="thechap" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Thế chấp</button>
                             <button class="mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
                             <button class="mplis-excel-filter" data-excel-bucket="khac" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Khác</button>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+                            <span style="font-size:10.5px; color:var(--mplis-text-dim); flex-shrink:0;">Sheet (của tôi):</span>
+                            <input type="text" id="cfg-excel-sheet-url" placeholder="Dán link Web App Google Apps Script..." style="flex:1; min-width:0; padding:4px 6px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:10px;">
+                            <span id="excel-sheet-status" style="flex-shrink:0; font-size:10px;"></span>
                         </div>
                         <div style="font-size:11px; color:var(--mplis-text-dim); margin-bottom:10px;">Hiển thị/Tổng: <b id="excel-count" style="color:#fde047;">0</b> · tự động quét khi mở QT</div>
                         <div style="max-height:170px; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px;">

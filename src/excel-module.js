@@ -32,6 +32,11 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
             currentBucket: 'krongnang'
         };
 
+        // Đẩy tự động lên Google Sheet (Apps Script Web App) - chỉ áp dụng cho 5 bảng "của tôi".
+        // Thế chấp/Xác nhận là sheet của đồng nghiệp, chưa có link riêng nên chưa đẩy.
+        const SHEET_URL_KEY = 'mplis_excel_sheet_url_mine';
+        const PUSHABLE_BUCKETS = MY_COMMUNES.map(c => c.key).concat(['khac']);
+
         function getBucket(r) {
             if (r.loaiHS === 'TC' || r.loaiHS === 'XTC') return 'thechap';
             if (r.loaiHS === 'XN') return 'xacnhan';
@@ -48,10 +53,73 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
             } catch (e) { return ''; }
         }
 
+        function getSheetUrl() {
+            try { return (localStorage.getItem(SHEET_URL_KEY) || '').trim(); } catch (e) { return ''; }
+        }
+
+        function setSheetStatus(text, ok) {
+            const el = document.getElementById('excel-sheet-status');
+            if (!el) return;
+            el.textContent = text;
+            el.style.color = ok ? '#22c55e' : '#f43f5e';
+        }
+
+        function pushRecordToSheet(r) {
+            const bucket = getBucket(r);
+            if (!PUSHABLE_BUCKETS.includes(bucket)) return; // Thế chấp/Xác nhận chưa có link riêng
+            const url = getSheetUrl();
+            if (!url) return;
+            if (typeof GM_xmlhttpRequest === 'undefined') return;
+
+            const payload = {
+                bucket,
+                tenTTHC: r.tenTTHCFull || '',
+                maHS: r.maHS || '',
+                hoTen: r.nguoiNop || '',
+                xa: r.diaChi || '',
+                gcn: r.gcn || '',
+                thua: r.thua || '',
+                to: r.to || '',
+                dienTich: r.dt || '',
+                datO: r.dtO || '',
+                cln: r.dtCLN || '',
+                lua: r.dtLUA || '',
+                nts: r.dtTSN || '',
+                hnk: r.dtHNK || ''
+            };
+
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: url,
+                data: JSON.stringify(payload),
+                headers: { 'Content-Type': 'application/json' },
+                onload: function (res) {
+                    try {
+                        const body = JSON.parse(res.responseText);
+                        if (body.ok) setSheetStatus('✅ đã đồng bộ', true);
+                        else setSheetStatus('❌ ' + (body.error || 'lỗi'), false);
+                    } catch (e) {
+                        setSheetStatus('❌ phản hồi lạ', false);
+                    }
+                },
+                onerror: function () {
+                    setSheetStatus('❌ lỗi kết nối', false);
+                }
+            });
+        }
+
         function init() {
             loadState();
             renderFilterTabs();
             renderTable();
+
+            const sheetUrlInput = document.getElementById('cfg-excel-sheet-url');
+            if (sheetUrlInput) {
+                sheetUrlInput.value = getSheetUrl();
+                sheetUrlInput.oninput = () => {
+                    try { localStorage.setItem(SHEET_URL_KEY, sheetUrlInput.value.trim()); } catch (e) { }
+                };
+            }
 
             // Bắt sự kiện ở tầng cao nhất (Window) để đánh bại hoàn toàn các lớp chặn click của VBDLIS
             window.addEventListener('mousedown', (e) => {
@@ -358,13 +426,15 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
 
                     const exists = state.records.some(r => r.gcn === gcn && r.thua === thua && r.to === to);
                     if (!exists) {
-                        state.records.push({
+                        const newRecord = {
                             maHS, loaiHS, tenTTHCFull, soBienNhan, nguoiNop, diaChi, gcn, thua, to, dt,
                             dtO: datO, dtCLN: datCLN, dtTSN: datTSN,
                             dtLUA: datLUA, dtHNK: datHNK, dtSKC: datSKC
-                        });
+                        };
+                        state.records.push(newRecord);
                         saveState();
                         renderTable();
+                        pushRecordToSheet(newRecord);
 
                         tree.style.boxShadow = '0 0 10px #10b981';
                         setTimeout(() => tree.style.boxShadow = 'none', 1000);
