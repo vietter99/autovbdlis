@@ -2767,7 +2767,7 @@
       const tree = document.getElementById("treeGiayChungNhan");
       if (!tree) return;
       const maHS = findCurrentMaHS();
-      let loaiHS = "", nguoiNop = "", diaChi = "", rawTitle = "";
+      let loaiHS = "", nguoiNop = "", diaChi = "", rawTitle = "", titleStr = "";
       if (maHS) {
         const trs = Array.from(document.querySelectorAll('tr[role="row"]'));
         for (let tr of trs) {
@@ -2776,7 +2776,7 @@
             if (col1) {
               const titleDiv = col1.querySelector("div[title]");
               rawTitle = titleDiv ? titleDiv.getAttribute("title") : col1.textContent.trim();
-              const titleStr = rawTitle.toLowerCase();
+              titleStr = rawTitle.toLowerCase();
               if (titleStr.includes("xóa đăng ký thế chấp") || titleStr.includes("xóa đăng ký biện pháp bảo đảm")) loaiHS = "XTC";
               else if (titleStr.includes("đăng ký thế chấp") || titleStr.includes("đăng ký biện pháp bảo đảm")) loaiHS = "TC";
               else if (titleStr.includes("xác nhận")) loaiHS = "XN";
@@ -2803,6 +2803,8 @@
       let tenTTHCFull = "";
       if (bienDongCode && BIEN_DONG_CODE_MAP[bienDongCode]) tenTTHCFull = BIEN_DONG_CODE_MAP[bienDongCode];
       else if (bienDongCode) tenTTHCFull = bienDongCode;
+      else if (titleStr.includes("cấp đổi")) tenTTHCFull = "Cấp đổi";
+      else if (titleStr.includes("cấp lại")) tenTTHCFull = "Cấp lại";
       else tenTTHCFull = rawTitle;
       const soBienNhan = maHS;
       const gcnNodes = Array.from(tree.querySelectorAll("li.jstree-node")).filter((li) => {

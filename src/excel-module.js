@@ -330,7 +330,7 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
             const maHS = findCurrentMaHS();
 
             // Truy tìm thêm thông tin: Loại HS, Người Nộp, Địa chỉ, tiêu đề gốc từ bảng nền
-            let loaiHS = '', nguoiNop = '', diaChi = '', rawTitle = '';
+            let loaiHS = '', nguoiNop = '', diaChi = '', rawTitle = '', titleStr = '';
             if (maHS) {
                 const trs = Array.from(document.querySelectorAll('tr[role="row"]'));
                 for (let tr of trs) {
@@ -339,7 +339,7 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
                         if (col1) {
                             const titleDiv = col1.querySelector('div[title]');
                             rawTitle = titleDiv ? titleDiv.getAttribute('title') : col1.textContent.trim();
-                            const titleStr = rawTitle.toLowerCase();
+                            titleStr = rawTitle.toLowerCase();
                             if (titleStr.includes('xóa đăng ký thế chấp') || titleStr.includes('xóa đăng ký biện pháp bảo đảm')) loaiHS = 'XTC';
                             else if (titleStr.includes('đăng ký thế chấp') || titleStr.includes('đăng ký biện pháp bảo đảm')) loaiHS = 'TC';
                             else if (titleStr.includes('xác nhận')) loaiHS = 'XN';
@@ -366,11 +366,18 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
 
             // Tên TTHC đầy đủ (dùng cho các bảng "của tôi"): ưu tiên Mã loại biến động bắt được lúc
             // QT1 (đáng tin hơn hẳn dò chữ tiêu đề - xem giải thích trong bien-dong-capture.js).
-            // Chưa có mã tương ứng trong bảng thì tạm hiện mã thô hoặc tiêu đề gốc, không đoán bừa.
+            // Hồ sơ CŨ (đã qua QT1 trước khi có tính năng này) sẽ không có mã -> fallback dò tiêu đề,
+            // nhưng CHỈ với các mã thủ tục (CN.A.x.x) chuyên biệt cho đúng 1 loại (VD "CN.A.6.2...
+            // cấp đổi...", "CN.A.8. Cấp lại..."), TUYỆT ĐỐI không dò với các mã gộp nhiều loại chung
+            // 1 tiêu đề (VD "CN.A.21.1.1. Chuyển đổi, chuyển nhượng, thừa kế, tặng cho") vì không thể
+            // biết chính xác là loại nào trong đó - những trường hợp gộp này phải chờ mã biến động,
+            // chưa có thì tạm hiện tiêu đề gốc, không đoán bừa.
             const bienDongCode = getBienDongCode(maHS);
             let tenTTHCFull = '';
             if (bienDongCode && BIEN_DONG_CODE_MAP[bienDongCode]) tenTTHCFull = BIEN_DONG_CODE_MAP[bienDongCode];
             else if (bienDongCode) tenTTHCFull = bienDongCode;
+            else if (titleStr.includes('cấp đổi')) tenTTHCFull = 'Cấp đổi';
+            else if (titleStr.includes('cấp lại')) tenTTHCFull = 'Cấp lại';
             else tenTTHCFull = rawTitle;
 
             // Biên Nhận và Mã hồ sơ (rút gọn) là một - dùng lại đúng giá trị maHS đã tính ở trên.
