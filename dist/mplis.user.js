@@ -3105,10 +3105,10 @@
                     <button class="mplis-tab active" data-tab="tab-process" title="Xử lý Quy trình">⚙️</button>
                     <button class="mplis-tab" data-tab="tab-alert" title="Nhắc nhở hồ sơ trễ hạn">⏰</button>
                     <button class="mplis-tab" data-tab="tab-excel" title="Xuất dữ liệu Excel">📊</button>
-                    <button class="mplis-tab" data-tab="tab-settings" title="Cài đặt">🛠️</button>
                     <button class="mplis-tab mplis-tab-extra" data-tab="tab-return" title="Trả hồ sơ" style="display:none;">📬</button>
                     <button class="mplis-tab mplis-tab-extra" data-tab="tab-update" title="Auto sửa Thửa/Tờ" style="display:none;">🔄</button>
-                    <button class="mplis-tab-toggle" id="mplis-btn-toggle-extra" title="Hiện thêm tab (Trả hồ sơ / Auto sửa Thửa-Tờ)">⋯</button>
+                    <button class="mplis-tab mplis-tab-extra" data-tab="tab-settings" title="Cài đặt" style="display:none;">🛠️</button>
+                    <button class="mplis-tab-toggle" id="mplis-btn-toggle-extra" title="Hiện thêm tab (Trả hồ sơ / Auto sửa Thửa-Tờ / Cài đặt)">⋯</button>
                 </div>
 
                 <div class="mplis-content">
@@ -3318,7 +3318,7 @@
       });
       if (btnToggleExtra) {
         btnToggleExtra.classList.toggle("expanded", visible);
-        btnToggleExtra.title = visible ? "Ẩn bớt tab (Trả hồ sơ / Auto sửa Thửa-Tờ)" : "Hiện thêm tab (Trả hồ sơ / Auto sửa Thửa-Tờ)";
+        btnToggleExtra.title = visible ? "Ẩn bớt tab (Trả hồ sơ / Auto sửa Thửa-Tờ / Cài đặt)" : "Hiện thêm tab (Trả hồ sơ / Auto sửa Thửa-Tờ / Cài đặt)";
       }
       localStorage.setItem("mplis_extra_tabs_visible", visible ? "true" : "false");
     }
