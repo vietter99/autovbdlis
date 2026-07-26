@@ -337,9 +337,9 @@ import { fallbackCopyTextToClipboard } from './utils.js';
                 const btnCopyAll = document.getElementById('btn-m-copy-all');
                 if (btnCopyAll) btnCopyAll.onclick = copyAllVisible;
 
-                document.querySelectorAll('.mplis-filter-tab').forEach(tab => {
+                document.querySelectorAll('#tab-alert .mplis-filter-tab').forEach(tab => {
                     tab.onclick = (e) => {
-                        document.querySelectorAll('.mplis-filter-tab').forEach(t => {
+                        document.querySelectorAll('#tab-alert .mplis-filter-tab').forEach(t => {
                             t.style.background = 'transparent';
                             t.style.color = '#94a3b8';
                         });

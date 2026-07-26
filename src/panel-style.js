@@ -87,6 +87,7 @@
         .tab-return-color .mplis-btn-primary.running { background: linear-gradient(135deg, var(--mplis-bad), #be123c) !important; color: #fff !important; }
 
         .mplis-filter-tab.active { background: rgba(99,102,241,0.35) !important; color: #fff !important; }
+        .mplis-excel-filter.active { background: rgba(99,102,241,0.35) !important; color: #fff !important; }
 
         @media print { #mplis-auto-panel { display: none !important; } }
     `;

@@ -282,6 +282,7 @@
         .tab-return-color .mplis-btn-primary.running { background: linear-gradient(135deg, var(--mplis-bad), #be123c) !important; color: #fff !important; }
 
         .mplis-filter-tab.active { background: rgba(99,102,241,0.35) !important; color: #fff !important; }
+        .mplis-excel-filter.active { background: rgba(99,102,241,0.35) !important; color: #fff !important; }
 
         @media print { #mplis-auto-panel { display: none !important; } }
     `;
@@ -3108,9 +3109,9 @@
         }
         const btnCopyAll = document.getElementById("btn-m-copy-all");
         if (btnCopyAll) btnCopyAll.onclick = copyAllVisible;
-        document.querySelectorAll(".mplis-filter-tab").forEach((tab) => {
+        document.querySelectorAll("#tab-alert .mplis-filter-tab").forEach((tab) => {
           tab.onclick = (e) => {
-            document.querySelectorAll(".mplis-filter-tab").forEach((t) => {
+            document.querySelectorAll("#tab-alert .mplis-filter-tab").forEach((t) => {
               t.style.background = "transparent";
               t.style.color = "#94a3b8";
             });
@@ -3295,13 +3296,13 @@
                     <!-- TAB 3: EXCEL -->
                     <div class="mplis-panel-body" id="tab-excel">
                         <div id="excel-filter-bar" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;">
-                            <button class="mplis-filter-tab mplis-excel-filter active" data-excel-bucket="krongnang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Krông Năng</button>
-                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="phuxuan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Phú Xuân</button>
-                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="tamgiang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tam Giang</button>
-                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="dlieya" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Dliê Ya</button>
-                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="thechap" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Thế chấp</button>
-                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
-                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="khac" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Khác</button>
+                            <button class="mplis-excel-filter active" data-excel-bucket="krongnang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Krông Năng</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="phuxuan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Phú Xuân</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="tamgiang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tam Giang</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="dlieya" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Dliê Ya</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="thechap" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Thế chấp</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="khac" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Khác</button>
                         </div>
                         <div style="font-size:11px; color:var(--mplis-text-dim); margin-bottom:10px;">Hiển thị/Tổng: <b id="excel-count" style="color:#fde047;">0</b> · tự động quét khi mở QT</div>
                         <div style="max-height:170px; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px;">
