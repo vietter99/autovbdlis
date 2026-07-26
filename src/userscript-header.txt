@@ -15,6 +15,7 @@
 // @grant        GM_setClipboard
 // @grant        GM_xmlhttpRequest
 // @connect      script.google.com
+// @connect      script.googleusercontent.com
 // @run-at       document-end
 // @allFrames    true
 // ==/UserScript==
