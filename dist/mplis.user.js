@@ -2780,7 +2780,7 @@
               if (titleStr.includes("xóa đăng ký thế chấp") || titleStr.includes("xóa đăng ký biện pháp bảo đảm")) loaiHS = "XTC";
               else if (titleStr.includes("đăng ký thế chấp") || titleStr.includes("đăng ký biện pháp bảo đảm")) loaiHS = "TC";
               else if (titleStr.includes("xác nhận")) loaiHS = "XN";
-              else if (titleStr.includes("tách thửa")) loaiHS = "TT";
+              else if (titleStr.includes("tách thửa")) loaiHS = "Tách/hợp thửa";
               else if (titleStr.includes("đăng ký biến động")) loaiHS = "BĐ";
               const mapMarker = col1.querySelector(".fa-map-marker");
               if (mapMarker && mapMarker.parentNode) {
@@ -2805,6 +2805,7 @@
       else if (bienDongCode) tenTTHCFull = bienDongCode;
       else if (titleStr.includes("cấp đổi")) tenTTHCFull = "Cấp đổi";
       else if (titleStr.includes("cấp lại")) tenTTHCFull = "Cấp lại";
+      else if (titleStr.includes("tách thửa")) tenTTHCFull = "Tách/hợp thửa";
       else tenTTHCFull = rawTitle;
       const soBienNhan = maHS;
       const gcnNodes = Array.from(tree.querySelectorAll("li.jstree-node")).filter((li) => {

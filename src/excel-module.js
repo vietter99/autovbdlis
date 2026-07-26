@@ -343,7 +343,7 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
                             if (titleStr.includes('xóa đăng ký thế chấp') || titleStr.includes('xóa đăng ký biện pháp bảo đảm')) loaiHS = 'XTC';
                             else if (titleStr.includes('đăng ký thế chấp') || titleStr.includes('đăng ký biện pháp bảo đảm')) loaiHS = 'TC';
                             else if (titleStr.includes('xác nhận')) loaiHS = 'XN';
-                            else if (titleStr.includes('tách thửa')) loaiHS = 'TT';
+                            else if (titleStr.includes('tách thửa')) loaiHS = 'Tách/hợp thửa';
                             else if (titleStr.includes('đăng ký biến động')) loaiHS = 'BĐ';
 
                             const mapMarker = col1.querySelector('.fa-map-marker');
@@ -378,6 +378,7 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
             else if (bienDongCode) tenTTHCFull = bienDongCode;
             else if (titleStr.includes('cấp đổi')) tenTTHCFull = 'Cấp đổi';
             else if (titleStr.includes('cấp lại')) tenTTHCFull = 'Cấp lại';
+            else if (titleStr.includes('tách thửa')) tenTTHCFull = 'Tách/hợp thửa';
             else tenTTHCFull = rawTitle;
 
             // Biên Nhận và Mã hồ sơ (rút gọn) là một - dùng lại đúng giá trị maHS đã tính ở trên.
