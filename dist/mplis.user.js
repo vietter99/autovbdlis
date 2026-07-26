@@ -2460,14 +2460,14 @@
       { key: "dlieya", label: "Dliê Ya", match: "DLIÊ YA" }
     ];
     const BUCKETS = [
-      { key: "thechap", label: "Thế chấp", rich: false },
-      { key: "xacnhan", label: "Xác nhận", rich: false },
       ...MY_COMMUNES.map((c) => ({ key: c.key, label: c.label, rich: true })),
-      { key: "khac", label: "Khác", rich: true }
+      { key: "khac", label: "Khác", rich: true },
+      { key: "thechap", label: "Thế chấp", rich: false },
+      { key: "xacnhan", label: "Xác nhận", rich: false }
     ];
     let state = {
       records: [],
-      currentBucket: "thechap"
+      currentBucket: "krongnang"
     };
     function getBucket(r) {
       if (r.loaiHS === "TC" || r.loaiHS === "XTC") return "thechap";
@@ -3230,7 +3230,7 @@
                     <button class="mplis-tab mplis-tab-extra" data-tab="tab-return" title="Trả hồ sơ" style="display:none;">📬</button>
                     <button class="mplis-tab mplis-tab-extra" data-tab="tab-update" title="Auto sửa Thửa/Tờ" style="display:none;">🔄</button>
                     <button class="mplis-tab mplis-tab-extra" data-tab="tab-settings" title="Cài đặt" style="display:none;">🛠️</button>
-                    <button class="mplis-tab-toggle" id="mplis-btn-toggle-extra" title="Hiện thêm tab (Trả hồ sơ / Auto sửa Thửa-Tờ / Cài đặt)">⋯</button>
+                    <button class="mplis-tab-toggle" id="mplis-btn-toggle-extra" title="Hiện thêm tab">⋯</button>
                 </div>
 
                 <div class="mplis-content">
@@ -3295,13 +3295,13 @@
                     <!-- TAB 3: EXCEL -->
                     <div class="mplis-panel-body" id="tab-excel">
                         <div id="excel-filter-bar" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;">
-                            <button class="mplis-filter-tab mplis-excel-filter active" data-excel-bucket="thechap" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Thế chấp</button>
-                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
-                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="krongnang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Krông Năng</button>
+                            <button class="mplis-filter-tab mplis-excel-filter active" data-excel-bucket="krongnang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Krông Năng</button>
                             <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="phuxuan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Phú Xuân</button>
                             <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="tamgiang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tam Giang</button>
                             <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="dlieya" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Dliê Ya</button>
                             <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="khac" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Khác</button>
+                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="thechap" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Thế chấp</button>
+                            <button class="mplis-filter-tab mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
                         </div>
                         <div style="font-size:11px; color:var(--mplis-text-dim); margin-bottom:10px;">Hiển thị/Tổng: <b id="excel-count" style="color:#fde047;">0</b> · tự động quét khi mở QT</div>
                         <div style="max-height:170px; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px;">
@@ -3442,7 +3442,7 @@
       });
       if (btnToggleExtra) {
         btnToggleExtra.classList.toggle("expanded", visible);
-        btnToggleExtra.title = visible ? "Ẩn bớt tab (Trả hồ sơ / Auto sửa Thửa-Tờ / Cài đặt)" : "Hiện thêm tab (Trả hồ sơ / Auto sửa Thửa-Tờ / Cài đặt)";
+        btnToggleExtra.title = visible ? "Ẩn bớt tab" : "Hiện thêm tab";
       }
       localStorage.setItem("mplis_extra_tabs_visible", visible ? "true" : "false");
     }

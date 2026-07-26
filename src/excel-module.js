@@ -20,15 +20,15 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
         // rich = true -> dùng bộ cột đầy đủ (Tên TTHC, Biên Nhận, Họ tên...) theo đúng mẫu Excel thật.
         // rich = false -> giữ nguyên bộ cột đơn giản cũ (Mã HS, GCN, Thửa, Tờ...) cho Thế chấp/Xác nhận.
         const BUCKETS = [
-            { key: 'thechap', label: 'Thế chấp', rich: false },
-            { key: 'xacnhan', label: 'Xác nhận', rich: false },
             ...MY_COMMUNES.map(c => ({ key: c.key, label: c.label, rich: true })),
-            { key: 'khac', label: 'Khác', rich: true }
+            { key: 'khac', label: 'Khác', rich: true },
+            { key: 'thechap', label: 'Thế chấp', rich: false },
+            { key: 'xacnhan', label: 'Xác nhận', rich: false }
         ];
 
         let state = {
             records: [],
-            currentBucket: 'thechap'
+            currentBucket: 'krongnang'
         };
 
         function getBucket(r) {
