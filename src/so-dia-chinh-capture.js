@@ -56,7 +56,7 @@ function findXaForMaHS(maHS) {
     return '';
 }
 
-function pushSoDiaChinh(record) {
+function pushSoDiaChinh(record, onSuccess) {
     const url = getSheetUrl();
     if (!url) return;
     if (typeof GM_xmlhttpRequest === 'undefined') return;
@@ -69,8 +69,12 @@ function pushSoDiaChinh(record) {
         onload: function (res) {
             try {
                 const body = JSON.parse(res.responseText);
-                if (body.ok) setStatus('✅ đã đồng bộ (Sổ địa chính)', true);
-                else setStatus('❌ ' + (body.error || 'lỗi'), false);
+                if (body.ok) {
+                    setStatus('✅ đã đồng bộ (Sổ địa chính)', true);
+                    if (onSuccess) onSuccess();
+                } else {
+                    setStatus('❌ ' + (body.error || 'lỗi'), false);
+                }
             } catch (e) {
                 setStatus('❌ phản hồi lạ', false);
             }
@@ -105,12 +109,13 @@ setInterval(() => {
         if (!soPhatHanh || !ngayVaoSo) return; // Chưa vào sổ xong (cột trống) - chờ quét lại sau
         if (isLogged(soPhatHanh)) return;
 
-        markLogged(soPhatHanh);
+        // Chỉ đánh dấu "đã ghi" SAU KHI server xác nhận thành công (không đánh dấu trước khi gửi),
+        // để nếu request lỗi (mạng, deploy sai...) thì lần quét sau vẫn tự thử lại được.
         pushSoDiaChinh({
             nguoiDuocCap,
             soPhatHanh,
             ngayKyGCN: ngayVaoSo,
             xa
-        });
+        }, () => markLogged(soPhatHanh));
     });
 }, 1500);

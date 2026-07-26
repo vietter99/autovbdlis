@@ -3679,7 +3679,7 @@
     }
     return "";
   }
-  function pushSoDiaChinh(record) {
+  function pushSoDiaChinh(record, onSuccess) {
     const url = getSheetUrl();
     if (!url) return;
     if (typeof GM_xmlhttpRequest === "undefined") return;
@@ -3691,8 +3691,12 @@
       onload: function(res) {
         try {
           const body = JSON.parse(res.responseText);
-          if (body.ok) setStatus("✅ đã đồng bộ (Sổ địa chính)", true);
-          else setStatus("❌ " + (body.error || "lỗi"), false);
+          if (body.ok) {
+            setStatus("✅ đã đồng bộ (Sổ địa chính)", true);
+            if (onSuccess) onSuccess();
+          } else {
+            setStatus("❌ " + (body.error || "lỗi"), false);
+          }
         } catch (e) {
           setStatus("❌ phản hồi lạ", false);
         }
@@ -3723,13 +3727,12 @@
       const ngayVaoSo = (cells[5].textContent || "").trim();
       if (!soPhatHanh || !ngayVaoSo) return;
       if (isLogged(soPhatHanh)) return;
-      markLogged(soPhatHanh);
       pushSoDiaChinh({
         nguoiDuocCap,
         soPhatHanh,
         ngayKyGCN: ngayVaoSo,
         xa
-      });
+      }, () => markLogged(soPhatHanh));
     });
   }, 1500);
 
