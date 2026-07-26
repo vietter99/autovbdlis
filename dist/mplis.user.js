@@ -2487,17 +2487,6 @@
         return "";
       }
     }
-    function findCurrentSoBienNhan() {
-      const items = Array.from(document.querySelectorAll("li.info"));
-      for (const li of items) {
-        const nameSpan = li.querySelector("span.name");
-        if (nameSpan && nameSpan.textContent.includes("Số biên nhận")) {
-          const valueSpan = li.querySelector("span.value");
-          if (valueSpan) return valueSpan.textContent.trim();
-        }
-      }
-      return "";
-    }
     function init() {
       loadState();
       renderFilterTabs();
@@ -2736,7 +2725,7 @@
       if (bienDongCode && BIEN_DONG_CODE_MAP[bienDongCode]) tenTTHCFull = BIEN_DONG_CODE_MAP[bienDongCode];
       else if (bienDongCode) tenTTHCFull = bienDongCode;
       else tenTTHCFull = rawTitle;
-      const soBienNhan = findCurrentSoBienNhan();
+      const soBienNhan = maHS;
       const gcnNodes = Array.from(tree.querySelectorAll("li.jstree-node")).filter((li) => {
         const a = li.querySelector(":scope > a.jstree-anchor");
         return a && (a.textContent.includes("Giấy chứng nhận") || a.textContent.includes("Số phát hành:"));

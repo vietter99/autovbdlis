@@ -48,18 +48,6 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
             } catch (e) { return ''; }
         }
 
-        function findCurrentSoBienNhan() {
-            const items = Array.from(document.querySelectorAll('li.info'));
-            for (const li of items) {
-                const nameSpan = li.querySelector('span.name');
-                if (nameSpan && nameSpan.textContent.includes('Số biên nhận')) {
-                    const valueSpan = li.querySelector('span.value');
-                    if (valueSpan) return valueSpan.textContent.trim();
-                }
-            }
-            return '';
-        }
-
         function init() {
             loadState();
             renderFilterTabs();
@@ -304,7 +292,8 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './util
             else if (bienDongCode) tenTTHCFull = bienDongCode;
             else tenTTHCFull = rawTitle;
 
-            const soBienNhan = findCurrentSoBienNhan();
+            // Biên Nhận và Mã hồ sơ (rút gọn) là một - dùng lại đúng giá trị maHS đã tính ở trên.
+            const soBienNhan = maHS;
 
             // Quét từng Giấy chứng nhận (Hỗ trợ 1 đơn nhiều GCN)
             const gcnNodes = Array.from(tree.querySelectorAll('li.jstree-node')).filter(li => {
