@@ -19,6 +19,27 @@ function doPost(e) {
   }
 }
 
+// Chống trùng phía server: kiểm tra xem đã có dòng nào (trong khoảng startRow..lastRow) mà TẤT
+// CẢ các cột trong "checks" đều khớp giá trị chưa. Cần thiết vì check chống trùng chính hiện tại
+// nằm ở phía trình duyệt (localStorage) - nếu mất localStorage hoặc đổi máy/trình duyệt thì client
+// không còn nhớ hồ sơ đã đẩy, dẫn tới ghi trùng dòng trên Sheet. checks: [{col, value}, ...].
+function isDuplicateRow(sheet, checks, startRow, lastRow) {
+  if (lastRow < startRow) return false;
+  var cols = checks.map(function (c) { return c.col; });
+  var minCol = Math.min.apply(null, cols);
+  var maxCol = Math.max.apply(null, cols);
+  var values = sheet.getRange(startRow, minCol, lastRow - startRow + 1, maxCol - minCol + 1).getValues();
+  for (var i = 0; i < values.length; i++) {
+    var isMatch = checks.every(function (c) {
+      var cellVal = String(values[i][c.col - minCol] || '').trim().toUpperCase();
+      var checkVal = String(c.value || '').trim().toUpperCase();
+      return cellVal === checkVal;
+    });
+    if (isMatch) return true;
+  }
+  return false;
+}
+
 // Ghi vào 1 trong 5 tab theo xã (Krông Năng / Phú Xuân / Tam Giang / Dliê Ya / Khác)
 function handleXaTable(ss, data) {
   var TAB_NAMES = {
@@ -46,6 +67,15 @@ function handleXaTable(ss, data) {
   var colC = sheet.getRange('C:C').getValues();
   var lastRow = colC.length;
   while (lastRow > 0 && colC[lastRow - 1][0] === '') lastRow--;
+
+  // Chống trùng: GCN (cột G) + Thửa (cột H) + Tờ (cột I) đã có sẵn trên Sheet thì bỏ qua.
+  if (data.gcn && isDuplicateRow(sheet, [
+    { col: 7, value: data.gcn }, { col: 8, value: data.thua }, { col: 9, value: data.to }
+  ], 7, lastRow)) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, skipped: true, reason: 'Trùng GCN/Thửa/Tờ' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   var targetRow = lastRow + 1;
   if (targetRow < 7) targetRow = 7; // dữ liệu bắt đầu từ dòng 7
 
@@ -72,6 +102,13 @@ function handleTongHop(ss, data) {
     var colC = sheet.getRange('C:C').getValues();
     var lastRow = colC.length;
     while (lastRow > 0 && colC[lastRow - 1][0] === '') lastRow--;
+
+    if (data.gcn && isDuplicateRow(sheet, [
+      { col: 7, value: data.gcn }, { col: 8, value: data.thua }, { col: 9, value: data.to }
+    ], 7, lastRow)) {
+      return;
+    }
+
     var targetRow = lastRow + 1;
     if (targetRow < 7) targetRow = 7;
 
@@ -95,6 +132,15 @@ function handleSoDiaChinh(ss, data) {
   var colB = sheet.getRange('B:B').getValues();
   var lastRow = colB.length;
   while (lastRow > 0 && colB[lastRow - 1][0] === '') lastRow--;
+
+  // Chống trùng: Số phát hành (cột C) là định danh duy nhất của 1 GCN.
+  if (data.soPhatHanh && isDuplicateRow(sheet, [
+    { col: 3, value: data.soPhatHanh }
+  ], 13, lastRow)) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, skipped: true, reason: 'Trùng Số phát hành' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   var targetRow = lastRow + 1;
   if (targetRow < 13) targetRow = 13; // dữ liệu bắt đầu từ dòng 13
 
@@ -121,6 +167,15 @@ function handleTheChap(ss, data) {
   var colC = sheet.getRange('C:C').getValues();
   var lastRow = colC.length;
   while (lastRow > 0 && colC[lastRow - 1][0] === '') lastRow--;
+
+  // Chống trùng: GCN (cột F) + Thửa (cột G) + Tờ (cột H) đã có sẵn trên Sheet thì bỏ qua.
+  if (data.gcn && isDuplicateRow(sheet, [
+    { col: 6, value: data.gcn }, { col: 7, value: data.thua }, { col: 8, value: data.to }
+  ], 2, lastRow)) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, skipped: true, reason: 'Trùng GCN/Thửa/Tờ' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   var targetRow = lastRow + 1;
   if (targetRow < 2) targetRow = 2; // dữ liệu bắt đầu từ dòng 2
 
