@@ -9,7 +9,10 @@ function doPost(e) {
     if (data.bucket === 'thechap') {
       return handleTheChap(ss, data);
     }
-    return handleXaTable(ss, data);
+    // 4 xã + Khác: ghi vào tab riêng, ĐỒNG THỜI ghi thêm vào tab "Tổng hợp" để tìm hồ sơ ở 1 chỗ.
+    var result = handleXaTable(ss, data);
+    handleTongHop(ss, data);
+    return result;
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: String(err) }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -55,6 +58,29 @@ function handleXaTable(ss, data) {
 
   return ContentService.createTextOutput(JSON.stringify({ ok: true, row: targetRow }))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Ghi thêm vào tab "Tổng hợp" - gộp cả 4 tab xã lại 1 chỗ để dễ tìm hồ sơ, cấu trúc cột
+// giống hệt các tab xã (dữ liệu từ dòng 7, cột C->O). Không thay thế việc ghi vào tab xã
+// riêng ở handleXaTable, đây là ghi THÊM. Nuốt lỗi nếu tab chưa tồn tại để không làm hỏng
+// request chính (handleXaTable) đang chạy trước đó.
+function handleTongHop(ss, data) {
+  try {
+    var sheet = ss.getSheetByName('Tổng hợp');
+    if (!sheet) return;
+
+    var colC = sheet.getRange('C:C').getValues();
+    var lastRow = colC.length;
+    while (lastRow > 0 && colC[lastRow - 1][0] === '') lastRow--;
+    var targetRow = lastRow + 1;
+    if (targetRow < 7) targetRow = 7;
+
+    sheet.getRange(targetRow, 3, 1, 13).setValues([[
+      data.tenTTHC || '', data.maHS || '', data.hoTen || '', data.xa || '',
+      data.gcn || '', data.thua || '', data.to || '', data.dienTich || '',
+      data.datO || '', data.cln || '', data.lua || '', data.nts || '', data.hnk || ''
+    ]]);
+  } catch (e) { }
 }
 
 // Ghi vào tab "Sổ địa chính" (sổ cấp GCN)
