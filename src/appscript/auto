@@ -120,6 +120,9 @@ function handleTongHop(ss, data) {
       data.gcn || '', data.thua || '', data.to || '', data.dienTich || '',
       data.datO || '', data.cln || '', data.lua || '', data.nts || '', data.hnk || ''
     ]]);
+    // Cột P: thời điểm ghi vào Tổng hợp (gần đúng lúc hồ sơ giải quyết xong ở bước GCN/QT3) -
+    // dùng để tab "Thông báo nhận HS" tra ra ngày giờ giải quyết cụ thể qua VLOOKUP.
+    sheet.getRange(targetRow, 16, 1, 1).setValue(new Date());
   } catch (e) { }
 }
 
