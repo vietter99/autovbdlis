@@ -57,8 +57,14 @@ function parseAspNetDate(str) {
 
 function pushNotify(item) {
     const url = getNotifySheetUrl();
-    if (!url) return;
-    if (typeof GM_xmlhttpRequest === 'undefined') return;
+    if (!url) {
+        console.log('[Notify] Bỏ qua đẩy - chưa cấu hình link Sheet (ô 🔗 ở tab Excel).');
+        return;
+    }
+    if (typeof GM_xmlhttpRequest === 'undefined') {
+        console.log('[Notify] Bỏ qua đẩy - GM_xmlhttpRequest không khả dụng.');
+        return;
+    }
 
     const record = {
         bucket: 'thongbao',
@@ -67,6 +73,7 @@ function pushNotify(item) {
         nguoiChuyen: item.FullNameNguoiChuyenTiep || '',
         noiDung: item.WarningContent || ''
     };
+    console.log('[Notify] Đang đẩy:', record);
 
     _notifyPending.add(item.Id);
     GM_xmlhttpRequest({
@@ -75,17 +82,25 @@ function pushNotify(item) {
         data: JSON.stringify(record),
         headers: { 'Content-Type': 'application/json' },
         onload: function (res) {
+            console.log('[Notify] Phản hồi từ Sheet:', res.status, res.responseText);
             try {
                 const body = JSON.parse(res.responseText);
                 if (body.ok) markNotifyLogged(item.Id);
                 else _notifyPending.delete(item.Id);
-            } catch (e) { _notifyPending.delete(item.Id); }
+            } catch (e) {
+                console.log('[Notify] Không parse được phản hồi JSON:', e);
+                _notifyPending.delete(item.Id);
+            }
         },
-        onerror: function () { _notifyPending.delete(item.Id); }
+        onerror: function (err) {
+            console.log('[Notify] Lỗi kết nối khi đẩy lên Sheet:', err);
+            _notifyPending.delete(item.Id);
+        }
     });
 }
 
 function pollNotify() {
+    console.log('[Notify] Đang quét GetNotify...');
     fetch('https://dla.mplis.gov.vn/dc/DangKyAjax/GetNotify', {
         method: 'POST',
         credentials: 'same-origin',
@@ -94,15 +109,24 @@ function pollNotify() {
     })
         .then((res) => res.json())
         .then((json) => {
-            if (!json || !json.success || !Array.isArray(json.Value)) return;
+            if (!json || !json.success || !Array.isArray(json.Value)) {
+                console.log('[Notify] Phản hồi GetNotify không đúng dạng mong đợi:', json);
+                return;
+            }
+            console.log(`[Notify] Nhận được ${json.Value.length} thông báo (tổng chưa xem: ${json.totalChuaXem}).`);
             json.Value.forEach((item) => {
                 if (item.WarningType !== 0) return;
                 if (!item.Id || !item.ObjectId) return;
-                if (_notifyPending.has(item.Id) || isNotifyLogged(item.Id)) return;
+                if (_notifyPending.has(item.Id) || isNotifyLogged(item.Id)) {
+                    console.log('[Notify] Bỏ qua (đã đẩy trước đó):', item.ObjectId);
+                    return;
+                }
                 pushNotify(item);
             });
         })
-        .catch(() => { });
+        .catch((err) => {
+            console.log('[Notify] Lỗi khi gọi GetNotify:', err);
+        });
 }
 
 if (window === window.top) {
