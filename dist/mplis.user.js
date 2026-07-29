@@ -3931,7 +3931,6 @@
   }
   if (window === window.top) {
     setTimeout(pollNotify, 3e3);
-    setInterval(pollNotify, 3e4);
   }
 
   // src/main.js

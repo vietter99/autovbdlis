@@ -135,7 +135,7 @@ function pollNotify() {
     });
 }
 
+// Chỉ quét 1 lần lúc tải trang (F5) - không tự lặp lại theo thời gian nữa.
 if (window === window.top) {
     setTimeout(pollNotify, 3000);
-    setInterval(pollNotify, 30000);
 }
