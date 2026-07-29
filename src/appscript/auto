@@ -9,6 +9,9 @@ function doPost(e) {
     if (data.bucket === 'thechap') {
       return handleTheChap(ss, data);
     }
+    if (data.bucket === 'thongbao') {
+      return handleThongBao(ss, data);
+    }
     // 4 xã + Khác: ghi vào tab riêng, ĐỒNG THỜI ghi thêm vào tab "Tổng hợp" để tìm hồ sơ ở 1 chỗ.
     var result = handleXaTable(ss, data);
     handleTongHop(ss, data);
@@ -187,6 +190,41 @@ function handleTheChap(ss, data) {
     data.datO || '', data.cln || '', data.tsn || '', data.lua || '', data.hnk || '',
     data.skc || '', data.ngay || ''
     // Cột Q (Giờ hẹn trả) cố tình bỏ trống - ghi tay
+  ]]);
+
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, row: targetRow }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Ghi vào tab "Thông báo nhận HS" (chỉ 1 dòng tiêu đề, dữ liệu bắt đầu từ dòng 2). Cột E
+// (Trạng thái) KHÔNG ghi từ script - dùng công thức tra cột Mã HS ở tab "Tổng hợp" để tự biết
+// đã giải quyết hay chưa (không liên quan Thế chấp/Xác nhận).
+function handleThongBao(ss, data) {
+  var sheet = ss.getSheetByName('Thông báo nhận HS');
+  if (!sheet) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sheet not found: Thông báo nhận HS' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Tìm dòng trống kế tiếp dựa theo cột A (Mã hồ sơ)
+  var colA = sheet.getRange('A:A').getValues();
+  var lastRow = colA.length;
+  while (lastRow > 0 && colA[lastRow - 1][0] === '') lastRow--;
+
+  // Chống trùng: Mã hồ sơ (cột A) đã có sẵn thì bỏ qua (1 hồ sơ chỉ nhận thông báo 1 lần).
+  if (data.maHS && isDuplicateRow(sheet, [
+    { col: 1, value: data.maHS }
+  ], 2, lastRow)) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, skipped: true, reason: 'Trùng Mã hồ sơ' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var targetRow = lastRow + 1;
+  if (targetRow < 2) targetRow = 2; // dữ liệu bắt đầu từ dòng 2
+
+  // Ghi cột A (Mã HS), B (Ngày nhận), C (Người chuyển), D (Nội dung)
+  sheet.getRange(targetRow, 1, 1, 4).setValues([[
+    data.maHS || '', data.ngayNhan || '', data.nguoiChuyen || '', data.noiDung || ''
   ]]);
 
   return ContentService.createTextOutput(JSON.stringify({ ok: true, row: targetRow }))

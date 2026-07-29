@@ -3812,6 +3812,106 @@
     saveBienDongCode(maHS, code);
   }, 1e3);
 
+  // src/notify-capture.js
+  var NOTIFY_LOGGED_KEY = "mplis_notify_logged";
+  var NOTIFY_SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
+  var _notifyPending = /* @__PURE__ */ new Set();
+  function isNotifyLogged(id) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(NOTIFY_LOGGED_KEY) || "{}");
+      return !!stored[id];
+    } catch (e) {
+      return false;
+    }
+  }
+  function markNotifyLogged(id) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(NOTIFY_LOGGED_KEY) || "{}");
+      stored[id] = true;
+      localStorage.setItem(NOTIFY_LOGGED_KEY, JSON.stringify(stored));
+    } catch (e) {
+    }
+    _notifyPending.delete(id);
+  }
+  function getNotifySheetUrl() {
+    try {
+      return (localStorage.getItem(NOTIFY_SHEET_URL_KEY) || "").trim();
+    } catch (e) {
+      return "";
+    }
+  }
+  function deriveMaHSFromObjectId(objectId) {
+    if (!objectId) return "";
+    const parts = objectId.split("-");
+    if (parts.length >= 3) {
+      return (parts[1].slice(-2) + "-" + parts[2]).toUpperCase();
+    }
+    return objectId.slice(-7).toUpperCase();
+  }
+  function parseAspNetDate(str) {
+    if (!str) return "";
+    const m = str.match(/\/Date\((\d+)\)\//);
+    if (!m) return "";
+    const d = new Date(parseInt(m[1], 10));
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    return `${dd}/${mm}/${d.getFullYear()} ${hh}:${mi}`;
+  }
+  function pushNotify(item) {
+    const url = getNotifySheetUrl();
+    if (!url) return;
+    if (typeof GM_xmlhttpRequest === "undefined") return;
+    const record = {
+      bucket: "thongbao",
+      maHS: deriveMaHSFromObjectId(item.ObjectId),
+      ngayNhan: parseAspNetDate(item.NgayTao),
+      nguoiChuyen: item.FullNameNguoiChuyenTiep || "",
+      noiDung: item.WarningContent || ""
+    };
+    _notifyPending.add(item.Id);
+    GM_xmlhttpRequest({
+      method: "POST",
+      url,
+      data: JSON.stringify(record),
+      headers: { "Content-Type": "application/json" },
+      onload: function(res) {
+        try {
+          const body = JSON.parse(res.responseText);
+          if (body.ok) markNotifyLogged(item.Id);
+          else _notifyPending.delete(item.Id);
+        } catch (e) {
+          _notifyPending.delete(item.Id);
+        }
+      },
+      onerror: function() {
+        _notifyPending.delete(item.Id);
+      }
+    });
+  }
+  function pollNotify() {
+    fetch("https://dla.mplis.gov.vn/dc/DangKyAjax/GetNotify", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+      body: "start=0&length=50"
+    }).then((res) => res.json()).then((json) => {
+      if (!json || !json.success || !Array.isArray(json.Value)) return;
+      json.Value.forEach((item) => {
+        if (item.WarningType !== 0) return;
+        if (!item.Id || !item.ObjectId) return;
+        if (_notifyPending.has(item.Id) || isNotifyLogged(item.Id)) return;
+        pushNotify(item);
+      });
+    }).catch(() => {
+    });
+  }
+  if (window === window.top) {
+    setTimeout(pollNotify, 3e3);
+    setInterval(pollNotify, 3e4);
+  }
+
   // src/main.js
   if (window === window.top) {
     const checkBody = setInterval(() => {

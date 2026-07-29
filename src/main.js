@@ -9,6 +9,7 @@ import { injectPanel } from './inject-panel.js';
 import { toggleProcess, toggleReturn } from './toggle.js';
 import './receipt-copy.js';
 import './bien-dong-capture.js';
+import './notify-capture.js';
 
     if (window === window.top) {
         const checkBody = setInterval(() => {
