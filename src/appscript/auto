@@ -199,9 +199,10 @@ function handleTheChap(ss, data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// Ghi vào tab "Thông báo nhận HS" (chỉ 1 dòng tiêu đề, dữ liệu bắt đầu từ dòng 2). Cột E
+// Ghi vào tab "Thông báo nhận HS" (chỉ 1 dòng tiêu đề, dữ liệu bắt đầu từ dòng 2). Cột D
 // (Trạng thái) KHÔNG ghi từ script - dùng công thức tra cột Mã HS ở tab "Tổng hợp" để tự biết
-// đã giải quyết hay chưa (không liên quan Thế chấp/Xác nhận).
+// đã giải quyết hay chưa (không liên quan Thế chấp/Xác nhận). Cột "Nội dung" đã bị xóa khỏi
+// Sheet nên script chỉ ghi 3 cột A:C, không đụng gì tới cột D trở đi.
 function handleThongBao(ss, data) {
   var sheet = ss.getSheetByName('Thông báo nhận HS');
   if (!sheet) {
@@ -225,9 +226,9 @@ function handleThongBao(ss, data) {
   var targetRow = lastRow + 1;
   if (targetRow < 2) targetRow = 2; // dữ liệu bắt đầu từ dòng 2
 
-  // Ghi cột A (Mã HS), B (Ngày nhận), C (Người chuyển), D (Nội dung)
-  sheet.getRange(targetRow, 1, 1, 4).setValues([[
-    data.maHS || '', data.ngayNhan || '', data.nguoiChuyen || '', data.noiDung || ''
+  // Ghi cột A (Mã HS), B (Ngày nhận), C (Người chuyển)
+  sheet.getRange(targetRow, 1, 1, 3).setValues([[
+    data.maHS || '', data.ngayNhan || '', data.nguoiChuyen || ''
   ]]);
 
   return ContentService.createTextOutput(JSON.stringify({ ok: true, row: targetRow }))
