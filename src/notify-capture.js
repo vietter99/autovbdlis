@@ -31,15 +31,26 @@ function getNotifySheetUrl() {
     try { return (localStorage.getItem(NOTIFY_SHEET_URL_KEY) || '').trim(); } catch (e) { return ''; }
 }
 
-// ObjectId dạng đầy đủ "H15.50-260626-0251" -> mã hồ sơ rút gọn "26-0251", cùng quy tắc với
+// Mã hồ sơ đầy đủ (VD "H15.50-260615-0083") -> rút gọn "15-0083", cùng quy tắc với
 // findCurrentMaHS() trong utils.js để khớp đúng với cột Mã HS ở tab Tổng hợp/4 xã.
-function deriveMaHSFromObjectId(objectId) {
-    if (!objectId) return '';
-    const parts = objectId.split('-');
+function shortenMaHS(full) {
+    if (!full) return '';
+    const parts = full.split('-');
     if (parts.length >= 3) {
         return (parts[1].slice(-2) + '-' + parts[2]).toUpperCase();
     }
-    return objectId.slice(-7).toUpperCase();
+    return full.slice(-7).toUpperCase();
+}
+
+// Trích số biên nhận trực tiếp từ câu nội dung thông báo (VD "...có số biên nhận là
+// H15.50-260615-0083") - chắc chắn hơn vì đúng y nguyên những gì hiển thị cho người dùng.
+// Dự phòng dùng ObjectId nếu không khớp được mẫu câu.
+function extractSoBienNhan(content, fallbackObjectId) {
+    if (content) {
+        const m = content.match(/số biên nhận là\s+([^\s]+)/i);
+        if (m) return m[1];
+    }
+    return fallbackObjectId || '';
 }
 
 // NgayTao dạng .NET "/Date(1785292227802)/" (mili-giây) -> chuỗi ngày giờ Việt Nam.
@@ -68,10 +79,10 @@ function pushNotify(item) {
 
     const record = {
         bucket: 'thongbao',
-        maHS: deriveMaHSFromObjectId(item.ObjectId),
+        maHS: shortenMaHS(extractSoBienNhan(item.WarningContent, item.ObjectId)),
         ngayNhan: parseAspNetDate(item.NgayTao),
-        nguoiChuyen: item.FullNameNguoiChuyenTiep || '',
-        noiDung: item.WarningContent || ''
+        nguoiChuyen: item.FullNameNguoiChuyenTiep || ''
+        // Nội dung: bỏ - chỉ là câu boilerplate lặp lại mã hồ sơ, không cần lưu
     };
     console.log('[Notify] Đang đẩy:', record);
 

@@ -3840,13 +3840,20 @@
       return "";
     }
   }
-  function deriveMaHSFromObjectId(objectId) {
-    if (!objectId) return "";
-    const parts = objectId.split("-");
+  function shortenMaHS(full) {
+    if (!full) return "";
+    const parts = full.split("-");
     if (parts.length >= 3) {
       return (parts[1].slice(-2) + "-" + parts[2]).toUpperCase();
     }
-    return objectId.slice(-7).toUpperCase();
+    return full.slice(-7).toUpperCase();
+  }
+  function extractSoBienNhan(content, fallbackObjectId) {
+    if (content) {
+      const m = content.match(/số biên nhận là\s+([^\s]+)/i);
+      if (m) return m[1];
+    }
+    return fallbackObjectId || "";
   }
   function parseAspNetDate(str) {
     if (!str) return "";
@@ -3871,10 +3878,10 @@
     }
     const record = {
       bucket: "thongbao",
-      maHS: deriveMaHSFromObjectId(item.ObjectId),
+      maHS: shortenMaHS(extractSoBienNhan(item.WarningContent, item.ObjectId)),
       ngayNhan: parseAspNetDate(item.NgayTao),
-      nguoiChuyen: item.FullNameNguoiChuyenTiep || "",
-      noiDung: item.WarningContent || ""
+      nguoiChuyen: item.FullNameNguoiChuyenTiep || ""
+      // Nội dung: bỏ - chỉ là câu boilerplate lặp lại mã hồ sơ, không cần lưu
     };
     console.log("[Notify] Đang đẩy:", record);
     _notifyPending.add(item.Id);
