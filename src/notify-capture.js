@@ -31,20 +31,10 @@ function getNotifySheetUrl() {
     try { return (localStorage.getItem(NOTIFY_SHEET_URL_KEY) || '').trim(); } catch (e) { return ''; }
 }
 
-// Mã hồ sơ đầy đủ (VD "H15.50-260615-0083") -> rút gọn "15-0083", cùng quy tắc với
-// findCurrentMaHS() trong utils.js để khớp đúng với cột Mã HS ở tab Tổng hợp/4 xã.
-function shortenMaHS(full) {
-    if (!full) return '';
-    const parts = full.split('-');
-    if (parts.length >= 3) {
-        return (parts[1].slice(-2) + '-' + parts[2]).toUpperCase();
-    }
-    return full.slice(-7).toUpperCase();
-}
-
 // Trích số biên nhận trực tiếp từ câu nội dung thông báo (VD "...có số biên nhận là
 // H15.50-260615-0083") - chắc chắn hơn vì đúng y nguyên những gì hiển thị cho người dùng.
-// Dự phòng dùng ObjectId nếu không khớp được mẫu câu.
+// Dự phòng dùng ObjectId nếu không khớp được mẫu câu. Giữ nguyên dạng đầy đủ này (không rút
+// gọn) - công thức Trạng thái ở Sheet sẽ tự tách rút gọn để so khớp với tab Tổng hợp.
 function extractSoBienNhan(content, fallbackObjectId) {
     if (content) {
         const m = content.match(/số biên nhận là\s+([^\s]+)/i);
@@ -79,7 +69,7 @@ function pushNotify(item) {
 
     const record = {
         bucket: 'thongbao',
-        maHS: shortenMaHS(extractSoBienNhan(item.WarningContent, item.ObjectId)),
+        maHS: extractSoBienNhan(item.WarningContent, item.ObjectId),
         ngayNhan: parseAspNetDate(item.NgayTao),
         nguoiChuyen: item.FullNameNguoiChuyenTiep || ''
         // Nội dung: bỏ - chỉ là câu boilerplate lặp lại mã hồ sơ, không cần lưu
