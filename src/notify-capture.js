@@ -99,34 +99,39 @@ function pushNotify(item) {
     });
 }
 
+// GetNotify yêu cầu 1 token chống giả mạo (anti-forgery) mà trang tự gắn vào MỌI request gọi
+// qua jQuery của chính trang (cơ chế phổ biến ở ASP.NET, thường qua $.ajaxSetup/ajaxSend toàn cục).
+// fetch() thuần không đi qua cơ chế đó nên bị từ chối "Invalid Token" - phải gọi qua $.ajax() của
+// chính trang (unsafeWindow.$) để tự động thừa hưởng token đó, không cần biết nó nằm ở đâu.
 function pollNotify() {
-    console.log('[Notify] Đang quét GetNotify...');
-    fetch('https://dla.mplis.gov.vn/dc/DangKyAjax/GetNotify', {
+    const jq = typeof unsafeWindow !== 'undefined' && unsafeWindow.$ ? unsafeWindow.$ : null;
+    if (!jq || !jq.ajax) {
+        console.log('[Notify] Không tìm thấy jQuery ($) trên trang, không thể gọi GetNotify.');
+        return;
+    }
+    console.log('[Notify] Đang quét GetNotify (qua $.ajax của trang)...');
+    jq.ajax({
+        url: 'https://dla.mplis.gov.vn/dc/DangKyAjax/GetNotify',
         method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-        body: 'start=0&length=50'
-    })
-        .then((res) => res.json())
-        .then((json) => {
-            if (!json || !json.success || !Array.isArray(json.Value)) {
-                console.log('[Notify] Phản hồi GetNotify không đúng dạng mong đợi:', json);
+        data: { start: 0, length: 50 }
+    }).done((json) => {
+        if (!json || !json.success || !Array.isArray(json.Value)) {
+            console.log('[Notify] Phản hồi GetNotify không đúng dạng mong đợi:', json);
+            return;
+        }
+        console.log(`[Notify] Nhận được ${json.Value.length} thông báo (tổng chưa xem: ${json.totalChuaXem}).`);
+        json.Value.forEach((item) => {
+            if (item.WarningType !== 0) return;
+            if (!item.Id || !item.ObjectId) return;
+            if (_notifyPending.has(item.Id) || isNotifyLogged(item.Id)) {
+                console.log('[Notify] Bỏ qua (đã đẩy trước đó):', item.ObjectId);
                 return;
             }
-            console.log(`[Notify] Nhận được ${json.Value.length} thông báo (tổng chưa xem: ${json.totalChuaXem}).`);
-            json.Value.forEach((item) => {
-                if (item.WarningType !== 0) return;
-                if (!item.Id || !item.ObjectId) return;
-                if (_notifyPending.has(item.Id) || isNotifyLogged(item.Id)) {
-                    console.log('[Notify] Bỏ qua (đã đẩy trước đó):', item.ObjectId);
-                    return;
-                }
-                pushNotify(item);
-            });
-        })
-        .catch((err) => {
-            console.log('[Notify] Lỗi khi gọi GetNotify:', err);
+            pushNotify(item);
         });
+    }).fail((xhr) => {
+        console.log('[Notify] Lỗi khi gọi GetNotify:', xhr.status, xhr.responseText);
+    });
 }
 
 if (window === window.top) {

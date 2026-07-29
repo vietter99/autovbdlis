@@ -3901,13 +3901,17 @@
     });
   }
   function pollNotify() {
-    console.log("[Notify] Đang quét GetNotify...");
-    fetch("https://dla.mplis.gov.vn/dc/DangKyAjax/GetNotify", {
+    const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+    if (!jq || !jq.ajax) {
+      console.log("[Notify] Không tìm thấy jQuery ($) trên trang, không thể gọi GetNotify.");
+      return;
+    }
+    console.log("[Notify] Đang quét GetNotify (qua $.ajax của trang)...");
+    jq.ajax({
+      url: "https://dla.mplis.gov.vn/dc/DangKyAjax/GetNotify",
       method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
-      body: "start=0&length=50"
-    }).then((res) => res.json()).then((json) => {
+      data: { start: 0, length: 50 }
+    }).done((json) => {
       if (!json || !json.success || !Array.isArray(json.Value)) {
         console.log("[Notify] Phản hồi GetNotify không đúng dạng mong đợi:", json);
         return;
@@ -3922,8 +3926,8 @@
         }
         pushNotify(item);
       });
-    }).catch((err) => {
-      console.log("[Notify] Lỗi khi gọi GetNotify:", err);
+    }).fail((xhr) => {
+      console.log("[Notify] Lỗi khi gọi GetNotify:", xhr.status, xhr.responseText);
     });
   }
   if (window === window.top) {
