@@ -1,4 +1,16 @@
+// Nhiều request có thể tới GẦN NHƯ ĐỒNG THỜI (VD: lần đầu quét thấy hàng chục hồ sơ mới cùng
+// lúc). Nếu không khóa, 2 request chạy song song đều đọc "dòng trống kế tiếp" TRƯỚC KHI request
+// kia kịp ghi, dẫn tới cả 2 cùng ghi đè lên CÙNG 1 DÒNG - 1 trong 2 bản ghi bị mất mà client vẫn
+// nhận "ok" (nên localStorage vẫn tưởng đã ghi, không tự thử lại). LockService serialize hoá toàn
+// bộ doPost để đảm bảo không có 2 lần ghi nào chồng lên nhau.
 function doPost(e) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (lockErr) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Server bận, thử lại sau: ' + String(lockErr) }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   try {
     var data = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -12,6 +24,9 @@ function doPost(e) {
     if (data.bucket === 'thongbao') {
       return handleThongBao(ss, data);
     }
+    if (data.bucket === 'thongbao_trangthai') {
+      return handleThongBaoTrangThai(ss, data);
+    }
     // 4 xã + Khác: ghi vào tab riêng, ĐỒNG THỜI ghi thêm vào tab "Tổng hợp" để tìm hồ sơ ở 1 chỗ.
     var result = handleXaTable(ss, data);
     handleTongHop(ss, data);
@@ -19,6 +34,8 @@ function doPost(e) {
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: String(err) }))
       .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -41,6 +58,27 @@ function isDuplicateRow(sheet, checks, startRow, lastRow) {
     if (isMatch) return true;
   }
   return false;
+}
+
+// Giống isDuplicateRow nhưng trả về SỐ DÒNG khớp (hoặc -1) thay vì true/false, để có thể cập
+// nhật đè lên dòng đó thay vì luôn bỏ qua - dùng cho Sổ địa chính vì Ngày ký GCN/Số vào sổ có
+// thể được điền bổ sung SAU lần đẩy đầu tiên (người dùng cập nhật thủ công trên cổng rồi mở lại
+// cây GCN để tool quét lại).
+function findMatchingRow(sheet, checks, startRow, lastRow) {
+  if (lastRow < startRow) return -1;
+  var cols = checks.map(function (c) { return c.col; });
+  var minCol = Math.min.apply(null, cols);
+  var maxCol = Math.max.apply(null, cols);
+  var values = sheet.getRange(startRow, minCol, lastRow - startRow + 1, maxCol - minCol + 1).getValues();
+  for (var i = 0; i < values.length; i++) {
+    var isMatch = checks.every(function (c) {
+      var cellVal = String(values[i][c.col - minCol] || '').trim().toUpperCase();
+      var checkVal = String(c.value || '').trim().toUpperCase();
+      return cellVal === checkVal;
+    });
+    if (isMatch) return startRow + i;
+  }
+  return -1;
 }
 
 // Ghi vào 1 trong 5 tab theo xã (Krông Năng / Phú Xuân / Tam Giang / Dliê Ya / Khác)
@@ -71,11 +109,14 @@ function handleXaTable(ss, data) {
   var lastRow = colC.length;
   while (lastRow > 0 && colC[lastRow - 1][0] === '') lastRow--;
 
-  // Chống trùng: GCN (cột G) + Thửa (cột H) + Tờ (cột I) đã có sẵn trên Sheet thì bỏ qua.
+  // Chống trùng: Mã HS (cột D) + GCN (cột G) + Thửa (cột H) + Tờ (cột I) đã có sẵn trên Sheet
+  // thì bỏ qua. PHẢI tính cả Mã HS - nếu chỉ so GCN/Thửa/Tờ, một thửa đất từng xuất hiện ở hồ
+  // sơ khác (VD hồ sơ chuyển nhượng cũ hơn trên cùng thửa) sẽ khiến hồ sơ MỚI trên cùng thửa đó
+  // bị chặn không ghi, làm Trạng thái ở "Thông báo nhận HS" không bao giờ nhận ra đã giải quyết.
   if (data.gcn && isDuplicateRow(sheet, [
-    { col: 7, value: data.gcn }, { col: 8, value: data.thua }, { col: 9, value: data.to }
+    { col: 4, value: data.maHS }, { col: 7, value: data.gcn }, { col: 8, value: data.thua }, { col: 9, value: data.to }
   ], 7, lastRow)) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: true, skipped: true, reason: 'Trùng GCN/Thửa/Tờ' }))
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, skipped: true, reason: 'Trùng Mã HS/GCN/Thửa/Tờ' }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -106,8 +147,9 @@ function handleTongHop(ss, data) {
     var lastRow = colC.length;
     while (lastRow > 0 && colC[lastRow - 1][0] === '') lastRow--;
 
+    // Chống trùng cũng phải tính Mã HS (cột D), không chỉ GCN/Thửa/Tờ - lý do xem handleXaTable.
     if (data.gcn && isDuplicateRow(sheet, [
-      { col: 7, value: data.gcn }, { col: 8, value: data.thua }, { col: 9, value: data.to }
+      { col: 4, value: data.maHS }, { col: 7, value: data.gcn }, { col: 8, value: data.thua }, { col: 9, value: data.to }
     ], 7, lastRow)) {
       return;
     }
@@ -139,20 +181,29 @@ function handleSoDiaChinh(ss, data) {
   var lastRow = colB.length;
   while (lastRow > 0 && colB[lastRow - 1][0] === '') lastRow--;
 
-  // Chống trùng: Số phát hành (cột C) là định danh duy nhất của 1 GCN.
-  if (data.soPhatHanh && isDuplicateRow(sheet, [
+  // Số phát hành (cột C) là định danh duy nhất của 1 GCN. Nếu đã có dòng thì CẬP NHẬT ĐÈ Ngày ký
+  // GCN/Số vào sổ/Xã (các thông tin này thường được điền bổ sung SAU lần đẩy đầu, khi người dùng
+  // cập nhật thủ công trên cổng rồi mở lại cây GCN) thay vì bỏ qua - không tạo dòng trùng mới, chỉ
+  // ghi đè các ô có giá trị mới (giữ nguyên ô cũ nếu lần này không có dữ liệu).
+  var existingRow = data.soPhatHanh ? findMatchingRow(sheet, [
     { col: 3, value: data.soPhatHanh }
-  ], 13, lastRow)) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: true, skipped: true, reason: 'Trùng Số phát hành' }))
+  ], 13, lastRow) : -1;
+
+  if (existingRow !== -1) {
+    if (data.nguoiDuocCap) sheet.getRange(existingRow, 2, 1, 1).setValue(data.nguoiDuocCap);
+    if (data.ngayKyGCN) sheet.getRange(existingRow, 4, 1, 1).setValue(data.ngayKyGCN);
+    if (data.soVaoSo) sheet.getRange(existingRow, 5, 1, 1).setValue(data.soVaoSo);
+    if (data.xa) sheet.getRange(existingRow, 7, 1, 1).setValue(data.xa);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, row: existingRow, updated: true }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
   var targetRow = lastRow + 1;
   if (targetRow < 13) targetRow = 13; // dữ liệu bắt đầu từ dòng 13
 
-  // Ghi cột B (Tên người được cấp), C (Số phát hành), D (Ngày ký GCN)
-  sheet.getRange(targetRow, 2, 1, 3).setValues([[
-    data.nguoiDuocCap || '', data.soPhatHanh || '', data.ngayKyGCN || ''
+  // Ghi cột B (Tên người được cấp), C (Số phát hành), D (Ngày ký GCN), E (Số vào sổ)
+  sheet.getRange(targetRow, 2, 1, 4).setValues([[
+    data.nguoiDuocCap || '', data.soPhatHanh || '', data.ngayKyGCN || '', data.soVaoSo || ''
   ]]);
   // Cột G (Xã) - không liền với B:D nên ghi riêng
   sheet.getRange(targetRow, 7, 1, 1).setValue(data.xa || '');
@@ -199,10 +250,9 @@ function handleTheChap(ss, data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// Ghi vào tab "Thông báo nhận HS" (chỉ 1 dòng tiêu đề, dữ liệu bắt đầu từ dòng 2). Cột D
-// (Trạng thái) KHÔNG ghi từ script - dùng công thức tra cột Mã HS ở tab "Tổng hợp" để tự biết
-// đã giải quyết hay chưa (không liên quan Thế chấp/Xác nhận). Cột "Nội dung" đã bị xóa khỏi
-// Sheet nên script chỉ ghi 3 cột A:C, không đụng gì tới cột D trở đi.
+// Ghi vào tab "Thông báo nhận HS" (chỉ 1 dòng tiêu đề, dữ liệu bắt đầu từ dòng 2). Chỉ ghi 6 cột
+// A:F ở đây - cột G (Trạng thái) được handleThongBaoTrangThai() ghi riêng (tra thời gian thực
+// qua GetXuLyCongViec, không còn dùng công thức VLOOKUP). Cột H (Ghi chú) luôn bỏ trống, ghi tay.
 function handleThongBao(ss, data) {
   var sheet = ss.getSheetByName('Thông báo nhận HS');
   if (!sheet) {
@@ -226,11 +276,41 @@ function handleThongBao(ss, data) {
   var targetRow = lastRow + 1;
   if (targetRow < 2) targetRow = 2; // dữ liệu bắt đầu từ dòng 2
 
-  // Ghi cột A (Mã HS), B (Ngày nhận), C (Người chuyển)
-  sheet.getRange(targetRow, 1, 1, 3).setValues([[
-    data.maHS || '', data.ngayNhan || '', data.nguoiChuyen || ''
+  // Ghi cột A (Mã HS), B (Người nộp), C (Tên TTHC), D (Xã), E (Người chuyển), F (Ngày nhận)
+  sheet.getRange(targetRow, 1, 1, 6).setValues([[
+    data.maHS || '', data.nguoiNop || '', data.tenTTHC || '',
+    data.xa || '', data.nguoiChuyen || '', data.ngayNhan || ''
   ]]);
 
   return ContentService.createTextOutput(JSON.stringify({ ok: true, row: targetRow }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Ghi trực tiếp cột G (Trạng thái) của "Thông báo nhận HS" bằng dữ liệu tra cứu thời gian thực
+// từ GetXuLyCongViec (bước hiện tại + người đang giữ + Kết ISO/đã trả) - tìm đúng dòng theo Mã
+// hồ sơ (cột A). KHÔNG tạo dòng mới nếu không tìm thấy (hồ sơ phải được handleThongBao ghi trước).
+function handleThongBaoTrangThai(ss, data) {
+  var sheet = ss.getSheetByName('Thông báo nhận HS');
+  if (!sheet) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sheet not found: Thông báo nhận HS' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var colA = sheet.getRange('A:A').getValues();
+  var lastRow = colA.length;
+  while (lastRow > 0 && colA[lastRow - 1][0] === '') lastRow--;
+
+  var row = data.maHS ? findMatchingRow(sheet, [
+    { col: 1, value: data.maHS }
+  ], 2, lastRow) : -1;
+
+  if (row === -1) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, skipped: true, reason: 'Không tìm thấy Mã hồ sơ' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  sheet.getRange(row, 7, 1, 1).setValue(data.trangThai || '');
+
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, row: row }))
     .setMimeType(ContentService.MimeType.JSON);
 }

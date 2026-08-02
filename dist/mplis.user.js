@@ -2455,21 +2455,27 @@
   var LOGGED_KEY = "mplis_sodiachinh_logged";
   var SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
   var _pendingKeys = /* @__PURE__ */ new Set();
-  function isSoDiaChinhLogged(key) {
+  function getSoDiaChinhSignature(record) {
+    return (record.soVaoSo || "") + "|" + (record.ngayKyGCN || "");
+  }
+  function getSoDiaChinhLoggedSignature(key) {
     try {
       const stored = JSON.parse(localStorage.getItem(LOGGED_KEY) || "{}");
-      return !!stored[key];
+      return Object.prototype.hasOwnProperty.call(stored, key) ? stored[key] : null;
     } catch (e) {
-      return false;
+      return null;
     }
   }
-  function isSoDiaChinhPendingOrLogged(key) {
-    return _pendingKeys.has(key) || isSoDiaChinhLogged(key);
+  function isSoDiaChinhPendingOrLogged(key, record) {
+    if (_pendingKeys.has(key)) return true;
+    const loggedSig = getSoDiaChinhLoggedSignature(key);
+    if (loggedSig === null) return false;
+    return loggedSig === getSoDiaChinhSignature(record);
   }
-  function markSoDiaChinhLogged(key) {
+  function markSoDiaChinhLogged(key, record) {
     try {
       const stored = JSON.parse(localStorage.getItem(LOGGED_KEY) || "{}");
-      stored[key] = true;
+      stored[key] = getSoDiaChinhSignature(record);
       localStorage.setItem(LOGGED_KEY, JSON.stringify(stored));
     } catch (e) {
     }
@@ -2503,7 +2509,7 @@
           const body = JSON.parse(res.responseText);
           if (body.ok) {
             setSoDiaChinhStatus("✅ đã đồng bộ (Sổ địa chính)", true);
-            markSoDiaChinhLogged(key);
+            markSoDiaChinhLogged(key, record);
           } else {
             setSoDiaChinhStatus("❌ " + (body.error || "lỗi"), false);
             _pendingKeys.delete(key);
@@ -2527,7 +2533,9 @@
       "TK": "THỪA KẾ",
       "SN": "ĐÍNH CHÍNH",
       "TN": "TÁCH/HỢP THỬA",
-      "CN": "CHUYỂN NHƯỢNG"
+      "CN": "CHUYỂN NHƯỢNG",
+      "TA": "CHUYỂN NHƯỢNG",
+      "TQ": "CHUYỂN NHƯỢNG"
     };
     const MY_COMMUNES = [
       { key: "krongnang", label: "Krông Năng", match: "KRÔNG NĂNG" },
@@ -2551,7 +2559,15 @@
       currentBucket: "all"
     };
     const SHEET_URL_KEY2 = "mplis_excel_sheet_url_mine";
-    const PUSHABLE_BUCKETS = MY_COMMUNES.map((c) => c.key).concat(["khac", "thechap"]);
+    const PUSHABLE_BUCKETS = MY_COMMUNES.map((c) => c.key).concat(["khac", "thechap", "xacnhan"]);
+    const NOTIFY_ACCOUNT_FILTER_KEY2 = "mplis_notify_account_filter";
+    function getNotifyAccountFilter2() {
+      try {
+        return (localStorage.getItem(NOTIFY_ACCOUNT_FILTER_KEY2) || "").trim();
+      } catch (e) {
+        return "";
+      }
+    }
     function deriveNgayFromMaHS(maHS) {
       if (!maHS) return "";
       const m = maHS.match(/^(\d{1,2})-/);
@@ -2598,8 +2614,9 @@
       const url = getSheetUrl();
       if (!url) return;
       if (typeof GM_xmlhttpRequest === "undefined") return;
-      const payload = bucket === "thechap" ? {
-        bucket,
+      const isTheChapSheet = bucket === "thechap" || bucket === "xacnhan";
+      const payload = isTheChapSheet ? {
+        bucket: "thechap",
         loaiHS: r.loaiHS || "",
         maHS: r.maHS || "",
         hoTen: r.nguoiNop || "",
@@ -2665,11 +2682,47 @@
           }
         };
       }
+      const accountFilterInput = document.getElementById("cfg-notify-account-filter");
+      if (accountFilterInput) {
+        accountFilterInput.value = getNotifyAccountFilter2();
+        accountFilterInput.oninput = () => {
+          try {
+            localStorage.setItem(NOTIFY_ACCOUNT_FILTER_KEY2, accountFilterInput.value.trim());
+          } catch (e) {
+          }
+        };
+      }
       const btnToggleSheetCfg = document.getElementById("btn-toggle-sheet-cfg");
       const sheetCfgRow = document.getElementById("excel-sheet-cfg-row");
+      const accountFilterRow = document.getElementById("excel-account-filter-row");
       if (btnToggleSheetCfg && sheetCfgRow) {
         btnToggleSheetCfg.onclick = () => {
-          sheetCfgRow.style.display = sheetCfgRow.style.display === "none" ? "flex" : "none";
+          const nextDisplay = sheetCfgRow.style.display === "none" ? "flex" : "none";
+          sheetCfgRow.style.display = nextDisplay;
+          if (accountFilterRow) accountFilterRow.style.display = nextDisplay;
+        };
+      }
+      const btnPollStatus = document.getElementById("btn-notify-poll-status");
+      const pollStatusEl = document.getElementById("notify-poll-status");
+      if (btnPollStatus) {
+        btnPollStatus.onclick = () => {
+          const fn = topWin.MPLIS_POLL_ALL_STATUSES;
+          if (typeof fn !== "function") {
+            if (pollStatusEl) pollStatusEl.textContent = "❌ Không tìm thấy module tra trạng thái.";
+            return;
+          }
+          btnPollStatus.disabled = true;
+          fn((done, total) => {
+            if (!pollStatusEl) return;
+            if (total === 0) {
+              pollStatusEl.textContent = "Không có hồ sơ nào đang theo dõi.";
+            } else if (done < total) {
+              pollStatusEl.textContent = `Đang tra ${done}/${total} hồ sơ...`;
+            } else {
+              pollStatusEl.textContent = `✅ Đã tra xong ${total} hồ sơ.`;
+              btnPollStatus.disabled = false;
+            }
+          });
         };
       }
       window.addEventListener("mousedown", (e) => {
@@ -2781,6 +2834,7 @@
                     <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">NGƯỜI ĐƯỢC CẤP</th>
                     <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">SỐ PHÁT HÀNH</th>
                     <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">NGÀY KÝ GCN</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">SỐ VÀO SỔ</th>
                     <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">XÃ</th>
                     <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
                 `;
@@ -2789,6 +2843,7 @@
                         <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.nguoiDuocCap || "")}</td>
                         <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.soPhatHanh || "")}</td>
                         <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.ngayKyGCN || "")}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.soVaoSo || "")}</td>
                         <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.xa || "")}</td>
                         <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
                             <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
@@ -2883,7 +2938,7 @@
       ].join("	");
     }
     function getSoDiaChinhRowText(r) {
-      return [r.nguoiDuocCap || "", r.soPhatHanh || "", r.ngayKyGCN || "", r.xa || ""].join("	");
+      return [r.nguoiDuocCap || "", r.soPhatHanh || "", r.ngayKyGCN || "", r.soVaoSo || "", r.xa || ""].join("	");
     }
     function copyRowToExcel(idx, btn) {
       const isSDC = state.currentBucket === "sodiachinh";
@@ -2977,11 +3032,14 @@
           }
         }
         if (!gcn) gcn = "CHƯA RÕ";
-        if (gcnAnchor && gcn && gcn !== "CHƯA RÕ" && !isSoDiaChinhPendingOrLogged(gcn)) {
+        if (gcnAnchor && gcn && gcn !== "CHƯA RÕ") {
           const fullText = gcnAnchor.textContent;
           let ngayVaoSo = "";
           const mNgay = fullText.match(/Ngày vào sổ:\s*([\d\/]+)/i);
           if (mNgay) ngayVaoSo = mNgay[1].trim();
+          let soVaoSo = "";
+          const mSoVaoSo = fullText.match(/Số vào sổ:\s*(\S+)/i);
+          if (mSoVaoSo) soVaoSo = mSoVaoSo[1].trim();
           let xaGCN = "";
           const mXa = fullText.match(/Đơn vị hành chính:\s*([^,]+)/i);
           if (mXa) xaGCN = mXa[1].trim().replace(/^xã |^phường |^thị trấn /i, "").toUpperCase();
@@ -3000,15 +3058,23 @@
           const sdcRecord = {
             nguoiDuocCap: nguoiDuocCapGCN,
             soPhatHanh: gcn,
+            soVaoSo,
             ngayKyGCN: ngayVaoSo,
             xa: xaGCN
           };
-          if (!state.sodiachinhRecords.some((r) => r.soPhatHanh === gcn)) {
+          const localIdx = state.sodiachinhRecords.findIndex((r) => r.soPhatHanh === gcn);
+          if (localIdx === -1) {
             state.sodiachinhRecords.push(sdcRecord);
             saveSoDiaChinhCart();
             renderTable();
+          } else if (JSON.stringify(state.sodiachinhRecords[localIdx]) !== JSON.stringify(sdcRecord)) {
+            state.sodiachinhRecords[localIdx] = sdcRecord;
+            saveSoDiaChinhCart();
+            renderTable();
           }
-          pushSoDiaChinh(gcn, sdcRecord);
+          if (!isSoDiaChinhPendingOrLogged(gcn, sdcRecord)) {
+            pushSoDiaChinh(gcn, sdcRecord);
+          }
         }
         const thuaNodes = Array.from(gcnLi.querySelectorAll("li.jstree-node")).filter((li) => {
           const a = li.querySelector(":scope > a.jstree-anchor");
@@ -3572,6 +3638,14 @@
                             <span style="font-size:10.5px; color:var(--mplis-text-dim); flex-shrink:0;">Sheet (của tôi):</span>
                             <input type="text" id="cfg-excel-sheet-url" placeholder="Dán link Web App Google Apps Script..." style="flex:1; min-width:0; padding:4px 6px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:10px;">
                         </div>
+                        <div id="excel-account-filter-row" style="display:none; align-items:center; gap:6px; margin-bottom:8px;">
+                            <span style="font-size:10.5px; color:var(--mplis-text-dim); flex-shrink:0;">TK lọc (Th.báo HS):</span>
+                            <input type="text" id="cfg-notify-account-filter" placeholder="VD: dla.vietpq (để trống = không lọc)" style="flex:1; min-width:0; padding:4px 6px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:10px;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+                            <button id="btn-notify-poll-status" class="mplis-btn-primary" style="flex:1; padding:8px; font-size:11px; background:linear-gradient(135deg,#0ea5e9,#0284c7);" title="Tra lại trạng thái thời gian thực cho toàn bộ hồ sơ đang theo dõi ở 'Thông báo nhận HS'">🔄 Tra trạng thái hồ sơ</button>
+                        </div>
+                        <div id="notify-poll-status" style="font-size:10.5px; color:var(--mplis-text-dim); margin-bottom:8px;"></div>
                         <div style="font-size:11px; color:var(--mplis-text-dim); margin-bottom:10px;">Số hồ sơ trong bảng: <b id="excel-count" style="color:#fde047;">0</b> · tự động quét khi mở QT</div>
                         <div style="max-height:170px; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px;">
                             <table id="table-excel-cart" style="width:100%; font-size:10px; color:#f8fafc; border-collapse:collapse; text-align:center;">
@@ -3813,39 +3887,62 @@
   }, 1e3);
 
   // src/notify-capture.js
-  var NOTIFY_LOGGED_KEY = "mplis_notify_logged";
-  var NOTIFY_SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
-  var _notifyPending = /* @__PURE__ */ new Set();
-  function isNotifyLogged(id) {
+  var WORK_LOGGED_KEY = "mplis_notify_logged";
+  var WORK_SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
+  var NOTIFY_ACCOUNT_FILTER_KEY = "mplis_notify_account_filter";
+  var NOTIFY_RESOLVED_KEY = "mplis_notify_resolved";
+  var _workPending = /* @__PURE__ */ new Set();
+  function getNotifyAccountFilter() {
     try {
-      const stored = JSON.parse(localStorage.getItem(NOTIFY_LOGGED_KEY) || "{}");
-      return !!stored[id];
-    } catch (e) {
-      return false;
-    }
-  }
-  function markNotifyLogged(id) {
-    try {
-      const stored = JSON.parse(localStorage.getItem(NOTIFY_LOGGED_KEY) || "{}");
-      stored[id] = true;
-      localStorage.setItem(NOTIFY_LOGGED_KEY, JSON.stringify(stored));
-    } catch (e) {
-    }
-    _notifyPending.delete(id);
-  }
-  function getNotifySheetUrl() {
-    try {
-      return (localStorage.getItem(NOTIFY_SHEET_URL_KEY) || "").trim();
+      return (localStorage.getItem(NOTIFY_ACCOUNT_FILTER_KEY) || "").trim().toLowerCase();
     } catch (e) {
       return "";
     }
   }
-  function extractSoBienNhan(content, fallbackObjectId) {
-    if (content) {
-      const m = content.match(/số biên nhận là\s+([^\s]+)/i);
-      if (m) return m[1];
+  function isWorkLogged(soBienNhan) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(WORK_LOGGED_KEY) || "{}");
+      return !!stored[soBienNhan];
+    } catch (e) {
+      return false;
     }
-    return fallbackObjectId || "";
+  }
+  function markWorkLogged(soBienNhan) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(WORK_LOGGED_KEY) || "{}");
+      stored[soBienNhan] = true;
+      localStorage.setItem(WORK_LOGGED_KEY, JSON.stringify(stored));
+    } catch (e) {
+    }
+    _workPending.delete(soBienNhan);
+  }
+  function getWorkSheetUrl() {
+    try {
+      return (localStorage.getItem(WORK_SHEET_URL_KEY) || "").trim();
+    } catch (e) {
+      return "";
+    }
+  }
+  function isNotifyResolved(soBienNhan) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(NOTIFY_RESOLVED_KEY) || "{}");
+      return !!stored[soBienNhan];
+    } catch (e) {
+      return false;
+    }
+  }
+  function markNotifyResolved(soBienNhan) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(NOTIFY_RESOLVED_KEY) || "{}");
+      stored[soBienNhan] = true;
+      localStorage.setItem(NOTIFY_RESOLVED_KEY, JSON.stringify(stored));
+    } catch (e) {
+    }
+  }
+  function extractXa(diaChiTaiSan) {
+    if (!diaChiTaiSan) return "";
+    const m = diaChiTaiSan.match(/(?:Xã|Phường|Thị trấn)\s+([^,]+)/i);
+    return m ? m[1].trim() : "";
   }
   function parseAspNetDate(str) {
     if (!str) return "";
@@ -3858,8 +3955,8 @@
     const mi = String(d.getMinutes()).padStart(2, "0");
     return `${dd}/${mm}/${d.getFullYear()} ${hh}:${mi}`;
   }
-  function pushNotify(item) {
-    const url = getNotifySheetUrl();
+  function pushWork(item) {
+    const url = getWorkSheetUrl();
     if (!url) {
       console.log("[Notify] Bỏ qua đẩy - chưa cấu hình link Sheet (ô 🔗 ở tab Excel).");
       return;
@@ -3870,13 +3967,14 @@
     }
     const record = {
       bucket: "thongbao",
-      maHS: extractSoBienNhan(item.WarningContent, item.ObjectId),
-      ngayNhan: parseAspNetDate(item.NgayTao),
-      nguoiChuyen: item.FullNameNguoiChuyenTiep || ""
-      // Nội dung: bỏ - chỉ là câu boilerplate lặp lại mã hồ sơ, không cần lưu
+      maHS: item.soBienNhan || "",
+      ngayNhan: parseAspNetDate(item.ngayPhanCong),
+      nguoiChuyen: item.tenNguoiChuyenTiep || "",
+      nguoiNop: item.nguoiNopDon ? item.nguoiNopDon.hoTen || "" : "",
+      xa: extractXa(item.diaChiTaiSan),
+      tenTTHC: item.quytrinh ? item.quytrinh.SchemaName || "" : ""
     };
-    console.log("[Notify] Đang đẩy:", record);
-    _notifyPending.add(item.Id);
+    _workPending.add(item.soBienNhan);
     GM_xmlhttpRequest({
       method: "POST",
       url,
@@ -3886,51 +3984,178 @@
         console.log("[Notify] Phản hồi từ Sheet:", res.status, res.responseText);
         try {
           const body = JSON.parse(res.responseText);
-          if (body.ok) markNotifyLogged(item.Id);
-          else _notifyPending.delete(item.Id);
+          if (body.ok) markWorkLogged(item.soBienNhan);
+          else _workPending.delete(item.soBienNhan);
         } catch (e) {
           console.log("[Notify] Không parse được phản hồi JSON:", e);
-          _notifyPending.delete(item.Id);
+          _workPending.delete(item.soBienNhan);
         }
       },
       onerror: function(err) {
         console.log("[Notify] Lỗi kết nối khi đẩy lên Sheet:", err);
-        _notifyPending.delete(item.Id);
+        _workPending.delete(item.soBienNhan);
       }
     });
   }
-  function pollNotify() {
-    const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-    if (!jq || !jq.ajax) {
-      console.log("[Notify] Không tìm thấy jQuery ($) trên trang, không thể gọi GetNotify.");
-      return;
+  function formatTrangThaiChiTiet(item) {
+    if (item.daTra) {
+      return "Đã trả kết quả ngày " + parseAspNetDate(item.ngayTra);
     }
-    console.log("[Notify] Đang quét GetNotify (qua $.ajax của trang)...");
-    jq.ajax({
-      url: "https://dla.mplis.gov.vn/dc/DangKyAjax/GetNotify",
+    if (item.daKetISO) {
+      return "Đã kết ISO ngày " + parseAspNetDate(item.ngayKetISO);
+    }
+    if (item.daCapNhatDuLieuPhapLy) {
+      return "Đã cập nhật dữ liệu pháp lý ngày " + parseAspNetDate(item.ngayCapNhatDuLieuPhapLy);
+    }
+    const buoc = item.state && item.state.Title || "Đang xử lý";
+    const isLuuTru = item.state && item.state.State === "LuuTru";
+    const nguoiGiu = item.tenNguoiChuyenTiep || item.tenNguoiTiepNhan;
+    return !isLuuTru && nguoiGiu ? `${buoc} - Đang ở: ${nguoiGiu}` : buoc;
+  }
+  function pushTrangThai(maHS, trangThai) {
+    const url = getWorkSheetUrl();
+    if (!url || typeof GM_xmlhttpRequest === "undefined") return;
+    GM_xmlhttpRequest({
       method: "POST",
-      data: { start: 0, length: 50 }
+      url,
+      data: JSON.stringify({ bucket: "thongbao_trangthai", maHS, trangThai }),
+      headers: { "Content-Type": "application/json" },
+      onload: function(res) {
+        console.log("[Notify] Cập nhật trạng thái", maHS, ":", res.status, res.responseText);
+      },
+      onerror: function(err) {
+        console.log("[Notify] Lỗi kết nối khi cập nhật trạng thái", maHS, ":", err);
+      }
+    });
+  }
+  function checkOneStatus(maHS) {
+    const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+    if (!jq || !jq.ajax) return;
+    jq.ajax({
+      url: "https://dla.mplis.gov.vn/dc/DangKyAjax/AdvancedSearchHoSoTiepNhan",
+      method: "POST",
+      data: {
+        start: 0,
+        length: 10,
+        "model[tinhId]": 66,
+        "model[huyenId]": 650,
+        "model[xaId]": "",
+        "model[quytrinh]": "",
+        "model[state]": "",
+        "model[soBienNhan]": maHS,
+        "model[laHoSoMotCua]": false,
+        "model[tiepNhanTuNgay]": "",
+        "model[tiepNhanDenNgay]": "",
+        "model[henTraTuNgay]": "",
+        "model[henTraDenNgay]": "",
+        "model[trangThaiHoSo]": 0,
+        "model[trangThaiKetISO][]": 0,
+        "model[diaChiTaiSan]": "",
+        "model[soThua]": "",
+        "model[soTo]": "",
+        "model[diaChi]": "",
+        "model[hoTen]": "",
+        "model[soDienThoai]": "",
+        "model[giayChungMinh]": "",
+        "model[daXuLy]": -1
+      }
     }).done((json) => {
-      if (!json || !json.success || !Array.isArray(json.Value)) {
-        console.log("[Notify] Phản hồi GetNotify không đúng dạng mong đợi:", json);
+      if (!json || !Array.isArray(json.data) || json.data.length === 0) {
+        console.log("[Notify] Không tìm thấy hồ sơ khi tra trạng thái:", maHS);
         return;
       }
-      console.log(`[Notify] Nhận được ${json.Value.length} thông báo (tổng chưa xem: ${json.totalChuaXem}).`);
-      json.Value.forEach((item) => {
-        if (item.WarningType !== 0) return;
-        if (!item.Id || !item.ObjectId) return;
-        if (_notifyPending.has(item.Id) || isNotifyLogged(item.Id)) {
-          console.log("[Notify] Bỏ qua (đã đẩy trước đó):", item.ObjectId);
-          return;
+      const item = json.data.find((d) => d.soBienNhan === maHS) || json.data[0];
+      pushTrangThai(maHS, formatTrangThaiChiTiet(item));
+      if (item.daTra) markNotifyResolved(maHS);
+    }).fail((xhr) => {
+      console.log("[Notify] Lỗi khi tra trạng thái", maHS, ":", xhr.status, xhr.responseText);
+    });
+  }
+  var STATUS_POLL_DELAY_MS = 600;
+  function pollAllStatuses(onProgress) {
+    let logged = {};
+    try {
+      logged = JSON.parse(localStorage.getItem(WORK_LOGGED_KEY) || "{}");
+    } catch (e) {
+    }
+    const maHSList = Object.keys(logged).filter((maHS) => !isNotifyResolved(maHS));
+    console.log(`[Notify] Đang tra trạng thái thời gian thực cho ${maHSList.length} hồ sơ chưa trả (tuần tự, cách nhau ${STATUS_POLL_DELAY_MS}ms)...`);
+    if (onProgress) onProgress(0, maHSList.length);
+    maHSList.forEach((maHS, idx) => {
+      setTimeout(() => {
+        checkOneStatus(maHS);
+        if (onProgress) onProgress(idx + 1, maHSList.length);
+      }, idx * STATUS_POLL_DELAY_MS);
+    });
+  }
+  function pollWorkList() {
+    const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+    if (!jq || !jq.ajax) {
+      console.log("[Notify] Không tìm thấy jQuery ($) trên trang, không thể gọi GetXuLyCongViec.");
+      return;
+    }
+    console.log("[Notify] Đang quét GetXuLyCongViec (qua $.ajax của trang)...");
+    jq.ajax({
+      url: "https://dla.mplis.gov.vn/dc/DangKyAjax/GetXuLyCongViec",
+      method: "POST",
+      data: {
+        draw: 1,
+        "columns[0][data]": "stt",
+        "columns[0][name]": "",
+        "columns[0][searchable]": true,
+        "columns[0][orderable]": false,
+        "columns[0][search][value]": "",
+        "columns[0][search][regex]": false,
+        "columns[1][data]": "soBienNhan",
+        "columns[1][name]": "",
+        "columns[1][searchable]": true,
+        "columns[1][orderable]": false,
+        "columns[1][search][value]": "",
+        "columns[1][search][regex]": false,
+        "order[0][column]": 0,
+        "order[0][dir]": "asc",
+        start: 0,
+        length: 100,
+        "search[value]": "",
+        "search[regex]": false,
+        query: "",
+        soNgayCanhBaoHoSoSapDenNgayTra: 7,
+        sortField: "ngayhenTra",
+        sortDirection: "asc",
+        filterBy: 0
+      }
+    }).done((json) => {
+      if (!json || !Array.isArray(json.data)) {
+        console.log("[Notify] Phản hồi GetXuLyCongViec không đúng dạng mong đợi:", json);
+        return;
+      }
+      console.log(`[Notify] Nhận được ${json.data.length} hồ sơ đang cần xử lý.`);
+      const accountFilter = getNotifyAccountFilter();
+      if (!accountFilter) {
+        console.log('[Notify] ⚠️ CHƯA cấu hình "TK lọc (Th.báo HS)" ở tab Excel (🔗) - sẽ đẩy TẤT CẢ hồ sơ trả về, kể cả của đồng nghiệp nếu API trả về chung cho cả đơn vị.');
+      }
+      const newItems = json.data.filter((item) => {
+        if (!item.soBienNhan) return false;
+        if (accountFilter) {
+          const owner = (item.nguoiTiepNhan || item.tenNguoiTiepNhan || "").trim().toLowerCase();
+          if (owner !== accountFilter) return false;
         }
-        pushNotify(item);
+        return !_workPending.has(item.soBienNhan) && !isWorkLogged(item.soBienNhan);
+      });
+      if (accountFilter && json.data.length > 0 && newItems.length === 0) {
+        const sample = json.data[0];
+        console.log('[Notify] Lọc theo TK "' + accountFilter + '" không khớp hồ sơ nào. Mẫu 1 hồ sơ để kiểm tra tên trường:', sample);
+      }
+      newItems.forEach((item, idx) => {
+        setTimeout(() => pushWork(item), idx * STATUS_POLL_DELAY_MS);
       });
     }).fail((xhr) => {
-      console.log("[Notify] Lỗi khi gọi GetNotify:", xhr.status, xhr.responseText);
+      console.log("[Notify] Lỗi khi gọi GetXuLyCongViec:", xhr.status, xhr.responseText);
     });
   }
   if (window === window.top) {
-    setTimeout(pollNotify, 3e3);
+    setTimeout(pollWorkList, 3e3);
+    topWin.MPLIS_POLL_ALL_STATUSES = pollAllStatuses;
   }
 
   // src/main.js

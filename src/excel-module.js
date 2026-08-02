@@ -1,4 +1,4 @@
-import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS } from './utils.js';
+import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from './utils.js';
 import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shared.js';
 
     const ExcelModule = (function () {
@@ -10,7 +10,9 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
             'TK': 'THỪA KẾ',
             'SN': 'ĐÍNH CHÍNH',
             'TN': 'TÁCH/HỢP THỬA',
-            'CN': 'CHUYỂN NHƯỢNG'
+            'CN': 'CHUYỂN NHƯỢNG',
+            'TA': 'CHUYỂN NHƯỢNG',
+            'TQ': 'CHUYỂN NHƯỢNG'
         };
 
         // 4 xã "của tôi" - mỗi xã 1 bảng riêng, lọc theo r.diaChi (đã chuẩn hóa hoa, bỏ tiền tố "Xã ")
@@ -44,9 +46,17 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
 
         // Đẩy tự động lên Google Sheet (Apps Script Web App) - áp dụng cho 5 bảng "của tôi" và
         // Thế chấp (dùng chung 1 Web App URL, Apps Script tự tách theo "bucket" vào đúng tab).
-        // Xác nhận vẫn chưa có yêu cầu nên chưa đẩy.
+        // "Xác nhận" (VD: Xác nhận tiếp tục sử dụng đất nông nghiệp) ghi CHUNG vào tab "Thế chấp"
+        // (cùng cấu trúc cột, chỉ khác cột Loại HS = "XN") - không có tab riêng trên Sheet.
         const SHEET_URL_KEY = 'mplis_excel_sheet_url_mine';
-        const PUSHABLE_BUCKETS = MY_COMMUNES.map(c => c.key).concat(['khac', 'thechap']);
+        const PUSHABLE_BUCKETS = MY_COMMUNES.map(c => c.key).concat(['khac', 'thechap', 'xacnhan']);
+
+        // Tài khoản dùng để lọc dữ liệu "Thông báo nhận HS" (notify-capture.js đọc key này) - dùng
+        // chung ô cấu hình 🔗 ở đây cho gọn, dù logic lọc thật sự nằm ở module khác.
+        const NOTIFY_ACCOUNT_FILTER_KEY = 'mplis_notify_account_filter';
+        function getNotifyAccountFilter() {
+            try { return (localStorage.getItem(NOTIFY_ACCOUNT_FILTER_KEY) || '').trim(); } catch (e) { return ''; }
+        }
 
         // Sheet Thế chấp không có "Ngày ký GCN" như của tôi, thay vào đó có cột NGÀY suy ra từ
         // chính Mã hồ sơ: 2 số đầu của mã (VD "26-1919") là NGÀY, còn tháng/năm lấy theo thời điểm
@@ -93,13 +103,17 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
 
         function pushRecordToSheet(r) {
             const bucket = getBucket(r);
-            if (!PUSHABLE_BUCKETS.includes(bucket)) return; // Thế chấp/Xác nhận chưa có link riêng
+            if (!PUSHABLE_BUCKETS.includes(bucket)) return;
             const url = getSheetUrl();
             if (!url) return;
             if (typeof GM_xmlhttpRequest === 'undefined') return;
 
-            const payload = bucket === 'thechap' ? {
-                bucket,
+            // "xacnhan" (bucket cục bộ để lọc riêng trên UI) dùng CHUNG shape + tab Sheet với
+            // "thechap" - gửi bucket:'thechap' lên server vì handleTheChap là handler duy nhất
+            // ghi đúng cấu trúc cột này (loaiHS sẽ là "XN" thay vì "TC"/"XTC").
+            const isTheChapSheet = bucket === 'thechap' || bucket === 'xacnhan';
+            const payload = isTheChapSheet ? {
+                bucket: 'thechap',
                 loaiHS: r.loaiHS || '',
                 maHS: r.maHS || '',
                 hoTen: r.nguoiNop || '',
@@ -166,11 +180,50 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
                 };
             }
 
+            // Tài khoản dùng để lọc "Thông báo nhận HS" (nguoiTiepNhan trong GetXuLyCongViec) -
+            // cần thiết vì đồng nghiệp cùng dùng tool này sẽ thấy chung API, không lọc sẽ lẫn hồ sơ.
+            const accountFilterInput = document.getElementById('cfg-notify-account-filter');
+            if (accountFilterInput) {
+                accountFilterInput.value = getNotifyAccountFilter();
+                accountFilterInput.oninput = () => {
+                    try { localStorage.setItem(NOTIFY_ACCOUNT_FILTER_KEY, accountFilterInput.value.trim()); } catch (e) { }
+                };
+            }
+
             const btnToggleSheetCfg = document.getElementById('btn-toggle-sheet-cfg');
             const sheetCfgRow = document.getElementById('excel-sheet-cfg-row');
+            const accountFilterRow = document.getElementById('excel-account-filter-row');
             if (btnToggleSheetCfg && sheetCfgRow) {
                 btnToggleSheetCfg.onclick = () => {
-                    sheetCfgRow.style.display = sheetCfgRow.style.display === 'none' ? 'flex' : 'none';
+                    const nextDisplay = sheetCfgRow.style.display === 'none' ? 'flex' : 'none';
+                    sheetCfgRow.style.display = nextDisplay;
+                    if (accountFilterRow) accountFilterRow.style.display = nextDisplay;
+                };
+            }
+
+            // Tra trạng thái "Thông báo nhận HS" giờ chỉ chạy khi bấm nút (không tự động mỗi lần
+            // F5 nữa) - tránh bắn hàng chục request cùng lúc làm trang loading lâu, khó thao tác.
+            const btnPollStatus = document.getElementById('btn-notify-poll-status');
+            const pollStatusEl = document.getElementById('notify-poll-status');
+            if (btnPollStatus) {
+                btnPollStatus.onclick = () => {
+                    const fn = topWin.MPLIS_POLL_ALL_STATUSES;
+                    if (typeof fn !== 'function') {
+                        if (pollStatusEl) pollStatusEl.textContent = '❌ Không tìm thấy module tra trạng thái.';
+                        return;
+                    }
+                    btnPollStatus.disabled = true;
+                    fn((done, total) => {
+                        if (!pollStatusEl) return;
+                        if (total === 0) {
+                            pollStatusEl.textContent = 'Không có hồ sơ nào đang theo dõi.';
+                        } else if (done < total) {
+                            pollStatusEl.textContent = `Đang tra ${done}/${total} hồ sơ...`;
+                        } else {
+                            pollStatusEl.textContent = `✅ Đã tra xong ${total} hồ sơ.`;
+                            btnPollStatus.disabled = false;
+                        }
+                    });
                 };
             }
 
@@ -293,6 +346,7 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
                     <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">NGƯỜI ĐƯỢC CẤP</th>
                     <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">SỐ PHÁT HÀNH</th>
                     <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">NGÀY KÝ GCN</th>
+                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">SỐ VÀO SỔ</th>
                     <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">XÃ</th>
                     <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
                 `;
@@ -301,6 +355,7 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
                         <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.nguoiDuocCap || '')}</td>
                         <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.soPhatHanh || '')}</td>
                         <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.ngayKyGCN || '')}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.soVaoSo || '')}</td>
                         <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.xa || '')}</td>
                         <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
                             <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
@@ -377,7 +432,7 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
         }
 
         function getSoDiaChinhRowText(r) {
-            return [r.nguoiDuocCap || '', r.soPhatHanh || '', r.ngayKyGCN || '', r.xa || ''].join('\t');
+            return [r.nguoiDuocCap || '', r.soPhatHanh || '', r.ngayKyGCN || '', r.soVaoSo || '', r.xa || ''].join('\t');
         }
 
         function copyRowToExcel(idx, btn) {
@@ -497,15 +552,22 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
                 if (!gcn) gcn = 'CHƯA RÕ';
 
                 // Sổ địa chính: nguồn DUY NHẤT là cây QT3 (đã bỏ nguồn dự phòng #tblGiayChungNhan
-                // ở QT1/QT2 vì 2 nguồn cùng ghi gây trùng dữ liệu trên Sheet). Đẩy 1 lần cho mỗi
-                // GCN (không lặp theo từng thửa bên trong). Không có "Ngày vào sổ" thì vẫn đẩy
-                // (để trống ngày) - người dùng tự ghi tay cột đó trong Sheet.
-                if (gcnAnchor && gcn && gcn !== 'CHƯA RÕ' && !isSoDiaChinhPendingOrLogged(gcn)) {
+                // ở QT1/QT2 vì 2 nguồn cùng ghi gây trùng dữ liệu trên Sheet). Ngày ký/Số vào sổ
+                // thường CHƯA có ngay khi GCN mới in - người dùng cập nhật thủ công trên cổng SAU
+                // đó rồi mở lại cây GCN thì mới thấy đủ. Nên KHÔNG chặn vĩnh viễn theo Số phát
+                // hành: nếu dữ liệu lần quét này khác lần đẩy thành công gần nhất (VD Số vào sổ
+                // vừa được điền) thì vẫn đẩy lại - Apps Script sẽ cập nhật ĐÈ dòng cũ, không tạo
+                // dòng mới (xem handleSoDiaChinh, chống trùng theo Số phát hành).
+                if (gcnAnchor && gcn && gcn !== 'CHƯA RÕ') {
                     const fullText = gcnAnchor.textContent;
 
                     let ngayVaoSo = '';
                     const mNgay = fullText.match(/Ngày vào sổ:\s*([\d\/]+)/i);
                     if (mNgay) ngayVaoSo = mNgay[1].trim();
+
+                    let soVaoSo = '';
+                    const mSoVaoSo = fullText.match(/Số vào sổ:\s*(\S+)/i);
+                    if (mSoVaoSo) soVaoSo = mSoVaoSo[1].trim();
 
                     let xaGCN = '';
                     const mXa = fullText.match(/Đơn vị hành chính:\s*([^,]+)/i);
@@ -529,19 +591,27 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
                     const sdcRecord = {
                         nguoiDuocCap: nguoiDuocCapGCN,
                         soPhatHanh: gcn,
+                        soVaoSo,
                         ngayKyGCN: ngayVaoSo,
                         xa: xaGCN
                     };
 
-                    // Lưu lại 1 bản cục bộ để hiện trong tab "Địa chính" (kiểm tra bằng mắt) -
-                    // tách biệt hoàn toàn với khóa pending/logged (chỉ dùng để chống đẩy trùng lên Sheet).
-                    if (!state.sodiachinhRecords.some(r => r.soPhatHanh === gcn)) {
+                    // Lưu lại 1 bản cục bộ để hiện trong tab "Địa chính" (kiểm tra bằng mắt) - cập
+                    // nhật đè dòng cũ trong bảng cục bộ nếu đã có, không chỉ thêm dòng mới khi thiếu.
+                    const localIdx = state.sodiachinhRecords.findIndex(r => r.soPhatHanh === gcn);
+                    if (localIdx === -1) {
                         state.sodiachinhRecords.push(sdcRecord);
+                        saveSoDiaChinhCart();
+                        renderTable();
+                    } else if (JSON.stringify(state.sodiachinhRecords[localIdx]) !== JSON.stringify(sdcRecord)) {
+                        state.sodiachinhRecords[localIdx] = sdcRecord;
                         saveSoDiaChinhCart();
                         renderTable();
                     }
 
-                    pushSoDiaChinh(gcn, sdcRecord);
+                    if (!isSoDiaChinhPendingOrLogged(gcn, sdcRecord)) {
+                        pushSoDiaChinh(gcn, sdcRecord);
+                    }
                 }
 
                 // Tìm các Thửa đất nằm bên trong GCN này (Hỗ trợ 1 GCN nhiều Thửa)

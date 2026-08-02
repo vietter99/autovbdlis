@@ -132,6 +132,14 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                             <span style="font-size:10.5px; color:var(--mplis-text-dim); flex-shrink:0;">Sheet (của tôi):</span>
                             <input type="text" id="cfg-excel-sheet-url" placeholder="Dán link Web App Google Apps Script..." style="flex:1; min-width:0; padding:4px 6px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:10px;">
                         </div>
+                        <div id="excel-account-filter-row" style="display:none; align-items:center; gap:6px; margin-bottom:8px;">
+                            <span style="font-size:10.5px; color:var(--mplis-text-dim); flex-shrink:0;">TK lọc (Th.báo HS):</span>
+                            <input type="text" id="cfg-notify-account-filter" placeholder="VD: dla.vietpq (để trống = không lọc)" style="flex:1; min-width:0; padding:4px 6px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:10px;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+                            <button id="btn-notify-poll-status" class="mplis-btn-primary" style="flex:1; padding:8px; font-size:11px; background:linear-gradient(135deg,#0ea5e9,#0284c7);" title="Tra lại trạng thái thời gian thực cho toàn bộ hồ sơ đang theo dõi ở 'Thông báo nhận HS'">🔄 Tra trạng thái hồ sơ</button>
+                        </div>
+                        <div id="notify-poll-status" style="font-size:10.5px; color:var(--mplis-text-dim); margin-bottom:8px;"></div>
                         <div style="font-size:11px; color:var(--mplis-text-dim); margin-bottom:10px;">Số hồ sơ trong bảng: <b id="excel-count" style="color:#fde047;">0</b> · tự động quét khi mở QT</div>
                         <div style="max-height:170px; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px;">
                             <table id="table-excel-cart" style="width:100%; font-size:10px; color:#f8fafc; border-collapse:collapse; text-align:center;">
