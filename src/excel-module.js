@@ -1,5 +1,4 @@
 import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from './utils.js';
-import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shared.js';
 
     const ExcelModule = (function () {
         // Mã loại biến động (bắt lúc QT1 bởi bien-dong-capture.js) -> tên gọi đầy đủ.
@@ -32,15 +31,11 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
             ...MY_COMMUNES.map(c => ({ key: c.key, label: c.label, rich: true })),
             { key: 'thechap', label: 'Thế chấp', rich: false },
             { key: 'xacnhan', label: 'Xác nhận', rich: false },
-            { key: 'khac', label: 'Khác', rich: true },
-            // Bảng riêng để xem lại dữ liệu đã đẩy vào "Sổ địa chính" (kiểm tra bằng mắt, không
-            // qua getBucket() vì đây là 1 tập dữ liệu hoàn toàn khác cấu trúc - xem sodiachinhRecords).
-            { key: 'sodiachinh', label: 'Địa chính', rich: false, isSoDiaChinh: true }
+            { key: 'khac', label: 'Khác', rich: true }
         ];
 
         let state = {
             records: [],
-            sodiachinhRecords: [],
             currentBucket: 'all'
         };
 
@@ -234,15 +229,10 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
                     e.preventDefault(); e.stopPropagation();
                     const bucketDef = BUCKETS.find(b => b.key === state.currentBucket);
                     if (unsafeWindow.confirm(`Xóa toàn bộ hồ sơ trong bảng "${bucketDef ? bucketDef.label : ''}" đang xem?`)) {
-                        if (state.currentBucket === 'sodiachinh') {
-                            state.sodiachinhRecords = [];
-                            saveSoDiaChinhCart();
-                        } else {
-                            state.records = state.currentBucket === 'all'
-                                ? []
-                                : state.records.filter(r => getBucket(r) !== state.currentBucket);
-                            saveState();
-                        }
+                        state.records = state.currentBucket === 'all'
+                            ? []
+                            : state.records.filter(r => getBucket(r) !== state.currentBucket);
+                        saveState();
                         renderTable();
                     }
                     return;
@@ -267,13 +257,7 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
                 if (btnDeleteRow) {
                     e.preventDefault(); e.stopPropagation();
                     const idx = parseInt(btnDeleteRow.getAttribute('data-idx'));
-                    if (state.currentBucket === 'sodiachinh') {
-                        if (!isNaN(idx) && state.sodiachinhRecords[idx]) {
-                            state.sodiachinhRecords.splice(idx, 1);
-                            saveSoDiaChinhCart();
-                            renderTable();
-                        }
-                    } else if (!isNaN(idx) && state.records[idx]) {
+                    if (!isNaN(idx) && state.records[idx]) {
                         state.records.splice(idx, 1);
                         saveState();
                         renderTable();
@@ -300,18 +284,10 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
                 const stored = localStorage.getItem('mplis_excel_cart');
                 if (stored) state.records = JSON.parse(stored);
             } catch (e) { }
-            try {
-                const storedSDC = localStorage.getItem('mplis_sodiachinh_cart');
-                if (storedSDC) state.sodiachinhRecords = JSON.parse(storedSDC);
-            } catch (e) { }
         }
 
         function saveState() {
             localStorage.setItem('mplis_excel_cart', JSON.stringify(state.records));
-        }
-
-        function saveSoDiaChinhCart() {
-            localStorage.setItem('mplis_sodiachinh_cart', JSON.stringify(state.sodiachinhRecords));
         }
 
         function renderFilterTabs() {
@@ -323,9 +299,6 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
         }
 
         function getVisibleRecords() {
-            if (state.currentBucket === 'sodiachinh') {
-                return state.sodiachinhRecords.map((r, idx) => ({ r, idx }));
-            }
             const all = state.records.map((r, idx) => ({ r, idx }));
             if (state.currentBucket === 'all') return all;
             return all.filter(({ r }) => getBucket(r) === state.currentBucket);
@@ -341,29 +314,7 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
             const visible = getVisibleRecords();
             count.textContent = visible.length;
 
-            if (bucketDef.isSoDiaChinh) {
-                thead.innerHTML = `
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">NGƯỜI ĐƯỢC CẤP</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">SỐ PHÁT HÀNH</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">NGÀY KÝ GCN</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">SỐ VÀO SỔ</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">XÃ</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
-                `;
-                tbody.innerHTML = visible.map(({ r, idx }) => `
-                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.nguoiDuocCap || '')}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.soPhatHanh || '')}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.ngayKyGCN || '')}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.soVaoSo || '')}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.xa || '')}</td>
-                        <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
-                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
-                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
-                        </td>
-                    </tr>
-                `).join('');
-            } else if (bucketDef.rich) {
+            if (bucketDef.rich) {
                 thead.innerHTML = `
                     <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">TTHC</th>
                     <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">B.NHẬN</th>
@@ -431,15 +382,10 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
             ].join('\t');
         }
 
-        function getSoDiaChinhRowText(r) {
-            return [r.nguoiDuocCap || '', r.soPhatHanh || '', r.ngayKyGCN || '', r.soVaoSo || '', r.xa || ''].join('\t');
-        }
-
         function copyRowToExcel(idx, btn) {
-            const isSDC = state.currentBucket === 'sodiachinh';
-            const r = isSDC ? state.sodiachinhRecords[idx] : state.records[idx];
+            const r = state.records[idx];
             if (!r) return;
-            const text = isSDC ? getSoDiaChinhRowText(r) : getRowText(r);
+            const text = getRowText(r);
             fallbackCopyTextToClipboard(text).then(() => {
                 btn.className = 'fa fa-check btn-copy-row';
                 btn.style.color = '#10b981';
@@ -457,8 +403,7 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
                 return;
             }
 
-            const textFn = state.currentBucket === 'sodiachinh' ? getSoDiaChinhRowText : getRowText;
-            const text = visible.map(({ r }) => textFn(r)).join('\n');
+            const text = visible.map(({ r }) => getRowText(r)).join('\n');
             fallbackCopyTextToClipboard(text).then(() => {
                 const btn = document.getElementById('btn-excel-copy');
                 const oldText = btn.innerHTML;
@@ -550,69 +495,6 @@ import { isSoDiaChinhPendingOrLogged, pushSoDiaChinh } from './so-dia-chinh-shar
                     }
                 }
                 if (!gcn) gcn = 'CHƯA RÕ';
-
-                // Sổ địa chính: nguồn DUY NHẤT là cây QT3 (đã bỏ nguồn dự phòng #tblGiayChungNhan
-                // ở QT1/QT2 vì 2 nguồn cùng ghi gây trùng dữ liệu trên Sheet). Ngày ký/Số vào sổ
-                // thường CHƯA có ngay khi GCN mới in - người dùng cập nhật thủ công trên cổng SAU
-                // đó rồi mở lại cây GCN thì mới thấy đủ. Nên KHÔNG chặn vĩnh viễn theo Số phát
-                // hành: nếu dữ liệu lần quét này khác lần đẩy thành công gần nhất (VD Số vào sổ
-                // vừa được điền) thì vẫn đẩy lại - Apps Script sẽ cập nhật ĐÈ dòng cũ, không tạo
-                // dòng mới (xem handleSoDiaChinh, chống trùng theo Số phát hành).
-                if (gcnAnchor && gcn && gcn !== 'CHƯA RÕ') {
-                    const fullText = gcnAnchor.textContent;
-
-                    let ngayVaoSo = '';
-                    const mNgay = fullText.match(/Ngày vào sổ:\s*([\d\/]+)/i);
-                    if (mNgay) ngayVaoSo = mNgay[1].trim();
-
-                    let soVaoSo = '';
-                    const mSoVaoSo = fullText.match(/Số vào sổ:\s*(\S+)/i);
-                    if (mSoVaoSo) soVaoSo = mSoVaoSo[1].trim();
-
-                    let xaGCN = '';
-                    const mXa = fullText.match(/Đơn vị hành chính:\s*([^,]+)/i);
-                    if (mXa) xaGCN = mXa[1].trim().replace(/^xã |^phường |^thị trấn /i, '').toUpperCase();
-
-                    let nguoiDuocCapGCN = '';
-                    const thongTinChuLi = Array.from(gcnLi.querySelectorAll('li.jstree-node')).find(li => {
-                        const a = li.querySelector(':scope > a.jstree-anchor');
-                        return a && a.textContent.includes('Thông tin chủ');
-                    });
-                    if (thongTinChuLi) {
-                        const ownerNames = Array.from(thongTinChuLi.querySelectorAll('a.jstree-anchor'))
-                            .map(a => {
-                                const mOwner = a.textContent.match(/(?:Ông|Bà):\s*([^-]+?)\s*-/);
-                                return mOwner ? mOwner[1].trim() : '';
-                            })
-                            .filter(Boolean);
-                        nguoiDuocCapGCN = ownerNames.join(', ').toUpperCase();
-                    }
-
-                    const sdcRecord = {
-                        nguoiDuocCap: nguoiDuocCapGCN,
-                        soPhatHanh: gcn,
-                        soVaoSo,
-                        ngayKyGCN: ngayVaoSo,
-                        xa: xaGCN
-                    };
-
-                    // Lưu lại 1 bản cục bộ để hiện trong tab "Địa chính" (kiểm tra bằng mắt) - cập
-                    // nhật đè dòng cũ trong bảng cục bộ nếu đã có, không chỉ thêm dòng mới khi thiếu.
-                    const localIdx = state.sodiachinhRecords.findIndex(r => r.soPhatHanh === gcn);
-                    if (localIdx === -1) {
-                        state.sodiachinhRecords.push(sdcRecord);
-                        saveSoDiaChinhCart();
-                        renderTable();
-                    } else if (JSON.stringify(state.sodiachinhRecords[localIdx]) !== JSON.stringify(sdcRecord)) {
-                        state.sodiachinhRecords[localIdx] = sdcRecord;
-                        saveSoDiaChinhCart();
-                        renderTable();
-                    }
-
-                    if (!isSoDiaChinhPendingOrLogged(gcn, sdcRecord)) {
-                        pushSoDiaChinh(gcn, sdcRecord);
-                    }
-                }
 
                 // Tìm các Thửa đất nằm bên trong GCN này (Hỗ trợ 1 GCN nhiều Thửa)
                 const thuaNodes = Array.from(gcnLi.querySelectorAll('li.jstree-node')).filter(li => {

@@ -640,67 +640,58 @@ import { createModuleRuntime } from './module-runtime.js';
 
                     if (isFilePopupOpen) {
                         if (!chkSelectAll.hasAttribute('data-mplis-clicked')) {
-                            writeLog("Xử lý chống cache cho Checkbox Select All...");
+                            writeLog("Đang chọn đúng file của đơn này (SPH/gt/pt)...");
                             chkSelectAll.setAttribute('data-mplis-clicked', 'true');
 
-                            try {
-                                chkSelectAll.classList.add('mplis-highlight-target');
-                                setTimeout(() => { try { chkSelectAll.classList.remove('mplis-highlight-target'); } catch (e) { } }, 1200);
+                            const jq = (typeof unsafeWindow !== 'undefined' && unsafeWindow.$) ? unsafeWindow.$ : null;
 
-                                const jq = (typeof unsafeWindow !== 'undefined' && unsafeWindow.$) ? unsafeWindow.$ : null;
+                            // KHÔNG dùng "Select All" nữa - click TRỰC TIẾP từng checkbox cần, tránh phải
+                            // chọn thừa rồi gỡ tích lại. Hồ sơ chỉ 1 đơn duy nhất thì mọi file nạp vào
+                            // chắc chắn là của đơn này (dù người dùng gõ sai mã SPH), nên CHỌN HẾT.
+                            const totalDons = document.querySelectorAll('#lstDonDangKy ul.dondangky-item').length;
 
-                                // Nếu ô đang bị tích sẵn do "lưu cache" từ hồ sơ trước, ta phải click 1 lần để GỠ TÍCH
-                                if (chkSelectAll.checked) {
-                                    if (jq) jq('#chkSelectAll').click();
-                                    else chkSelectAll.click();
+                            const fileRows = Array.from(document.querySelectorAll('#tbDanhSachGiayToDinhKem tbody tr'));
+                            for (const row of fileRows) {
+                                const cb = row.querySelector('input[type="checkbox"]');
+                                if (!cb) continue;
+                                const fileName = (row.textContent || '').toUpperCase();
+                                if (!fileName.includes('.PDF')) continue;
+
+                                // Quy tắc CHÍNH XÁC cho file gt/pt: tên file phải chứa đúng chuỗi
+                                // "GT.PDF"/"PT.PDF" (kể chữ hoa/thường, có/không có tiền tố Mã hồ sơ đứng
+                                // trước đều được). KHÔNG bắt buộc phải có khoảng trắng/ranh giới đứng ngay
+                                // trước/sau - vì textContent của dòng bảng có thể dính liền số thứ tự hoặc
+                                // cột kế bên mà không có khoảng trắng phân cách (tùy cấu trúc HTML), nếu bắt
+                                // buộc ranh giới sẽ bị bỏ sót. Đuôi ".PDF" đứng ngay sau "GT"/"PT" đã đủ đặc
+                                // trưng để không nhầm với văn bản tiếng Việt khác (không câu nào tình cờ có
+                                // đúng 4 ký tự ".PDF" ngay sau 2 chữ đó).
+                                const isGtPt = /(GT|PT)\.PDF/.test(fileName);
+
+                                let shouldKeep;
+                                if (totalDons <= 1) {
+                                    shouldKeep = true;
+                                } else {
+                                    // File "gt"/"pt" là tài liệu DÙNG CHUNG cho cả hồ sơ (không thuộc riêng
+                                    // đơn nào) nên đơn nào cũng cần được chọn - không lọc theo Mã hồ sơ.
+                                    if (isGtPt) {
+                                        shouldKeep = true;
+                                    } else {
+                                        shouldKeep = false;
+                                        const matchSPH = fileName.match(/[A-Z]{2}\s*\d+/);
+                                        if (matchSPH) {
+                                            const sphFile = matchSPH[0].replace(/\s+/g, '').toUpperCase();
+                                            shouldKeep = !!(topState.qt2SoPhatHanhList && topState.qt2SoPhatHanhList.includes(sphFile));
+                                        }
+                                    }
                                 }
 
-                                // Đợi 250ms để bảng dữ liệu nhận diện trạng thái gỡ tích, sau đó CLICK TÍCH LẠI
-                                // Việc này ép Kendo UI phải quét lại danh sách và chọn tất cả các file của hồ sơ mới
-                                setTimeout(() => {
-                                    try {
-                                        if (jq) jq('#chkSelectAll').click();
-                                        else chkSelectAll.click();
-                                    } catch (err) {
-                                        chkSelectAll.click();
-                                    }
-
-
-                                    // Lọc file theo số phát hành đã nhớ (delay thêm chút để DOM kịp update checkbox)
-                                    setTimeout(() => {
-                                        if (topState.qt2SoPhatHanhList && topState.qt2SoPhatHanhList.length > 0) {
-                                            const fileRows = Array.from(document.querySelectorAll('#tbDanhSachGiayToDinhKem tbody tr'));
-                                            for (const row of fileRows) {
-                                                const cb = row.querySelector('input[type="checkbox"]');
-                                                if (cb) {
-                                                    const fileName = (row.textContent || '').toUpperCase();
-                                                    if (fileName.includes('.PDF')) {
-                                                        const matchSPH = fileName.match(/[A-Z]{2}\s*\d+/);
-                                                        if (matchSPH) {
-                                                            const sphFile = matchSPH[0].replace(/\s+/g, '').toUpperCase();
-
-                                                            // Đếm tổng số đơn trong hồ sơ
-                                                            const totalDons = document.querySelectorAll('#lstDonDangKy ul.dondangky-item').length;
-
-                                                            // CHỈ GỠ TICK NẾU HỒ SƠ CÓ NHIỀU ĐƠN.
-                                                            // Nếu hồ sơ chỉ có 1 đơn duy nhất, tất cả file nạp vào chắc chắn là của đơn này
-                                                            // (dù người dùng gõ sai mã SPH), nên ta GIỮ NGUYÊN KHÔNG GỠ TICK!
-                                                            if (totalDons > 1 && !topState.qt2SoPhatHanhList.includes(sphFile) && cb.checked) {
-                                                                if (jq) jq(cb).click(); else cb.click();
-                                                                writeLog("Loại bỏ file không khớp số phát hành của đơn này: " + sphFile);
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }, 300);
-
-                                }, 250);
-
-                            } catch (e) {
-                                if (chkSelectAll.checked) chkSelectAll.click();
-                                setTimeout(() => { chkSelectAll.click(); }, 250);
+                                if (shouldKeep && !cb.checked) {
+                                    if (jq) jq(cb).click(); else cb.click();
+                                    writeLog("Chọn file: " + fileName);
+                                } else if (!shouldKeep && cb.checked) {
+                                    if (jq) jq(cb).click(); else cb.click();
+                                    writeLog("Bỏ chọn file không thuộc đơn này: " + fileName);
+                                }
                             }
 
                             setLastActionTime(now, 1200);
@@ -760,7 +751,8 @@ import { createModuleRuntime } from './module-runtime.js';
 
                             let targetRow = rows.find(tr => {
                                 const t = tr.textContent.toUpperCase();
-                                return t.includes('.PDF') && t.includes('GIẤY TỜ HỒ SƠ') && !t.includes('GT.PDF');
+                                const isGtPt = /(?:GT|PT)\.PDF/.test(t);
+                                return t.includes('.PDF') && t.includes('GIẤY TỜ HỒ SƠ') && !isGtPt;
                             });
 
                             if (targetRow) {

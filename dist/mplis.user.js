@@ -998,57 +998,41 @@
           })();
           if (isFilePopupOpen) {
             if (!chkSelectAll.hasAttribute("data-mplis-clicked")) {
-              writeLog("Xử lý chống cache cho Checkbox Select All...");
+              writeLog("Đang chọn đúng file của đơn này (SPH/gt/pt)...");
               chkSelectAll.setAttribute("data-mplis-clicked", "true");
-              try {
-                chkSelectAll.classList.add("mplis-highlight-target");
-                setTimeout(() => {
-                  try {
-                    chkSelectAll.classList.remove("mplis-highlight-target");
-                  } catch (e) {
-                  }
-                }, 1200);
-                const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-                if (chkSelectAll.checked) {
-                  if (jq) jq("#chkSelectAll").click();
-                  else chkSelectAll.click();
-                }
-                setTimeout(() => {
-                  try {
-                    if (jq) jq("#chkSelectAll").click();
-                    else chkSelectAll.click();
-                  } catch (err) {
-                    chkSelectAll.click();
-                  }
-                  setTimeout(() => {
-                    if (topState.qt2SoPhatHanhList && topState.qt2SoPhatHanhList.length > 0) {
-                      const fileRows = Array.from(document.querySelectorAll("#tbDanhSachGiayToDinhKem tbody tr"));
-                      for (const row of fileRows) {
-                        const cb = row.querySelector('input[type="checkbox"]');
-                        if (cb) {
-                          const fileName = (row.textContent || "").toUpperCase();
-                          if (fileName.includes(".PDF")) {
-                            const matchSPH = fileName.match(/[A-Z]{2}\s*\d+/);
-                            if (matchSPH) {
-                              const sphFile = matchSPH[0].replace(/\s+/g, "").toUpperCase();
-                              const totalDons = document.querySelectorAll("#lstDonDangKy ul.dondangky-item").length;
-                              if (totalDons > 1 && !topState.qt2SoPhatHanhList.includes(sphFile) && cb.checked) {
-                                if (jq) jq(cb).click();
-                                else cb.click();
-                                writeLog("Loại bỏ file không khớp số phát hành của đơn này: " + sphFile);
-                              }
-                            }
-                          }
-                        }
-                      }
+              const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+              const totalDons = document.querySelectorAll("#lstDonDangKy ul.dondangky-item").length;
+              const fileRows = Array.from(document.querySelectorAll("#tbDanhSachGiayToDinhKem tbody tr"));
+              for (const row of fileRows) {
+                const cb = row.querySelector('input[type="checkbox"]');
+                if (!cb) continue;
+                const fileName = (row.textContent || "").toUpperCase();
+                if (!fileName.includes(".PDF")) continue;
+                const isGtPt = /(GT|PT)\.PDF/.test(fileName);
+                let shouldKeep;
+                if (totalDons <= 1) {
+                  shouldKeep = true;
+                } else {
+                  if (isGtPt) {
+                    shouldKeep = true;
+                  } else {
+                    shouldKeep = false;
+                    const matchSPH = fileName.match(/[A-Z]{2}\s*\d+/);
+                    if (matchSPH) {
+                      const sphFile = matchSPH[0].replace(/\s+/g, "").toUpperCase();
+                      shouldKeep = !!(topState.qt2SoPhatHanhList && topState.qt2SoPhatHanhList.includes(sphFile));
                     }
-                  }, 300);
-                }, 250);
-              } catch (e) {
-                if (chkSelectAll.checked) chkSelectAll.click();
-                setTimeout(() => {
-                  chkSelectAll.click();
-                }, 250);
+                  }
+                }
+                if (shouldKeep && !cb.checked) {
+                  if (jq) jq(cb).click();
+                  else cb.click();
+                  writeLog("Chọn file: " + fileName);
+                } else if (!shouldKeep && cb.checked) {
+                  if (jq) jq(cb).click();
+                  else cb.click();
+                  writeLog("Bỏ chọn file không thuộc đơn này: " + fileName);
+                }
               }
               setLastActionTime(now, 1200);
               return;
@@ -1118,7 +1102,8 @@
               }
               let targetRow = rows.find((tr) => {
                 const t = tr.textContent.toUpperCase();
-                return t.includes(".PDF") && t.includes("GIẤY TỜ HỒ SƠ") && !t.includes("GT.PDF");
+                const isGtPt = /(?:GT|PT)\.PDF/.test(t);
+                return t.includes(".PDF") && t.includes("GIẤY TỜ HỒ SƠ") && !isGtPt;
               });
               if (targetRow) {
                 const editBtn = targetRow.querySelector("#btnEditHoSoQuet");
@@ -2451,81 +2436,6 @@
     return { init };
   }();
 
-  // src/so-dia-chinh-shared.js
-  var LOGGED_KEY = "mplis_sodiachinh_logged";
-  var SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
-  var _pendingKeys = /* @__PURE__ */ new Set();
-  function getSoDiaChinhSignature(record) {
-    return (record.soVaoSo || "") + "|" + (record.ngayKyGCN || "");
-  }
-  function getSoDiaChinhLoggedSignature(key) {
-    try {
-      const stored = JSON.parse(localStorage.getItem(LOGGED_KEY) || "{}");
-      return Object.prototype.hasOwnProperty.call(stored, key) ? stored[key] : null;
-    } catch (e) {
-      return null;
-    }
-  }
-  function isSoDiaChinhPendingOrLogged(key, record) {
-    if (_pendingKeys.has(key)) return true;
-    const loggedSig = getSoDiaChinhLoggedSignature(key);
-    if (loggedSig === null) return false;
-    return loggedSig === getSoDiaChinhSignature(record);
-  }
-  function markSoDiaChinhLogged(key, record) {
-    try {
-      const stored = JSON.parse(localStorage.getItem(LOGGED_KEY) || "{}");
-      stored[key] = getSoDiaChinhSignature(record);
-      localStorage.setItem(LOGGED_KEY, JSON.stringify(stored));
-    } catch (e) {
-    }
-    _pendingKeys.delete(key);
-  }
-  function getSoDiaChinhSheetUrl() {
-    try {
-      return (localStorage.getItem(SHEET_URL_KEY) || "").trim();
-    } catch (e) {
-      return "";
-    }
-  }
-  function setSoDiaChinhStatus(text, ok) {
-    const el = document.getElementById("excel-sheet-status");
-    if (!el) return;
-    el.textContent = text;
-    el.style.color = ok ? "#22c55e" : "#f43f5e";
-  }
-  function pushSoDiaChinh(key, record) {
-    const url = getSoDiaChinhSheetUrl();
-    if (!url) return;
-    if (typeof GM_xmlhttpRequest === "undefined") return;
-    _pendingKeys.add(key);
-    GM_xmlhttpRequest({
-      method: "POST",
-      url,
-      data: JSON.stringify({ bucket: "sodiachinh", ...record }),
-      headers: { "Content-Type": "application/json" },
-      onload: function(res) {
-        try {
-          const body = JSON.parse(res.responseText);
-          if (body.ok) {
-            setSoDiaChinhStatus("✅ đã đồng bộ (Sổ địa chính)", true);
-            markSoDiaChinhLogged(key, record);
-          } else {
-            setSoDiaChinhStatus("❌ " + (body.error || "lỗi"), false);
-            _pendingKeys.delete(key);
-          }
-        } catch (e) {
-          setSoDiaChinhStatus("❌ phản hồi lạ", false);
-          _pendingKeys.delete(key);
-        }
-      },
-      onerror: function() {
-        setSoDiaChinhStatus("❌ lỗi kết nối", false);
-        _pendingKeys.delete(key);
-      }
-    });
-  }
-
   // src/excel-module.js
   var ExcelModule = function() {
     const BIEN_DONG_CODE_MAP = {
@@ -2548,17 +2458,13 @@
       ...MY_COMMUNES.map((c) => ({ key: c.key, label: c.label, rich: true })),
       { key: "thechap", label: "Thế chấp", rich: false },
       { key: "xacnhan", label: "Xác nhận", rich: false },
-      { key: "khac", label: "Khác", rich: true },
-      // Bảng riêng để xem lại dữ liệu đã đẩy vào "Sổ địa chính" (kiểm tra bằng mắt, không
-      // qua getBucket() vì đây là 1 tập dữ liệu hoàn toàn khác cấu trúc - xem sodiachinhRecords).
-      { key: "sodiachinh", label: "Địa chính", rich: false, isSoDiaChinh: true }
+      { key: "khac", label: "Khác", rich: true }
     ];
     let state = {
       records: [],
-      sodiachinhRecords: [],
       currentBucket: "all"
     };
-    const SHEET_URL_KEY2 = "mplis_excel_sheet_url_mine";
+    const SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
     const PUSHABLE_BUCKETS = MY_COMMUNES.map((c) => c.key).concat(["khac", "thechap", "xacnhan"]);
     const NOTIFY_ACCOUNT_FILTER_KEY2 = "mplis_notify_account_filter";
     function getNotifyAccountFilter2() {
@@ -2597,7 +2503,7 @@
     }
     function getSheetUrl() {
       try {
-        return (localStorage.getItem(SHEET_URL_KEY2) || "").trim();
+        return (localStorage.getItem(SHEET_URL_KEY) || "").trim();
       } catch (e) {
         return "";
       }
@@ -2677,7 +2583,7 @@
         sheetUrlInput.value = getSheetUrl();
         sheetUrlInput.oninput = () => {
           try {
-            localStorage.setItem(SHEET_URL_KEY2, sheetUrlInput.value.trim());
+            localStorage.setItem(SHEET_URL_KEY, sheetUrlInput.value.trim());
           } catch (e) {
           }
         };
@@ -2732,13 +2638,8 @@
           e.stopPropagation();
           const bucketDef = BUCKETS.find((b) => b.key === state.currentBucket);
           if (unsafeWindow.confirm(`Xóa toàn bộ hồ sơ trong bảng "${bucketDef ? bucketDef.label : ""}" đang xem?`)) {
-            if (state.currentBucket === "sodiachinh") {
-              state.sodiachinhRecords = [];
-              saveSoDiaChinhCart();
-            } else {
-              state.records = state.currentBucket === "all" ? [] : state.records.filter((r) => getBucket(r) !== state.currentBucket);
-              saveState();
-            }
+            state.records = state.currentBucket === "all" ? [] : state.records.filter((r) => getBucket(r) !== state.currentBucket);
+            saveState();
             renderTable();
           }
           return;
@@ -2763,13 +2664,7 @@
           e.preventDefault();
           e.stopPropagation();
           const idx = parseInt(btnDeleteRow.getAttribute("data-idx"));
-          if (state.currentBucket === "sodiachinh") {
-            if (!isNaN(idx) && state.sodiachinhRecords[idx]) {
-              state.sodiachinhRecords.splice(idx, 1);
-              saveSoDiaChinhCart();
-              renderTable();
-            }
-          } else if (!isNaN(idx) && state.records[idx]) {
+          if (!isNaN(idx) && state.records[idx]) {
             state.records.splice(idx, 1);
             saveState();
             renderTable();
@@ -2794,17 +2689,9 @@
         if (stored) state.records = JSON.parse(stored);
       } catch (e) {
       }
-      try {
-        const storedSDC = localStorage.getItem("mplis_sodiachinh_cart");
-        if (storedSDC) state.sodiachinhRecords = JSON.parse(storedSDC);
-      } catch (e) {
-      }
     }
     function saveState() {
       localStorage.setItem("mplis_excel_cart", JSON.stringify(state.records));
-    }
-    function saveSoDiaChinhCart() {
-      localStorage.setItem("mplis_sodiachinh_cart", JSON.stringify(state.sodiachinhRecords));
     }
     function renderFilterTabs() {
       const bar = document.getElementById("excel-filter-bar");
@@ -2814,9 +2701,6 @@
       });
     }
     function getVisibleRecords() {
-      if (state.currentBucket === "sodiachinh") {
-        return state.sodiachinhRecords.map((r, idx) => ({ r, idx }));
-      }
       const all = state.records.map((r, idx) => ({ r, idx }));
       if (state.currentBucket === "all") return all;
       return all.filter(({ r }) => getBucket(r) === state.currentBucket);
@@ -2829,29 +2713,7 @@
       const bucketDef = BUCKETS.find((b) => b.key === state.currentBucket) || BUCKETS[0];
       const visible = getVisibleRecords();
       count.textContent = visible.length;
-      if (bucketDef.isSoDiaChinh) {
-        thead.innerHTML = `
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">NGƯỜI ĐƯỢC CẤP</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">SỐ PHÁT HÀNH</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">NGÀY KÝ GCN</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">SỐ VÀO SỔ</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">XÃ</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
-                `;
-        tbody.innerHTML = visible.map(({ r, idx }) => `
-                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.nguoiDuocCap || "")}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.soPhatHanh || "")}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.ngayKyGCN || "")}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.soVaoSo || "")}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.xa || "")}</td>
-                        <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
-                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
-                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
-                        </td>
-                    </tr>
-                `).join("");
-      } else if (bucketDef.rich) {
+      if (bucketDef.rich) {
         thead.innerHTML = `
                     <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">TTHC</th>
                     <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">B.NHẬN</th>
@@ -2937,14 +2799,10 @@
         r.dtSKC || ""
       ].join("	");
     }
-    function getSoDiaChinhRowText(r) {
-      return [r.nguoiDuocCap || "", r.soPhatHanh || "", r.ngayKyGCN || "", r.soVaoSo || "", r.xa || ""].join("	");
-    }
     function copyRowToExcel(idx, btn) {
-      const isSDC = state.currentBucket === "sodiachinh";
-      const r = isSDC ? state.sodiachinhRecords[idx] : state.records[idx];
+      const r = state.records[idx];
       if (!r) return;
-      const text = isSDC ? getSoDiaChinhRowText(r) : getRowText(r);
+      const text = getRowText(r);
       fallbackCopyTextToClipboard(text).then(() => {
         btn.className = "fa fa-check btn-copy-row";
         btn.style.color = "#10b981";
@@ -2960,8 +2818,7 @@
         unsafeWindow.alert("Không có dữ liệu trong bảng đang xem!");
         return;
       }
-      const textFn = state.currentBucket === "sodiachinh" ? getSoDiaChinhRowText : getRowText;
-      const text = visible.map(({ r }) => textFn(r)).join("\n");
+      const text = visible.map(({ r }) => getRowText(r)).join("\n");
       fallbackCopyTextToClipboard(text).then(() => {
         const btn = document.getElementById("btn-excel-copy");
         const oldText = btn.innerHTML;
@@ -3032,50 +2889,6 @@
           }
         }
         if (!gcn) gcn = "CHƯA RÕ";
-        if (gcnAnchor && gcn && gcn !== "CHƯA RÕ") {
-          const fullText = gcnAnchor.textContent;
-          let ngayVaoSo = "";
-          const mNgay = fullText.match(/Ngày vào sổ:\s*([\d\/]+)/i);
-          if (mNgay) ngayVaoSo = mNgay[1].trim();
-          let soVaoSo = "";
-          const mSoVaoSo = fullText.match(/Số vào sổ:\s*(\S+)/i);
-          if (mSoVaoSo) soVaoSo = mSoVaoSo[1].trim();
-          let xaGCN = "";
-          const mXa = fullText.match(/Đơn vị hành chính:\s*([^,]+)/i);
-          if (mXa) xaGCN = mXa[1].trim().replace(/^xã |^phường |^thị trấn /i, "").toUpperCase();
-          let nguoiDuocCapGCN = "";
-          const thongTinChuLi = Array.from(gcnLi.querySelectorAll("li.jstree-node")).find((li) => {
-            const a = li.querySelector(":scope > a.jstree-anchor");
-            return a && a.textContent.includes("Thông tin chủ");
-          });
-          if (thongTinChuLi) {
-            const ownerNames = Array.from(thongTinChuLi.querySelectorAll("a.jstree-anchor")).map((a) => {
-              const mOwner = a.textContent.match(/(?:Ông|Bà):\s*([^-]+?)\s*-/);
-              return mOwner ? mOwner[1].trim() : "";
-            }).filter(Boolean);
-            nguoiDuocCapGCN = ownerNames.join(", ").toUpperCase();
-          }
-          const sdcRecord = {
-            nguoiDuocCap: nguoiDuocCapGCN,
-            soPhatHanh: gcn,
-            soVaoSo,
-            ngayKyGCN: ngayVaoSo,
-            xa: xaGCN
-          };
-          const localIdx = state.sodiachinhRecords.findIndex((r) => r.soPhatHanh === gcn);
-          if (localIdx === -1) {
-            state.sodiachinhRecords.push(sdcRecord);
-            saveSoDiaChinhCart();
-            renderTable();
-          } else if (JSON.stringify(state.sodiachinhRecords[localIdx]) !== JSON.stringify(sdcRecord)) {
-            state.sodiachinhRecords[localIdx] = sdcRecord;
-            saveSoDiaChinhCart();
-            renderTable();
-          }
-          if (!isSoDiaChinhPendingOrLogged(gcn, sdcRecord)) {
-            pushSoDiaChinh(gcn, sdcRecord);
-          }
-        }
         const thuaNodes = Array.from(gcnLi.querySelectorAll("li.jstree-node")).filter((li) => {
           const a = li.querySelector(":scope > a.jstree-anchor");
           return a && a.textContent.includes("Thửa đất");
@@ -3628,7 +3441,6 @@
                             <button class="mplis-excel-filter" data-excel-bucket="thechap" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Thế chấp</button>
                             <button class="mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
                             <button class="mplis-excel-filter" data-excel-bucket="khac" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Khác</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="sodiachinh" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Địa chính</button>
                         </div>
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
                             <button id="btn-toggle-sheet-cfg" class="mplis-btn-ghost" style="padding:4px 7px; font-size:11px; border-radius:6px; flex-shrink:0;" title="Cấu hình link Google Sheet (của tôi)">🔗</button>

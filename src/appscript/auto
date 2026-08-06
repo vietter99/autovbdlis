@@ -129,6 +129,8 @@ function handleXaTable(ss, data) {
     data.gcn || '', data.thua || '', data.to || '', data.dienTich || '',
     data.datO || '', data.cln || '', data.lua || '', data.nts || '', data.hnk || ''
   ]]);
+  // Cột P: thời điểm ghi (giống hệt cột Ngày ở tab "Tổng hợp").
+  sheet.getRange(targetRow, 16, 1, 1).setValue(new Date());
 
   return ContentService.createTextOutput(JSON.stringify({ ok: true, row: targetRow }))
     .setMimeType(ContentService.MimeType.JSON);
