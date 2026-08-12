@@ -2,7 +2,7 @@
 // @name         MPLIS Auto Tool
 // @namespace    http://tampermonkey.net/
 // @version      8.0
-// @description  Bản gộp Toàn Diện: Xử lý Quy trình (QT), Trả hồ sơ và Cảnh báo trễ hạn. Giao diện v8: thiết kế lại toàn bộ UI, thêm tab Cài đặt, escape dữ liệu hiển thị, và công tắc bật/tắt tự động xác nhận hộp thoại. TOÀN BỘ LOGIC TỰ ĐỘNG HÓA GIỮ NGUYÊN như bản 7.0.
+// @description  Tự động hoá xử lý hồ sơ trên MPLIS/VBDLIS: chạy quy trình QT0-QT5, nhắc hồ sơ trễ hạn, xuất dữ liệu sang Google Sheet và tự điền sẵn màn hình Cập nhật pháp lý.
 // @author       Việt
 // @match        *://*.mplis.gov.vn/*
 // @match        *://dla.mplis.gov.vn/*
@@ -212,7 +212,9 @@
             --mplis-bad: #f43f5e;
         }
 
-        #mplis-auto-panel { position: fixed !important; bottom: 24px !important; right: 24px !important; width: 460px !important; max-height: 82vh !important; background: linear-gradient(180deg, var(--mplis-bg-soft), var(--mplis-bg)) !important; border: 1px solid var(--mplis-border) !important; border-radius: 20px !important; box-shadow: 0 24px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06) !important; color: var(--mplis-text) !important; font-family: 'Segoe UI', 'Inter', sans-serif !important; z-index: 999999999 !important; user-select: none !important; box-sizing: border-box !important; transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important; display: flex; flex-direction: column; overflow: hidden; transform-origin: bottom right; }
+        /* Bề ngang cố định 460px sẽ tràn/che nội dung trên màn hẹp hoặc khi trình duyệt zoom to,
+           nên kẹp lại theo bề ngang cửa sổ (chừa 32px cho lề 2 bên). */
+        #mplis-auto-panel { position: fixed !important; bottom: 24px !important; right: 24px !important; width: min(392px, calc(100vw - 32px)) !important; max-height: 82vh !important; background: linear-gradient(180deg, var(--mplis-bg-soft), var(--mplis-bg)) !important; border: 1px solid var(--mplis-border) !important; border-radius: 16px !important; box-shadow: 0 24px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06) !important; color: var(--mplis-text) !important; font-family: 'Segoe UI', 'Inter', sans-serif !important; z-index: 999999999 !important; user-select: none !important; box-sizing: border-box !important; transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important; display: flex; flex-direction: column; overflow: hidden; transform-origin: bottom right; }
         #mplis-auto-panel * { box-sizing: border-box; }
         #mplis-auto-panel.minimized { width: 58px !important; height: 58px !important; border-radius: 50% !important; background: linear-gradient(135deg, var(--mplis-accent), var(--mplis-accent-2)) !important; border: none !important; box-shadow: 0 10px 26px rgba(99,102,241,0.55) !important; cursor: pointer; transform: scale(0.92); }
         #mplis-auto-panel.minimized:hover { transform: scale(1); box-shadow: 0 14px 30px rgba(99,102,241,0.65) !important; }
@@ -220,11 +222,10 @@
         #mplis-auto-panel.minimized .mplis-shell { display: none !important; }
 
         /* ---- Header ---- */
-        #mplis-auto-panel .mplis-panel-header { display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 14px 16px !important; border-bottom: 1px solid var(--mplis-border) !important; flex-shrink: 0; }
-        #mplis-auto-panel .mplis-panel-title { font-weight: 700 !important; font-size: 14px !important; color: var(--mplis-text) !important; display: flex !important; align-items: center !important; gap: 10px !important; }
-        #mplis-auto-panel .mplis-panel-title .mplis-logo { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, var(--mplis-accent), var(--mplis-accent-2)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
-        #mplis-auto-panel .mplis-panel-title .mplis-author-tag { font-size: 10px; color: var(--mplis-text-dim); font-weight: 600; background: var(--mplis-surface); border: 1px solid var(--mplis-border); border-radius: 20px; padding: 2px 8px; }
-        #mplis-auto-panel .mplis-btn-minimize { background: var(--mplis-surface) !important; border: 1px solid var(--mplis-border) !important; border-radius: 9px !important; color: var(--mplis-text-dim) !important; cursor: pointer !important; width: 30px !important; height: 30px !important; display: flex !important; align-items: center !important; justify-content: center !important; transition: all 0.15s !important; padding: 0; margin: 0; }
+        #mplis-auto-panel .mplis-panel-header { display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 10px 12px !important; border-bottom: 1px solid var(--mplis-border) !important; flex-shrink: 0; }
+        #mplis-auto-panel .mplis-panel-title { font-weight: 650 !important; font-size: 13px !important; letter-spacing: -0.01em; color: var(--mplis-text) !important; display: flex !important; align-items: center !important; gap: 9px !important; }
+        #mplis-auto-panel .mplis-panel-title .mplis-logo { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, var(--mplis-accent), var(--mplis-accent-2)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 3px 10px rgba(99,102,241,0.35); }
+        #mplis-auto-panel .mplis-btn-minimize { background: transparent !important; border: 1px solid transparent !important; border-radius: 8px !important; color: var(--mplis-text-dim) !important; cursor: pointer !important; width: 28px !important; height: 28px !important; display: flex !important; align-items: center !important; justify-content: center !important; transition: all 0.15s !important; padding: 0; margin: 0; }
         #mplis-auto-panel .mplis-btn-minimize:hover { color: var(--mplis-text) !important; background: var(--mplis-surface-hover) !important; }
         #mplis-auto-panel .mplis-minimized-trigger { display: none !important; width: 100% !important; height: 100% !important; align-items: center !important; justify-content: center !important; color: #fff !important; background: transparent !important; border: none !important; outline: none !important; padding: 0 !important; margin: 0 !important; cursor: pointer !important; }
         #mplis-auto-panel.minimized .mplis-minimized-trigger { display: flex !important; animation: mplis-float 3s ease-in-out infinite; }
@@ -233,17 +234,19 @@
         /* ---- Shell: nav rail (trái) + nội dung (phải) ---- */
         .mplis-shell { display: flex; flex: 1; min-height: 0; }
 
-        .mplis-tabs { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 56px; flex-shrink: 0; padding: 12px 0; background: rgba(0,0,0,0.18); border-right: 1px solid var(--mplis-border); overflow-y: auto; overflow-x: visible; }
-        .mplis-tab { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 11px; color: var(--mplis-text-dim); font-size: 18px; cursor: pointer; transition: all 0.15s ease; position: relative; flex-shrink: 0; }
+        .mplis-tabs { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 48px; flex-shrink: 0; padding: 10px 0; background: rgba(0,0,0,0.18); border-right: 1px solid var(--mplis-border); overflow-y: auto; overflow-x: visible; }
+        .mplis-tab { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 10px; color: var(--mplis-text-dim); cursor: pointer; transition: all 0.15s ease; position: relative; flex-shrink: 0; }
+        /* Icon tab dùng SVG (không dùng emoji) - khóa cùng 1 cỡ để nhịp thị giác đều nhau. */
+        .mplis-tab svg, .mplis-tab-toggle svg { width: 18px; height: 18px; display: block; }
         .mplis-tab:hover { color: var(--mplis-text); background: var(--mplis-surface); }
         .mplis-tab.active { color: #fff; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5); box-shadow: 0 4px 14px rgba(99,102,241,0.45); }
-        .mplis-tab[title]:hover::after { content: attr(title); position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 10px; background: #1e293b; color: #f1f5f9; font-size: 11px; font-weight: 600; padding: 5px 9px; border-radius: 6px; white-space: nowrap; box-shadow: 0 6px 16px rgba(0,0,0,0.4); pointer-events: none; z-index: 10; }
+        .mplis-tab[title]:hover::after { content: attr(title); position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 10px; background: #1e293b; color: #f1f5f9; font-size: 12px; font-weight: 600; padding: 5px 9px; border-radius: 6px; white-space: nowrap; box-shadow: 0 6px 16px rgba(0,0,0,0.4); pointer-events: none; z-index: 10; }
 
-        .mplis-tab-toggle { width: 40px; height: 26px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-top: 1px dashed var(--mplis-border); margin-top: 6px; color: var(--mplis-text-dim); font-size: 15px; letter-spacing: 1px; cursor: pointer; transition: color 0.15s ease; }
+        .mplis-tab-toggle { width: 38px; height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-top: 1px dashed var(--mplis-border); margin-top: 6px; color: var(--mplis-text-dim); cursor: pointer; transition: color 0.15s ease; }
         .mplis-tab-toggle:hover { color: var(--mplis-text); }
         .mplis-tab-toggle.expanded { color: var(--mplis-accent-2); }
 
-        .mplis-content { flex: 1; min-width: 0; min-height: 320px; overflow-y: auto; padding: 18px; transition: min-height 0.22s ease; }
+        .mplis-content { flex: 1; min-width: 0; min-height: 268px; overflow-y: auto; padding: 12px; transition: min-height 0.22s ease; }
         .mplis-content::-webkit-scrollbar, .mplis-tabs::-webkit-scrollbar { width: 6px; }
         .mplis-content::-webkit-scrollbar-thumb, .mplis-tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 
@@ -251,16 +254,49 @@
         .mplis-panel-body.active { display: block; animation: mplis-fade-in 0.2s ease; }
         @keyframes mplis-fade-in { from { opacity: 0; transform: translateY(3px);} to { opacity: 1; transform: translateY(0);} }
 
-        .mplis-section-label { font-size: 10px; color: var(--mplis-text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 8px; display: block; }
-        .mplis-card { background: var(--mplis-surface); border: 1px solid var(--mplis-border); border-radius: 12px; padding: 12px; margin-bottom: 14px; }
-        .mplis-hint { font-size: 11px; color: var(--mplis-text-dim); line-height: 1.6; margin-bottom: 12px; }
+        .mplis-section-label { font-size: 10px; color: var(--mplis-text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 0.07em; margin-bottom: 6px; display: block; }
+        .mplis-card { background: var(--mplis-surface); border: 1px solid var(--mplis-border); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+        .mplis-hint { font-size: 11.5px; color: var(--mplis-text-dim); line-height: 1.5; margin-bottom: 10px; }
 
-        .mplis-checkbox-group { display: flex !important; flex-direction: column !important; gap: 6px !important; }
-        .mplis-checkbox-group label { display: flex !important; align-items: center !important; gap: 10px !important; font-size: 12px !important; color: #e2e8f0 !important; cursor: pointer !important; padding: 9px 10px !important; background: var(--mplis-surface) !important; border-radius: 9px !important; border: 1px solid var(--mplis-border) !important; transition: background 0.15s; }
+        /* ---- Thẻ thu gọn/mở rộng ---- */
+        /* Đóng lại vẫn phải biết tool đang chạy kiểu nào, nên trạng thái nằm luôn trên thanh tiêu đề
+           (.mplis-collapse-state) thay vì giấu hết vào trong. */
+        #mplis-auto-panel .mplis-collapse { padding: 0 !important; overflow: hidden; }
+        #mplis-auto-panel .mplis-collapse-head { display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important; min-height: 44px !important; padding: 11px 12px !important; background: transparent !important; border: none !important; border-radius: 12px !important; color: var(--mplis-text) !important; cursor: pointer !important; text-align: left !important; font-family: inherit !important; }
+        #mplis-auto-panel .mplis-collapse-head:hover { background: var(--mplis-surface-hover) !important; }
+        #mplis-auto-panel .mplis-collapse-head:focus-visible { outline: 2px solid var(--mplis-accent) !important; outline-offset: -2px !important; }
+        #mplis-auto-panel .mplis-collapse-head .mplis-section-label { margin-bottom: 0 !important; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Tên tài khoản chuyển tiếp có thể dài hơn chỗ trống - cắt bằng "..." để thanh tiêu đề không vỡ. */
+        .mplis-collapse-state { margin-left: auto; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; color: var(--mplis-text-dim); background: var(--mplis-surface); border: 1px solid var(--mplis-border); border-radius: 20px; padding: 3px 9px; }
+        .mplis-collapse-state.on { color: var(--mplis-bg); background: var(--mplis-accent-2); border-color: transparent; }
+        .mplis-collapse-caret { flex-shrink: 0; color: var(--mplis-text-dim); transition: transform 0.2s ease; }
+        .mplis-collapse.open .mplis-collapse-caret { transform: rotate(180deg); }
+        .mplis-collapse-body { max-height: 0; opacity: 0; overflow: hidden; padding: 0 12px; transition: max-height 0.22s ease, opacity 0.16s ease, padding-bottom 0.22s ease; }
+        .mplis-collapse.open .mplis-collapse-body { max-height: 260px; opacity: 1; padding-bottom: 12px; }
+        @media (prefers-reduced-motion: reduce) {
+            .mplis-collapse-body, .mplis-collapse-caret { transition: none; }
+        }
+
+        /* ---- Bảng nổi báo tiến độ (chỉ hiện khi panel thu nhỏ + auto đang chạy) ---- */
+        /* Đặt ngay trên icon tia sét (icon cao 58px + 24px lề dưới + 10px khoảng hở). */
+        #mplis-run-toast { position: fixed !important; bottom: 92px !important; right: 24px !important; width: min(300px, calc(100vw - 32px)); padding: 11px 13px; background: linear-gradient(180deg, var(--mplis-bg-soft), var(--mplis-bg)); border: 1px solid var(--mplis-border); border-radius: 14px; box-shadow: 0 14px 34px rgba(0,0,0,0.5); color: var(--mplis-text); font-family: 'Segoe UI', 'Inter', sans-serif; z-index: 999999998; cursor: pointer; opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; }
+        #mplis-run-toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        #mplis-run-toast:hover { border-color: var(--mplis-accent); }
+        #mplis-run-toast .mplis-toast-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        #mplis-run-toast .mplis-toast-step { font-size: 12px; font-weight: 700; color: var(--mplis-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #mplis-run-toast .mplis-toast-count { margin-left: auto; flex-shrink: 0; font-size: 11px; font-weight: 700; color: var(--mplis-accent-2); font-variant-numeric: tabular-nums; }
+        #mplis-run-toast .mplis-toast-bar { height: 4px; border-radius: 3px; background: rgba(255,255,255,0.09); overflow: hidden; }
+        #mplis-run-toast .mplis-toast-bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, var(--mplis-accent), var(--mplis-accent-2)); transition: width 0.3s ease; }
+        #mplis-run-toast .mplis-toast-bar i.done { background: var(--mplis-good); }
+        #mplis-run-toast .mplis-toast-log { margin-top: 8px; font-size: 11.5px; color: var(--mplis-text-dim); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        @media print { #mplis-run-toast { display: none !important; } }
+
+        .mplis-checkbox-group { display: flex !important; flex-direction: column !important; gap: 4px !important; }
+        .mplis-checkbox-group label { display: flex !important; align-items: center !important; gap: 9px !important; font-size: 12px !important; color: #e2e8f0 !important; cursor: pointer !important; padding: 7px 9px !important; background: var(--mplis-surface) !important; border-radius: 8px !important; border: 1px solid var(--mplis-border) !important; transition: background 0.15s; }
         .mplis-checkbox-group label:hover { background: var(--mplis-surface-hover) !important; }
-        .mplis-checkbox-group input, #mplis-auto-panel input[type="checkbox"] { accent-color: var(--mplis-accent); width: 15px; height: 15px; cursor: pointer; }
+        .mplis-checkbox-group input, #mplis-auto-panel input[type="checkbox"] { accent-color: var(--mplis-accent); width: 14px; height: 14px; cursor: pointer; }
 
-        .mplis-btn-primary { width: 100% !important; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5) !important; border: none !important; border-radius: 10px !important; padding: 12px 16px !important; color: #ffffff !important; font-weight: 700 !important; font-size: 13px !important; cursor: pointer !important; letter-spacing: 0.02em; transition: all 0.15s ease !important; box-shadow: 0 4px 14px rgba(99,102,241,0.35); }
+        .mplis-btn-primary { width: 100% !important; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5) !important; border: none !important; border-radius: 9px !important; padding: 10px 14px !important; color: #ffffff !important; font-weight: 650 !important; font-size: 12.5px !important; cursor: pointer !important; letter-spacing: 0.01em; transition: all 0.15s ease !important; box-shadow: 0 3px 12px rgba(99,102,241,0.3); }
         .mplis-btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
         .mplis-btn-primary:active { transform: translateY(0); }
         .mplis-btn-primary.running { background: linear-gradient(135deg, var(--mplis-bad), #be123c) !important; box-shadow: 0 4px 14px rgba(244,63,94,0.35); }
@@ -269,15 +305,15 @@
         .mplis-btn-ghost { background: var(--mplis-surface) !important; border: 1px solid var(--mplis-border) !important; color: var(--mplis-text) !important; border-radius: 9px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
         .mplis-btn-ghost:hover { background: var(--mplis-surface-hover) !important; }
 
-        .mplis-status-bar { margin-top: 12px !important; background: rgba(0,0,0,0.22) !important; border-radius: 10px !important; padding: 10px 12px !important; border: 1px solid var(--mplis-border) !important; }
-        .mplis-status-row { display: flex !important; justify-content: space-between !important; align-items: center !important; font-size: 11.5px !important; }
+        .mplis-status-bar { margin-top: 10px !important; background: rgba(0,0,0,0.22) !important; border-radius: 9px !important; padding: 8px 10px !important; border: 1px solid var(--mplis-border) !important; }
+        .mplis-status-row { display: flex !important; justify-content: space-between !important; align-items: center !important; font-size: 12px !important; }
         .mplis-status-lbl { display: flex !important; align-items: center !important; gap: 7px !important; color: #cbd5e1 !important; }
         .mplis-status-dot { width: 8px !important; height: 8px !important; border-radius: 50% !important; background-color: #64748b !important; flex-shrink: 0; }
         .mplis-status-dot.active { background-color: var(--mplis-good) !important; box-shadow: 0 0 8px rgba(34,197,94,0.7) !important; animation: mplis-pulse 1.5s infinite !important; }
         .mplis-status-dot.waiting { background-color: var(--mplis-warn) !important; box-shadow: 0 0 8px rgba(245,158,11,0.7) !important; }
         @keyframes mplis-pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
-        .mplis-log { margin-top: 8px !important; font-family: 'Consolas', monospace !important; font-size: 10.5px !important; color: var(--mplis-text-dim) !important; border-top: 1px solid var(--mplis-border) !important; padding-top: 8px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+        .mplis-log { margin-top: 8px !important; font-family: 'Consolas', monospace !important; font-size: 12px !important; color: var(--mplis-text-dim) !important; border-top: 1px solid var(--mplis-border) !important; padding-top: 8px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
 
         .mplis-highlight-target { outline: 3px solid var(--mplis-good) !important; box-shadow: 0 0 15px rgba(34,197,94,0.8) !important; border-radius: 4px !important; }
         .tab-return-color .mplis-highlight-target { outline-color: var(--mplis-warn) !important; box-shadow: 0 0 15px rgba(245,158,11,0.8) !important; }
@@ -286,6 +322,21 @@
 
         .mplis-filter-tab.active { background: rgba(99,102,241,0.35) !important; color: #fff !important; }
         .mplis-excel-filter.active { background: rgba(99,102,241,0.35) !important; color: #fff !important; }
+
+        /* Viền focus khi dùng bàn phím (Tab) - trước đây không có, gõ Tab không biết đang ở nút nào.
+           Dùng :focus-visible nên chuột bấm vẫn KHÔNG hiện viền, không ảnh hưởng thao tác thường ngày. */
+        #mplis-auto-panel button:focus-visible,
+        #mplis-auto-panel input:focus-visible,
+        #mplis-auto-panel textarea:focus-visible,
+        #mplis-auto-panel select:focus-visible,
+        #mplis-auto-panel [tabindex]:focus-visible { outline: 2px solid var(--mplis-accent-2) !important; outline-offset: 2px !important; border-radius: 8px; }
+        /* Ô nhập liệu: thêm viền sáng cả khi focus bằng chuột để biết đang gõ vào ô nào. */
+        #mplis-auto-panel input:focus, #mplis-auto-panel textarea:focus { border-color: var(--mplis-accent-2) !important; }
+
+        /* Người dùng bật "giảm chuyển động" của hệ điều hành thì tắt hiệu ứng, tránh gây khó chịu. */
+        @media (prefers-reduced-motion: reduce) {
+            #mplis-auto-panel, #mplis-auto-panel * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+        }
 
         @media print { #mplis-auto-panel { display: none !important; } }
     `;
@@ -378,6 +429,14 @@
     const defaultConfig = {
       activeWorkflows: ["QT0", "QT1", "QT2", "QT3"],
       isQT5: false,
+      // QT2 - bảng chọn file hồ sơ quét. Lọc theo Số phát hành/gt/pt LUÔN chạy ở cả 2 giá trị.
+      // true = tích thêm cả file mà bộ lọc không nhận và không gỡ tích file nào - dùng khi tên
+      // file đặt sai nên quy tắc lọc bỏ sót. false (mặc định) = chỉ giữ file bộ lọc nhận.
+      qt2SelectAllFiles: false,
+      // QT4 - cảnh báo "HỒ SƠ CHƯA ĐÁP ỨNG LIÊN KẾT 3 KHỐI" khi Kết ISO. true = tự bấm
+      // Đồng ý, NHƯNG chỉ khi cảnh báo vỏn vẹn đúng 1 dòng đó. Kèm dòng chi tiết là hồ sơ
+      // thiếu bước thật, luôn dừng bất kể cờ này.
+      qt4BypassLienKet3Khoi: false,
       forwardUser: "",
       delayOpen: 500,
       delayAction: 500,
@@ -399,6 +458,9 @@
       if (tName === "QT3") return "ký số sổ địa chính";
       if (tName === "QT4") return "kết iso";
       return tName.toLowerCase();
+    }
+    function layDongCanhBao(el) {
+      return (el.innerHTML || "").split(/<br\s*\/?>/i).map((part) => part.replace(/<[^>]*>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim()).filter(Boolean);
     }
     function findTaskProcessButton(taskNames) {
       if (!taskNames || taskNames.length === 0) return null;
@@ -425,7 +487,7 @@
                   return btnText.includes("xử lý") || btnText.includes("tác vụ");
                 });
                 if (targetBtn) {
-                  return { button: targetBtn, taskName: tName, isDone: false };
+                  return { button: targetBtn, taskName: tName, taskCode: tCode, isDone: false };
                 }
               }
             }
@@ -469,6 +531,41 @@
             const jcTitle = (jconfirmBox.querySelector(".jconfirm-title") || {}).textContent || "";
             const msgLower = jcMessage.toLowerCase();
             const titleLower = jcTitle.toLowerCase();
+            if (msgLower.includes("chưa đáp ứng liên kết 3 khối")) {
+              const contentEl = jconfirmBox.querySelector(".jconfirm-content, .jconfirm-message");
+              const dongCanhBao = contentEl ? layDongCanhBao(contentEl) : [];
+              const dongThua = dongCanhBao.slice(1);
+              if (!topState.config.qt4BypassLienKet3Khoi) {
+                writeLog('⚠️ Cảnh báo LIÊN KẾT 3 KHỐI. Chưa bật "Tự đồng ý" trong panel. DỪNG AUTO.');
+                updateStatus("Cảnh báo 3 khối - Dừng", "idle");
+                if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LIÊN KẾT 3 KHỐI: chưa bật tự đồng ý!");
+                return;
+              }
+              if (dongThua.length > 0) {
+                console.log("[MPLIS QT] Cảnh báo 3 KHỐI kèm dòng chi tiết:", dongThua);
+                writeLog("⚠️ Cảnh báo 3 KHỐI kèm " + dongThua.length + " dòng chi tiết: " + dongThua.join(" | ") + ". Hồ sơ thiếu bước 1/2/3. DỪNG AUTO.");
+                updateStatus("Thiếu bước 1/2/3 - Dừng", "idle");
+                if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LIÊN KẾT 3 KHỐI CÓ LỖI CHI TIẾT - KHÔNG KẾT ISO!");
+                return;
+              }
+              const btnDongY3Khoi = jconfirmBox.querySelector(".jconfirm-buttons .btn-orange, .jconfirm-buttons button:first-child");
+              if (btnDongY3Khoi && !btnDongY3Khoi.hasAttribute("data-mplis-clicked")) {
+                writeLog('Cảnh báo 3 KHỐI chỉ có 1 dòng, không kèm lỗi chi tiết. Bấm "Đồng ý" kết ISO...');
+                btnDongY3Khoi.setAttribute("data-mplis-clicked", "true");
+                setTimeout(() => {
+                  try {
+                    btnDongY3Khoi.removeAttribute("data-mplis-clicked");
+                  } catch (e) {
+                  }
+                }, 3e3);
+                const jq3 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+                if (jq3) jq3(btnDongY3Khoi).click();
+                else clickElement(btnDongY3Khoi);
+                setLastActionTime(now, topState.config.delayNext);
+                updateStatus("Chờ kết ISO...", "waiting");
+              }
+              return;
+            }
             const isQT1Confirm = msgLower.includes("cập nhật dữ liệu pháp lý") || titleLower.includes("cập nhật dữ liệu pháp lý");
             const isQT4Confirm = msgLower.includes("bạn có thật sự muốn kết iso hồ sơ này hay không");
             const isQT5Confirm = msgLower.includes("chuyển bước") || msgLower.includes("chuyển tiếp") || msgLower.includes("chuyển tác vụ") || msgLower.includes("chuyển");
@@ -582,6 +679,7 @@
             }
           })();
           if (isAttachModalOpen) {
+            topState.currentTaskCode = "QT0";
             if (!topState.qt0Phase || topState.qt0Phase === 0) {
               if (!btnUpdateAttactFile.hasAttribute("data-mplis-clicked")) {
                 writeLog("Bấm 'Cập nhật' tệp đính kèm...");
@@ -997,11 +1095,21 @@
             }
           })();
           if (isFilePopupOpen) {
+            if (topState.config.qt2SelectAllFiles && !chkSelectAll.hasAttribute("data-mplis-selectall") && !chkSelectAll.hasAttribute("data-mplis-clicked")) {
+              writeLog("Bấm 'Chọn tất cả' để tích hết bảng trước khi lọc...");
+              chkSelectAll.setAttribute("data-mplis-selectall", "true");
+              const jqAll = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+              if (jqAll) jqAll(chkSelectAll).click();
+              else chkSelectAll.click();
+              setLastActionTime(now, 600);
+              return;
+            }
             if (!chkSelectAll.hasAttribute("data-mplis-clicked")) {
               writeLog("Đang chọn đúng file của đơn này (SPH/gt/pt)...");
               chkSelectAll.setAttribute("data-mplis-clicked", "true");
               const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
               const totalDons = document.querySelectorAll("#lstDonDangKy ul.dondangky-item").length;
+              if (topState.config.qt2SelectAllFiles) writeLog("Đã tích hết bảng, giờ lọc bỏ file sai Số phát hành...");
               const fileRows = Array.from(document.querySelectorAll("#tbDanhSachGiayToDinhKem tbody tr"));
               for (const row of fileRows) {
                 const cb = row.querySelector('input[type="checkbox"]');
@@ -1061,6 +1169,7 @@
                 setLastActionTime(now, topState.config.delayOpen);
                 topState.qt2Phase = 1;
                 chkSelectAll.removeAttribute("data-mplis-clicked");
+                chkSelectAll.removeAttribute("data-mplis-selectall");
                 return;
               } else {
                 writeLog("Chờ nút 'Chọn tập tin' hiện ra...");
@@ -1414,6 +1523,7 @@
                     topState.processedDonIndexes = /* @__PURE__ */ new Set();
                     topState.qt2FileSelected = false;
                   }
+                  topState.currentTaskCode = targetRowData.taskCode || "";
                   writeLog(`Bấm 'Xử lý tác vụ' cho: ${targetRowData.taskName}...`);
                   const tr = targetRowData.button.closest("tr");
                   if (tr) tr.setAttribute("data-mplis-processed", "true");
@@ -2715,49 +2825,49 @@
       count.textContent = visible.length;
       if (bucketDef.rich) {
         thead.innerHTML = `
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">TTHC</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">B.NHẬN</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">HỌ TÊN</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">GCN</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">TTHC</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">B.NHẬN</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">HỌ TÊN</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">GCN</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
                 `;
         tbody.innerHTML = visible.map(({ r, idx }) => `
                     <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.tenTTHCFull || "---")}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.soBienNhan || "")}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.nguoiNop || "")}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.gcn)}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
-                        <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
-                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
-                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.tenTTHCFull || "---")}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.soBienNhan || "")}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.nguoiNop || "")}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.gcn)}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
+                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:14px; padding:6px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
+                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:14px; padding:6px; margin-left:4px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
                         </td>
                     </tr>
                 `).join("");
       } else {
         thead.innerHTML = `
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">MÃ HS</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">GCN</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
+                    <th style="padding:8px 6px; border-bottom:1px solid var(--mplis-border);">MÃ HS</th>
+                    <th style="padding:8px 6px; border-bottom:1px solid var(--mplis-border);">GCN</th>
+                    <th style="padding:8px 6px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
+                    <th style="padding:8px 6px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
+                    <th style="padding:8px 6px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
+                    <th style="padding:8px 6px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
                 `;
         tbody.innerHTML = visible.map(({ r, idx }) => `
                     <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.maHS || "---")}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.gcn)}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
-                        <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
-                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
-                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.maHS || "---")}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.gcn)}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
+                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:14px; padding:6px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
+                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:14px; padding:6px; margin-left:4px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
                         </td>
                     </tr>
                 `).join("");
@@ -3330,6 +3440,17 @@
   }
 
   // src/inject-panel.js
+  var svgIcon = (paths, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="flex-shrink:0;">${paths}</svg>`;
+  var ICON_PROCESS = svgIcon('<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>');
+  var ICON_ALERT = svgIcon('<circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 14"></polyline>');
+  var ICON_EXCEL = svgIcon('<line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line>');
+  var ICON_RETURN = svgIcon('<path d="M4 4h16v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><polyline points="4 8 12 13 20 8"></polyline>');
+  var ICON_UPDATE = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>');
+  var ICON_SETTINGS = svgIcon('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>');
+  var ICON_MORE = svgIcon('<circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle>');
+  var ICON_LINK = svgIcon('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>', 16);
+  var ICON_REFRESH = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"></path>', 16);
+  var ICON_CLIPBOARD = svgIcon('<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1"></rect>', 16);
   function injectPanel() {
     if (document.getElementById("mplis-auto-panel")) return;
     const panel = document.createElement("div");
@@ -3343,13 +3464,42 @@
     const isQT3 = pCfg.activeWorkflows.includes("QT3") ? "checked" : "";
     const isQT4 = pCfg.activeWorkflows.includes("QT4") ? "checked" : "";
     const isAutoConfirmChecked = isAutoConfirmEnabled() ? "checked" : "";
+    function qt2FileHint(selectAll) {
+      return selectAll ? 'Bấm "Chọn tất cả" trước cho tích hết bảng, rồi lọc Số phát hành gỡ tích file sai đơn.' : "Chỉ tích file khớp Số phát hành của đơn, cộng file gt/pt dùng chung.";
+    }
+    function qt2FileState(selectAll) {
+      return selectAll ? "Chọn tất cả + lọc SPH" : "Lọc theo SPH";
+    }
+    function qt4IsoHint(bypass) {
+      return bypass ? 'Cảnh báo chỉ có đúng 1 dòng "3 KHỐI" thì tự bấm Đồng ý. Kèm dòng lỗi chi tiết (thửa thiếu dữ liệu không gian) vẫn dừng auto.' : "Gặp cảnh báo 3 khối thì dừng auto để bạn tự xem.";
+    }
+    function qt4IsoState(bypass) {
+      return bypass ? "Tự đồng ý" : "Dừng lại";
+    }
+    function fwUserState(user) {
+      return (user || "").trim() ? user.trim() : "Chưa đặt";
+    }
+    function bindCollapse(cardId, toggleId, storageKey) {
+      const card = document.getElementById(cardId);
+      const toggle = document.getElementById(toggleId);
+      if (!card || !toggle) return;
+      if (localStorage.getItem(storageKey) === "true") {
+        card.classList.add("open");
+        toggle.setAttribute("aria-expanded", "true");
+      }
+      toggle.onclick = () => {
+        const opened = card.classList.toggle("open");
+        toggle.setAttribute("aria-expanded", opened ? "true" : "false");
+        localStorage.setItem(storageKey, opened ? "true" : "false");
+      };
+    }
     panel.innerHTML = `
             <div class="mplis-panel-header">
                 <div class="mplis-panel-title">
                     <span class="mplis-logo">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
                     </span>
-                    MPLIS AUTO <span class="mplis-author-tag">by Việt · v8</span>
+                    MPLIS Auto
                 </div>
                 <button class="mplis-btn-minimize" id="mplis-btn-minimize" title="Thu nhỏ">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
@@ -3362,13 +3512,15 @@
 
             <div class="mplis-shell">
                 <div class="mplis-tabs">
-                    <button class="mplis-tab active" data-tab="tab-process" title="Xử lý Quy trình">⚙️</button>
-                    <button class="mplis-tab" data-tab="tab-alert" title="Nhắc nhở hồ sơ trễ hạn">⏰</button>
-                    <button class="mplis-tab" data-tab="tab-excel" title="Xuất dữ liệu Excel">📊</button>
-                    <button class="mplis-tab mplis-tab-extra" data-tab="tab-return" title="Trả hồ sơ" style="display:none;">📬</button>
-                    <button class="mplis-tab mplis-tab-extra" data-tab="tab-update" title="Auto sửa Thửa/Tờ" style="display:none;">🔄</button>
-                    <button class="mplis-tab mplis-tab-extra" data-tab="tab-settings" title="Cài đặt" style="display:none;">🛠️</button>
-                    <button class="mplis-tab-toggle" id="mplis-btn-toggle-extra" title="Hiện thêm tab">⋯</button>
+                    <button class="mplis-tab active" data-tab="tab-process" title="Xử lý Quy trình" aria-label="Xử lý Quy trình">${ICON_PROCESS}</button>
+                    <button class="mplis-tab" data-tab="tab-alert" title="Nhắc nhở hồ sơ trễ hạn" aria-label="Nhắc nhở hồ sơ trễ hạn">${ICON_ALERT}</button>
+                    <button class="mplis-tab" data-tab="tab-excel" title="Xuất dữ liệu Excel" aria-label="Xuất dữ liệu Excel">${ICON_EXCEL}</button>
+                    <!-- ĐANG ẨN TẠM: 2 tab "Trả hồ sơ" và "Auto sửa Thửa/Tờ" (không dùng tới). Toàn bộ code
+                         và phần nội dung 2 tab vẫn giữ nguyên bên dưới - muốn bật lại chỉ cần thêm lại 2 dòng:
+                         <button class="mplis-tab mplis-tab-extra" data-tab="tab-return" title="Trả hồ sơ" aria-label="Trả hồ sơ" style="display:none;">ICON_RETURN</button>
+                         <button class="mplis-tab mplis-tab-extra" data-tab="tab-update" title="Auto sửa Thửa/Tờ" aria-label="Auto sửa Thửa/Tờ" style="display:none;">ICON_UPDATE</button> -->
+                    <button class="mplis-tab mplis-tab-extra" data-tab="tab-settings" title="Cài đặt" aria-label="Cài đặt" style="display:none;">${ICON_SETTINGS}</button>
+                    <button class="mplis-tab-toggle" id="mplis-btn-toggle-extra" title="Hiện thêm tab" aria-label="Hiện thêm tab">${ICON_MORE}</button>
                 </div>
 
                 <div class="mplis-content">
@@ -3384,9 +3536,44 @@
                             <label><input type="checkbox" id="chk-qt5" ${pCfg.isQT5 ? "checked" : ""}> QT5 · Chuyển tiếp hồ sơ</label>
                         </div>
 
-                        <div class="mplis-card" id="fw-user-group" style="display: ${pCfg.isQT5 ? "block" : "none"};">
-                            <span class="mplis-section-label">Chuyển tiếp (sau khi Kết ISO)</span>
-                            <input type="text" id="cfg-p-forwardUser" value="${pCfg.forwardUser || ""}" placeholder="Tên tài khoản, VD: dla.thoitd" style="background: rgba(0,0,0,0.25); border: 1px solid var(--mplis-border); border-radius: 8px; padding: 8px 10px; color: #f8fafc; width: 100%; font-size: 12px;">
+                        <div class="mplis-card mplis-collapse" id="qt2-file-group" style="display: ${isQT2 ? "block" : "none"};">
+                            <button type="button" class="mplis-collapse-head" id="qt2-file-toggle" aria-expanded="false" aria-controls="qt2-file-body">
+                                <span class="mplis-section-label">QT2 · Bảng chọn file quét</span>
+                                <span class="mplis-collapse-state ${pCfg.qt2SelectAllFiles ? "on" : ""}" id="qt2-file-state">${qt2FileState(pCfg.qt2SelectAllFiles)}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="qt2-file-body">
+                                <div class="mplis-checkbox-group">
+                                    <label><input type="checkbox" id="chk-qt2-selectall" ${pCfg.qt2SelectAllFiles ? "checked" : ""}> Chọn hết file trong bảng</label>
+                                </div>
+                                <div class="mplis-hint" style="margin:8px 0 0;" id="qt2-file-hint">${qt2FileHint(pCfg.qt2SelectAllFiles)}</div>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="qt4-iso-group" style="display: ${isQT4 ? "block" : "none"};">
+                            <button type="button" class="mplis-collapse-head" id="qt4-iso-toggle" aria-expanded="false" aria-controls="qt4-iso-body">
+                                <span class="mplis-section-label">QT4 · Cảnh báo liên kết 3 khối</span>
+                                <span class="mplis-collapse-state ${pCfg.qt4BypassLienKet3Khoi ? "on" : ""}" id="qt4-iso-state">${qt4IsoState(pCfg.qt4BypassLienKet3Khoi)}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="qt4-iso-body">
+                                <div class="mplis-checkbox-group">
+                                    <label><input type="checkbox" id="chk-qt4-3khoi" ${pCfg.qt4BypassLienKet3Khoi ? "checked" : ""}> Tự đồng ý cảnh báo 3 khối</label>
+                                </div>
+                                <div class="mplis-hint" style="margin:8px 0 0;" id="qt4-iso-hint">${qt4IsoHint(pCfg.qt4BypassLienKet3Khoi)}</div>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="fw-user-group" style="display: ${pCfg.isQT5 ? "block" : "none"};">
+                            <button type="button" class="mplis-collapse-head" id="fw-user-toggle" aria-expanded="false" aria-controls="fw-user-body">
+                                <span class="mplis-section-label">Chuyển tiếp (sau khi Kết ISO)</span>
+                                <span class="mplis-collapse-state ${pCfg.forwardUser ? "on" : ""}" id="fw-user-state">${escapeHtml(fwUserState(pCfg.forwardUser))}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="fw-user-body">
+                                <input type="text" id="cfg-p-forwardUser" value="${escapeHtml(pCfg.forwardUser || "")}" placeholder="Tên tài khoản, VD: dla.thoitd" style="background: rgba(0,0,0,0.25); border: 1px solid var(--mplis-border); border-radius: 8px; padding: 8px 10px; color: #f8fafc; width: 100%; font-size: 12px;">
+                                <div class="mplis-hint" style="margin:8px 0 0;">Bỏ trống thì tool dừng lại sau Kết ISO, không chuyển cho ai.</div>
+                            </div>
                         </div>
 
                         <button class="mplis-btn-primary" id="btn-toggle-process">▶ Bắt đầu Xử Lý</button>
@@ -3402,15 +3589,15 @@
                     <!-- TAB 2: ALERT -->
                     <div class="mplis-panel-body" id="tab-alert">
                         <div style="display:flex; gap:4px; background:var(--mplis-surface); padding:4px; border-radius:9px; margin-bottom:12px;">
-                            <button class="mplis-filter-tab active" data-step="all" style="flex:1; padding:6px 0; font-size:11px; border:none; background:transparent; border-radius:6px; color:#fff; cursor:pointer;">Tất cả</button>
-                            <button class="mplis-filter-tab" data-step="2" style="flex:1; padding:6px 0; font-size:11px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">2·Xử lý</button>
-                            <button class="mplis-filter-tab" data-step="4" style="flex:1; padding:6px 0; font-size:11px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">4·Thế chấp</button>
-                            <button class="mplis-filter-tab" data-step="5" style="flex:1; padding:6px 0; font-size:11px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">5·Xác nhận</button>
-                            <button class="mplis-filter-tab" data-step="iso" style="flex:1; padding:6px 0; font-size:11px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">Kết ISO</button>
+                            <button class="mplis-filter-tab active" data-step="all" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#fff; cursor:pointer;">Tất cả</button>
+                            <button class="mplis-filter-tab" data-step="2" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">2·Xử lý</button>
+                            <button class="mplis-filter-tab" data-step="4" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">4·Thế chấp</button>
+                            <button class="mplis-filter-tab" data-step="5" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">5·Xác nhận</button>
+                            <button class="mplis-filter-tab" data-step="iso" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">Kết ISO</button>
 
                         </div>
 
-                        <div style="display:flex; justify-content:space-between; margin-bottom: 12px; font-size: 11px; color: var(--mplis-text-dim);">
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 12px; font-size: 12px; color: var(--mplis-text-dim);">
                             <div style="display:flex; align-items:center; gap:6px;">Báo trước (phút): <input type="number" id="cfg-alert-minutes" value="1440" step="1" style="width:60px; padding:4px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#fff; text-align:center;"></div>
                             <div style="display:flex; align-items:center; gap:5px;">Hiển thị: <span id="stat-m-visible" style="color:var(--mplis-good); font-weight:bold; font-size:12px;">0</span> / <span id="stat-m-total" style="color:var(--mplis-accent-2); font-weight:bold; font-size:12px;">0</span></div>
                         </div>
@@ -3433,34 +3620,34 @@
                     <!-- TAB 3: EXCEL -->
                     <div class="mplis-panel-body" id="tab-excel">
                         <div id="excel-filter-bar" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;">
-                            <button class="mplis-excel-filter active" data-excel-bucket="all" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tất cả</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="krongnang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Krông Năng</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="phuxuan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Phú Xuân</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="tamgiang" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tam Giang</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="dlieya" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Dliê Ya</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="thechap" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Thế chấp</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="khac" style="padding:5px 9px; font-size:10.5px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Khác</button>
+                            <button class="mplis-excel-filter active" data-excel-bucket="all" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tất cả</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="krongnang" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Krông Năng</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="phuxuan" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Phú Xuân</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="tamgiang" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tam Giang</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="dlieya" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Dliê Ya</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="thechap" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Thế chấp</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
+                            <button class="mplis-excel-filter" data-excel-bucket="khac" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Khác</button>
                         </div>
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-                            <button id="btn-toggle-sheet-cfg" class="mplis-btn-ghost" style="padding:4px 7px; font-size:11px; border-radius:6px; flex-shrink:0;" title="Cấu hình link Google Sheet (của tôi)">🔗</button>
-                            <span id="excel-sheet-status" style="font-size:10px; flex:1;"></span>
+                            <button id="btn-toggle-sheet-cfg" class="mplis-btn-ghost" style="width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:8px; flex-shrink:0;" title="Cấu hình link Google Sheet (của tôi)" aria-label="Cấu hình link Google Sheet">${ICON_LINK}</button>
+                            <span id="excel-sheet-status" style="font-size:12px; flex:1;"></span>
                         </div>
                         <div id="excel-sheet-cfg-row" style="display:none; align-items:center; gap:6px; margin-bottom:8px;">
-                            <span style="font-size:10.5px; color:var(--mplis-text-dim); flex-shrink:0;">Sheet (của tôi):</span>
-                            <input type="text" id="cfg-excel-sheet-url" placeholder="Dán link Web App Google Apps Script..." style="flex:1; min-width:0; padding:4px 6px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:10px;">
+                            <label for="cfg-excel-sheet-url" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Sheet (của tôi):</label>
+                            <input type="text" id="cfg-excel-sheet-url" placeholder="Dán link Web App Google Apps Script..." style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px;">
                         </div>
                         <div id="excel-account-filter-row" style="display:none; align-items:center; gap:6px; margin-bottom:8px;">
-                            <span style="font-size:10.5px; color:var(--mplis-text-dim); flex-shrink:0;">TK lọc (Th.báo HS):</span>
-                            <input type="text" id="cfg-notify-account-filter" placeholder="VD: dla.vietpq (để trống = không lọc)" style="flex:1; min-width:0; padding:4px 6px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:10px;">
+                            <label for="cfg-notify-account-filter" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">TK lọc (Th.báo HS):</label>
+                            <input type="text" id="cfg-notify-account-filter" placeholder="VD: dla.vietpq (để trống = không lọc)" style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px;">
                         </div>
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-                            <button id="btn-notify-poll-status" class="mplis-btn-primary" style="flex:1; padding:8px; font-size:11px; background:linear-gradient(135deg,#0ea5e9,#0284c7);" title="Tra lại trạng thái thời gian thực cho toàn bộ hồ sơ đang theo dõi ở 'Thông báo nhận HS'">🔄 Tra trạng thái hồ sơ</button>
+                            <button id="btn-notify-poll-status" class="mplis-btn-primary" style="flex:1; padding:9px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:7px; background:linear-gradient(135deg,#0ea5e9,#0284c7);" title="Tra lại trạng thái thời gian thực cho toàn bộ hồ sơ đang theo dõi ở 'Thông báo nhận HS'">${ICON_REFRESH}Tra trạng thái hồ sơ</button>
                         </div>
-                        <div id="notify-poll-status" style="font-size:10.5px; color:var(--mplis-text-dim); margin-bottom:8px;"></div>
-                        <div style="font-size:11px; color:var(--mplis-text-dim); margin-bottom:10px;">Số hồ sơ trong bảng: <b id="excel-count" style="color:#fde047;">0</b> · tự động quét khi mở QT</div>
+                        <div id="notify-poll-status" style="font-size:12px; color:var(--mplis-text-dim); margin-bottom:8px;"></div>
+                        <div style="font-size:12px; color:var(--mplis-text-dim); margin-bottom:10px;">Số hồ sơ trong bảng: <b id="excel-count" style="color:#fde047;">0</b> · tự động quét khi mở QT</div>
                         <div style="max-height:170px; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px;">
-                            <table id="table-excel-cart" style="width:100%; font-size:10px; color:#f8fafc; border-collapse:collapse; text-align:center;">
+                            <table id="table-excel-cart" style="width:100%; font-size:12px; color:#f8fafc; border-collapse:collapse; text-align:center;">
                                 <thead>
                                     <tr style="background:rgba(255,255,255,0.06);" id="table-excel-cart-head"></tr>
                                 </thead>
@@ -3491,25 +3678,25 @@
                     <!-- TAB 5: UPDATE PARCEL -->
                     <div class="mplis-panel-body" id="tab-update">
                         <span class="mplis-section-label">Dán dữ liệu từ Excel</span>
-                        <textarea id="update-excel-input" placeholder="Số phát hành, Tờ mới, Thửa mới, Tờ cũ, Thửa cũ" style="background: rgba(0,0,0,0.25); border: 1px solid var(--mplis-border); border-radius: 8px; padding: 8px; color: #f8fafc; width: 100%; height: 60px; font-size: 10px; resize:none; margin-bottom:8px;"></textarea>
+                        <textarea id="update-excel-input" placeholder="Số phát hành, Tờ mới, Thửa mới, Tờ cũ, Thửa cũ" style="background: rgba(0,0,0,0.25); border: 1px solid var(--mplis-border); border-radius: 8px; padding: 8px; color: #f8fafc; width: 100%; height: 72px; font-size: 12px; resize:none; margin-bottom:8px;"></textarea>
                         <div style="display:flex; gap:6px; margin-bottom:10px;">
-                            <button class="mplis-btn-primary" id="btn-update-parse" style="flex:1; background:linear-gradient(135deg,#3b82f6,#2563eb); font-size:11px; padding:8px;">Nạp dữ liệu</button>
-                            <button class="mplis-btn-primary" id="btn-update-start" style="flex:1; background:linear-gradient(135deg,#10b981,#059669); font-size:11px; padding:8px;" disabled>Bắt đầu</button>
-                            <button class="mplis-btn-primary" id="btn-update-stop" style="flex:1; background:linear-gradient(135deg,#f43f5e,#e11d48); font-size:11px; padding:8px; display:none;">Dừng lại</button>
+                            <button class="mplis-btn-primary" id="btn-update-parse" style="flex:1; background:linear-gradient(135deg,#3b82f6,#2563eb); font-size:12px; padding:9px;">Nạp dữ liệu</button>
+                            <button class="mplis-btn-primary" id="btn-update-start" style="flex:1; background:linear-gradient(135deg,#10b981,#059669); font-size:12px; padding:9px;" disabled>Bắt đầu</button>
+                            <button class="mplis-btn-primary" id="btn-update-stop" style="flex:1; background:linear-gradient(135deg,#f43f5e,#e11d48); font-size:12px; padding:9px; display:none;">Dừng lại</button>
                         </div>
                         <div class="mplis-status-bar">
                             <div class="mplis-status-row">
                                 <div class="mplis-status-lbl">Tiến độ: <span id="stat-current" style="color:var(--mplis-accent-2); font-weight:bold;">0</span> / <span id="stat-total">0</span></div>
                                 <div style="color: var(--mplis-text-dim);"><span class="mplis-status-dot" id="update-dot"></span><span id="stat-status">Chưa bắt đầu</span></div>
                             </div>
-                            <div class="mplis-log" id="vbdlis-logs" style="height: 60px; overflow-y:auto; white-space:pre-wrap; font-family: monospace; font-size: 9px; line-height: 1.4;">Sẵn sàng</div>
+                            <div class="mplis-log" id="vbdlis-logs" style="height: 60px; overflow-y:auto; white-space:pre-wrap; font-family: monospace; font-size: 12px; line-height: 1.5;">Sẵn sàng</div>
                         </div>
                         <div style="max-height:100px; overflow-y:auto; margin-top:10px; border:1px solid var(--mplis-border); border-radius:8px;">
-                            <table style="width:100%; font-size:10px; color:#f8fafc; border-collapse:collapse; text-align:left;">
+                            <table style="width:100%; font-size:12px; color:#f8fafc; border-collapse:collapse; text-align:left;">
                                 <tbody id="result-table-body"></tbody>
                             </table>
                         </div>
-                        <button class="mplis-btn-primary mplis-btn-ghost" id="btn-update-copy" style="width:100%; margin-top:8px; font-size:11px; padding:8px; box-shadow:none;">📋 Copy trạng thái gốc</button>
+                        <button class="mplis-btn-primary mplis-btn-ghost" id="btn-update-copy" style="width:100%; margin-top:8px; font-size:12px; padding:9px; box-shadow:none;">${ICON_CLIPBOARD}Copy trạng thái gốc</button>
                     </div>
 
                     <!-- TAB 6: SETTINGS -->
@@ -3520,7 +3707,7 @@
                                 <input type="checkbox" id="chk-auto-confirm" ${isAutoConfirmChecked} style="margin-top:2px;">
                                 <span>
                                     Tự động chấp nhận mọi hộp thoại confirm()/alert() của trang<br/>
-                                    <span style="color:var(--mplis-text-dim); font-size:11px;">Tắt nếu bạn muốn tự tay xác nhận từng hộp thoại quan trọng (VD: ký số, kết ISO). Cần <b>tải lại trang</b> để áp dụng thay đổi.</span>
+                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Tắt nếu bạn muốn tự tay xác nhận từng hộp thoại quan trọng (VD: ký số, kết ISO). Cần <b>tải lại trang</b> để áp dụng thay đổi.</span>
                                 </span>
                             </label>
                         </div>
@@ -3531,9 +3718,9 @@
                             <div><b style="color:#fff;">Alt + H</b> — Ẩn/hiện bảng điều khiển</div>
                         </div>
 
-                        <span class="mplis-section-label">Thông tin</span>
+                        <span class="mplis-section-label">Tự điền sẵn</span>
                         <div class="mplis-card mplis-hint" style="margin-bottom:0;">
-                            Phiên bản 8.0 — giữ nguyên toàn bộ logic tự động hóa của bản 7.0, chỉ thiết kế lại giao diện và bổ sung các lớp an toàn hiển thị (escape dữ liệu, công tắc auto-confirm).
+                            Ở màn hình Cập nhật pháp lý, tool tự tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ là hôm nay. Sửa tay đè lên lúc nào cũng được.
                         </div>
                     </div>
                 </div>
@@ -3549,7 +3736,7 @@
         if (!notice && settingsTab) {
           notice = document.createElement("div");
           notice.id = "auto-confirm-notice";
-          notice.style.cssText = "margin-top:8px; font-size:11px; color:#f59e0b; font-weight:600;";
+          notice.style.cssText = "margin-top:8px; font-size:12px; color:#f59e0b; font-weight:600;";
           settingsTab.insertBefore(notice, settingsTab.children[1]);
         }
         if (notice) notice.textContent = "⚠️ Đã lưu. Tải lại trang (F5) để áp dụng thay đổi.";
@@ -3619,12 +3806,39 @@
       ProcessModule.saveConfig({ isQT5: checked });
     };
     document.getElementById("cfg-p-forwardUser").oninput = (e) => {
-      ProcessModule.saveConfig({ forwardUser: e.target.value.trim() });
+      const user = e.target.value.trim();
+      const stateEl = document.getElementById("fw-user-state");
+      stateEl.textContent = fwUserState(user);
+      stateEl.classList.toggle("on", !!user);
+      ProcessModule.saveConfig({ forwardUser: user });
+    };
+    bindCollapse("qt2-file-group", "qt2-file-toggle", "mplis_qt2_file_open");
+    bindCollapse("qt4-iso-group", "qt4-iso-toggle", "mplis_qt4_iso_open");
+    bindCollapse("fw-user-group", "fw-user-toggle", "mplis_fw_user_open");
+    document.getElementById("chk-qt4-3khoi").onchange = (e) => {
+      const checked = e.target.checked;
+      document.getElementById("qt4-iso-hint").textContent = qt4IsoHint(checked);
+      const stateEl = document.getElementById("qt4-iso-state");
+      stateEl.textContent = qt4IsoState(checked);
+      stateEl.classList.toggle("on", checked);
+      ProcessModule.saveConfig({ qt4BypassLienKet3Khoi: checked });
+    };
+    document.getElementById("chk-qt2-selectall").onchange = (e) => {
+      const checked = e.target.checked;
+      document.getElementById("qt2-file-hint").textContent = qt2FileHint(checked);
+      const stateEl = document.getElementById("qt2-file-state");
+      stateEl.textContent = qt2FileState(checked);
+      stateEl.classList.toggle("on", checked);
+      ProcessModule.saveConfig({ qt2SelectAllFiles: checked });
     };
     document.querySelectorAll('input[name="mplis-workflow"]').forEach((cb) => {
       cb.onchange = () => {
         const checked = Array.from(document.querySelectorAll('input[name="mplis-workflow"]:checked')).map((c) => c.value);
         ProcessModule.saveConfig({ activeWorkflows: checked });
+        const qt2Group = document.getElementById("qt2-file-group");
+        if (qt2Group) qt2Group.style.display = checked.includes("QT2") ? "block" : "none";
+        const qt4Group = document.getElementById("qt4-iso-group");
+        if (qt4Group) qt4Group.style.display = checked.includes("QT4") ? "block" : "none";
       };
     });
     document.getElementById("btn-toggle-process").onclick = toggleProcess;
@@ -3632,6 +3846,86 @@
     AlertModule.init();
     ExcelModule.init();
     UpdateParcelModule.init();
+  }
+
+  // src/run-toast.js
+  var TASK_LABELS = {
+    QT0: "Cập nhật tệp đính kèm",
+    QT1: "Cập nhật dữ liệu pháp lý",
+    QT2: "Lưu kho hồ sơ quét",
+    QT3: "Ký số sổ địa chính",
+    QT4: "Kết ISO",
+    QT5: "Chuyển tiếp hồ sơ"
+  };
+  var HOLD_AFTER_STOP_MS = 8e3;
+  var lastRunning = false;
+  var stoppedAt = 0;
+  function buildToast() {
+    const el = document.createElement("div");
+    el.id = "mplis-run-toast";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    el.innerHTML = `
+        <div class="mplis-toast-row">
+            <span class="mplis-status-dot" id="mplis-toast-dot"></span>
+            <span class="mplis-toast-step" id="mplis-toast-step">Đang chạy</span>
+            <span class="mplis-toast-count" id="mplis-toast-count"></span>
+        </div>
+        <div class="mplis-toast-bar"><i id="mplis-toast-fill"></i></div>
+        <div class="mplis-toast-log" id="mplis-toast-log">Sẵn sàng</div>
+    `;
+    document.body.appendChild(el);
+    el.onclick = () => {
+      const btn = document.getElementById("mplis-btn-maximize");
+      if (btn) btn.click();
+    };
+    return el;
+  }
+  function getWorkflowQueue(cfg) {
+    const queue = (cfg.activeWorkflows || []).slice();
+    if (cfg.isQT5 && cfg.forwardUser) queue.push("QT5");
+    return queue;
+  }
+  function refresh() {
+    const toast = document.getElementById("mplis-run-toast");
+    const panel = document.getElementById("mplis-auto-panel");
+    if (!toast || !panel) return;
+    const state = ProcessModule.getTopState();
+    if (!state) return;
+    if (lastRunning && !state.isRunning) stoppedAt = Date.now();
+    lastRunning = state.isRunning;
+    const justStopped = stoppedAt && Date.now() - stoppedAt < HOLD_AFTER_STOP_MS;
+    const shouldShow = panel.classList.contains("minimized") && (state.isRunning || justStopped);
+    toast.classList.toggle("show", shouldShow);
+    if (!shouldShow) return;
+    const queue = getWorkflowQueue(state.config);
+    const code = state.currentTaskCode || "";
+    const idx = queue.indexOf(code);
+    const stepEl = document.getElementById("mplis-toast-step");
+    const countEl = document.getElementById("mplis-toast-count");
+    const fillEl = document.getElementById("mplis-toast-fill");
+    const logEl = document.getElementById("mplis-toast-log");
+    const dotEl = document.getElementById("mplis-toast-dot");
+    if (state.isRunning) {
+      stepEl.textContent = code ? `${code} · ${TASK_LABELS[code] || ""}` : "Đang tìm hồ sơ...";
+      countEl.textContent = idx >= 0 ? `${idx + 1}/${queue.length}` : `0/${queue.length}`;
+      fillEl.style.width = (idx >= 0 && queue.length ? (idx + 1) / queue.length * 100 : 0) + "%";
+      fillEl.classList.remove("done");
+    } else {
+      stepEl.textContent = "Đã dừng";
+      countEl.textContent = `${queue.length}/${queue.length}`;
+      fillEl.style.width = "100%";
+      fillEl.classList.add("done");
+    }
+    const srcLog = document.getElementById("mplis-step-log-process");
+    logEl.textContent = srcLog ? srcLog.textContent : "";
+    const srcDot = document.getElementById("mplis-status-dot-process");
+    dotEl.className = srcDot ? srcDot.className : "mplis-status-dot";
+  }
+  function initRunToast() {
+    if (document.getElementById("mplis-run-toast")) return;
+    buildToast();
+    setInterval(refresh, 500);
   }
 
   // src/receipt-copy.js
@@ -3697,6 +3991,139 @@
     if (!maHS) return;
     saveBienDongCode(maHS, code);
   }, 1e3);
+
+  // src/phaply-default.js
+  var SCAN_INTERVAL_MS = 1e3;
+  var DONE_ATTR = "data-mplis-phaply";
+  var CHECKBOX_SELECTOR = '#chkdaCongNhanPhapLy, input[type="checkbox"][name="daCongNhanPhapLy"]';
+  var SELECT_SELECTOR = '#ddlloaiGiayChungNhanId, select[name="loaiGiayChungNhanId"]';
+  var NGUOI_KY_SELECTOR = '#txttenNguoiKy, input[name="tenNguoiKy"]';
+  var NGAY_VAO_SO_SELECTOR = 'input[name="ngayVaoSo"]';
+  var LOAI_GCN_VALUE = "98";
+  var LOAI_GCN_NAM = "2024";
+  var NGUOI_KY_FIXES = {
+    "TRINH ĐÌNH THỞI": "Trịnh Đình Thởi"
+  };
+  function getJq() {
+    return typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+  }
+  function isFormVisible(el) {
+    const box = el.closest(".form-group") || el.parentElement || el;
+    try {
+      const r = box.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+  function tickCongNhanPhapLy() {
+    const list = Array.from(document.querySelectorAll(CHECKBOX_SELECTOR));
+    for (const cb of list) {
+      if (cb.hasAttribute(DONE_ATTR) || !isFormVisible(cb)) continue;
+      cb.setAttribute(DONE_ATTR, "true");
+      if (cb.checked) return;
+      const jq = getJq();
+      if (jq) jq(cb).click();
+      else cb.click();
+      console.log('[MPLIS PhapLy] Đã tích "Chính thức có pháp lý".');
+      return;
+    }
+  }
+  function chonLoaiGiayChungNhan() {
+    const list = Array.from(document.querySelectorAll(SELECT_SELECTOR));
+    for (const sel of list) {
+      if (sel.hasAttribute(DONE_ATTR) || !isFormVisible(sel)) continue;
+      const opts = Array.from(sel.options);
+      const target = opts.find((o) => o.value === LOAI_GCN_VALUE) || opts.find((o) => (o.textContent || "").includes(LOAI_GCN_NAM));
+      if (!target) continue;
+      sel.setAttribute(DONE_ATTR, "true");
+      if (sel.value === target.value) return;
+      const jq = getJq();
+      sel.value = target.value;
+      if (jq) jq(sel).val(target.value).trigger("change");
+      else sel.dispatchEvent(new Event("change", { bubbles: true }));
+      console.log("[MPLIS PhapLy] Đã chọn Loại giấy chứng nhận:", target.textContent.trim());
+      return;
+    }
+  }
+  function vietHoaChuDau(text) {
+    return (text || "").toLowerCase().split(/\s+/).filter(Boolean).map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+  }
+  function layTenCbChuyen() {
+    const spans = Array.from(document.querySelectorAll("span"));
+    const label = spans.find((s) => (s.textContent || "").trim().toLowerCase().startsWith("cb chuyển"));
+    if (!label || !label.parentElement) return "";
+    const valueBox = label.parentElement.nextElementSibling;
+    if (!valueBox) return "";
+    const b = valueBox.querySelector("b");
+    return b ? b.textContent.trim() : "";
+  }
+  function dienNguoiKy() {
+    const input = document.querySelector(NGUOI_KY_SELECTOR);
+    if (!input || input.hasAttribute(DONE_ATTR) || !isFormVisible(input)) return;
+    const raw = layTenCbChuyen();
+    if (!raw) return;
+    input.setAttribute(DONE_ATTR, "true");
+    if (input.value.trim()) return;
+    const name = NGUOI_KY_FIXES[raw.toUpperCase()] || vietHoaChuDau(raw);
+    const jq = getJq();
+    input.value = name;
+    if (jq) jq(input).val(name).trigger("input").trigger("change");
+    else {
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    console.log("[MPLIS PhapLy] Đã điền Người ký:", name, "(từ CB chuyển:", raw + ")");
+  }
+  function dinhDangNgayVN(d) {
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  }
+  function dienNgayVaoSo() {
+    const input = document.querySelector(NGAY_VAO_SO_SELECTOR);
+    if (!input || input.hasAttribute(DONE_ATTR) || !isFormVisible(input)) return;
+    input.setAttribute(DONE_ATTR, "true");
+    if (input.value.trim()) return;
+    const jq = getJq();
+    const homNay = /* @__PURE__ */ new Date();
+    let daDien = "";
+    if (jq && jq.fn && jq.fn.datepicker && input.classList.contains("hasDatepicker")) {
+      try {
+        jq(input).datepicker("setDate", homNay);
+        daDien = input.value.trim();
+      } catch (e) {
+      }
+    }
+    if (!daDien) {
+      daDien = dinhDangNgayVN(homNay);
+      input.value = daDien;
+      if (jq) jq(input).val(daDien).trigger("input").trigger("change");
+      else {
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+    console.log("[MPLIS PhapLy] Đã điền Ngày vào sổ:", daDien);
+  }
+  function goDauKhiFormDong() {
+    const marked = Array.from(document.querySelectorAll("[" + DONE_ATTR + "]"));
+    for (const el of marked) {
+      if (!isFormVisible(el)) el.removeAttribute(DONE_ATTR);
+    }
+  }
+  function scan() {
+    try {
+      goDauKhiFormDong();
+      tickCongNhanPhapLy();
+      chonLoaiGiayChungNhan();
+      dienNguoiKy();
+      dienNgayVaoSo();
+    } catch (e) {
+      console.error("[MPLIS PhapLy] Lỗi:", e);
+    }
+  }
+  setInterval(scan, SCAN_INTERVAL_MS);
 
   // src/notify-capture.js
   var WORK_LOGGED_KEY = "mplis_notify_logged";
@@ -3976,6 +4403,7 @@
       if (document.body) {
         clearInterval(checkBody);
         injectPanel();
+        initRunToast();
       }
     }, 300);
     topWin.MPLIS_AUTO_TOGGLE_FUNC = toggleProcess;
@@ -3984,17 +4412,17 @@
   window.addEventListener("keydown", (e) => {
     if (e.altKey && (e.key === "s" || e.key === "S" || e.key === "đ" || e.key === "Đ")) {
       e.preventDefault();
-      const processTab = document.getElementById("tab-process");
-      if (processTab && processTab.classList.contains("active")) {
-        if (window === window.top) toggleProcess();
-        else try {
-          if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC();
-        } catch (err) {
-        }
-      } else {
+      const returnTab = document.getElementById("tab-return");
+      if (returnTab && returnTab.classList.contains("active")) {
         if (window === window.top) toggleReturn();
         else try {
           if (typeof topWin.MPLIS_AUTO_TRAHOSO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TRAHOSO_TOGGLE_FUNC();
+        } catch (err) {
+        }
+      } else {
+        if (window === window.top) toggleProcess();
+        else try {
+          if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC();
         } catch (err) {
         }
       }

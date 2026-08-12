@@ -5,6 +5,14 @@ import { createModuleRuntime } from './module-runtime.js';
         const defaultConfig = {
             activeWorkflows: ["QT0", "QT1", "QT2", "QT3"],
             isQT5: false,
+            // QT2 - bảng chọn file hồ sơ quét. Lọc theo Số phát hành/gt/pt LUÔN chạy ở cả 2 giá trị.
+            // true = tích thêm cả file mà bộ lọc không nhận và không gỡ tích file nào - dùng khi tên
+            // file đặt sai nên quy tắc lọc bỏ sót. false (mặc định) = chỉ giữ file bộ lọc nhận.
+            qt2SelectAllFiles: false,
+            // QT4 - cảnh báo "HỒ SƠ CHƯA ĐÁP ỨNG LIÊN KẾT 3 KHỐI" khi Kết ISO. true = tự bấm
+            // Đồng ý, NHƯNG chỉ khi cảnh báo vỏn vẹn đúng 1 dòng đó. Kèm dòng chi tiết là hồ sơ
+            // thiếu bước thật, luôn dừng bất kể cờ này.
+            qt4BypassLienKet3Khoi: false,
             forwardUser: "",
             delayOpen: 500, delayAction: 500, delayNext: 500,
             selectorMainProcess: "button:contains('Xử lý hồ sơ'), a:contains('Xử lý hồ sơ'), .btn-process",
@@ -26,6 +34,15 @@ import { createModuleRuntime } from './module-runtime.js';
             if (tName === 'QT3') return 'ký số sổ địa chính';
             if (tName === 'QT4') return 'kết iso';
             return tName.toLowerCase();
+        }
+
+        // Tách nội dung hộp cảnh báo thành từng dòng theo thẻ <br>. Đọc innerHTML chứ không dùng
+        // textContent vì textContent nối hết các dòng thành 1 chuỗi liền, không đếm được số dòng.
+        function layDongCanhBao(el) {
+            return (el.innerHTML || '')
+                .split(/<br\s*\/?>/i)
+                .map(part => part.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim())
+                .filter(Boolean);
         }
 
         function findTaskProcessButton(taskNames) {
@@ -58,7 +75,7 @@ import { createModuleRuntime } from './module-runtime.js';
                                     return btnText.includes('xử lý') || btnText.includes('tác vụ');
                                 });
                                 if (targetBtn) {
-                                    return { button: targetBtn, taskName: tName, isDone: false };
+                                    return { button: targetBtn, taskName: tName, taskCode: tCode, isDone: false };
                                 }
                             }
                             // Nếu đã làm, tiếp tục vòng lặp để kiểm tra tác vụ tiếp theo trong chuỗi
@@ -115,6 +132,46 @@ import { createModuleRuntime } from './module-runtime.js';
 
                         const msgLower = jcMessage.toLowerCase();
                         const titleLower = jcTitle.toLowerCase();
+
+                        // --- CẢNH BÁO "HỒ SƠ CHƯA ĐÁP ỨNG LIÊN KẾT 3 KHỐI" (Kết ISO) ---
+                        // ThucHienKetISO trả cảnh báo này khi hồ sơ chưa liên kết đủ. Có hồ sơ chỉ
+                        // vướng đúng dòng tiêu đề đó - bấm Đồng ý là kết ISO được. Nhưng nếu kèm
+                        // dòng chi tiết (VD "LIÊN KẾT KHÔNG GIAN / Thửa đất 696(181) không tồn tại
+                        // dữ liệu không gian") thì hồ sơ thiếu bước 1/2/3 thật, bấm Đồng ý sẽ kết
+                        // ISO một hồ sơ chưa đủ điều kiện. Nên chỉ tự đồng ý khi cảnh báo VỎN VẸN
+                        // 1 DÒNG, và phải được bật công tắc trong panel.
+                        if (msgLower.includes('chưa đáp ứng liên kết 3 khối')) {
+                            const contentEl = jconfirmBox.querySelector('.jconfirm-content, .jconfirm-message');
+                            const dongCanhBao = contentEl ? layDongCanhBao(contentEl) : [];
+                            const dongThua = dongCanhBao.slice(1);
+
+                            if (!topState.config.qt4BypassLienKet3Khoi) {
+                                writeLog('⚠️ Cảnh báo LIÊN KẾT 3 KHỐI. Chưa bật "Tự đồng ý" trong panel. DỪNG AUTO.');
+                                updateStatus("Cảnh báo 3 khối - Dừng", "idle");
+                                if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function') topWin.MPLIS_AUTO_TOGGLE_FUNC('⚠️ LIÊN KẾT 3 KHỐI: chưa bật tự đồng ý!');
+                                return;
+                            }
+
+                            if (dongThua.length > 0) {
+                                console.log('[MPLIS QT] Cảnh báo 3 KHỐI kèm dòng chi tiết:', dongThua);
+                                writeLog('⚠️ Cảnh báo 3 KHỐI kèm ' + dongThua.length + ' dòng chi tiết: ' + dongThua.join(' | ') + '. Hồ sơ thiếu bước 1/2/3. DỪNG AUTO.');
+                                updateStatus("Thiếu bước 1/2/3 - Dừng", "idle");
+                                if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function') topWin.MPLIS_AUTO_TOGGLE_FUNC('⚠️ LIÊN KẾT 3 KHỐI CÓ LỖI CHI TIẾT - KHÔNG KẾT ISO!');
+                                return;
+                            }
+
+                            const btnDongY3Khoi = jconfirmBox.querySelector('.jconfirm-buttons .btn-orange, .jconfirm-buttons button:first-child');
+                            if (btnDongY3Khoi && !btnDongY3Khoi.hasAttribute('data-mplis-clicked')) {
+                                writeLog('Cảnh báo 3 KHỐI chỉ có 1 dòng, không kèm lỗi chi tiết. Bấm "Đồng ý" kết ISO...');
+                                btnDongY3Khoi.setAttribute('data-mplis-clicked', 'true');
+                                setTimeout(() => { try { btnDongY3Khoi.removeAttribute('data-mplis-clicked'); } catch (e) { } }, 3000);
+                                const jq3 = (typeof unsafeWindow !== 'undefined' && unsafeWindow.$) ? unsafeWindow.$ : null;
+                                if (jq3) jq3(btnDongY3Khoi).click(); else clickElement(btnDongY3Khoi);
+                                setLastActionTime(now, topState.config.delayNext);
+                                updateStatus("Chờ kết ISO...", "waiting");
+                            }
+                            return;
+                        }
 
                         const isQT1Confirm = msgLower.includes('cập nhật dữ liệu pháp lý') || titleLower.includes('cập nhật dữ liệu pháp lý');
                         const isQT4Confirm = msgLower.includes('bạn có thật sự muốn kết iso hồ sơ này hay không');
@@ -236,6 +293,7 @@ import { createModuleRuntime } from './module-runtime.js';
 
                     // Nếu đang mở modal tệp đính kèm và có nút Cập nhật
                     if (isAttachModalOpen) {
+                        topState.currentTaskCode = 'QT0';
                         if (!topState.qt0Phase || topState.qt0Phase === 0) {
                             if (!btnUpdateAttactFile.hasAttribute('data-mplis-clicked')) {
                                 writeLog("Bấm 'Cập nhật' tệp đính kèm...");
@@ -639,6 +697,22 @@ import { createModuleRuntime } from './module-runtime.js';
                     const isFilePopupOpen = chkSelectAll && (() => { try { return chkSelectAll.getBoundingClientRect().width > 0; } catch (e) { return false; } })();
 
                     if (isFilePopupOpen) {
+                        // Bật "Chọn hết file": bấm ô "Chọn tất cả" ở đầu bảng TRƯỚC khi lọc. Vòng lặp
+                        // bên dưới bỏ qua dòng không có ".PDF" trong tên (VD "Đơn đăng ký biến động
+                        // đất đai", "Giấy chứng nhận quyền sử dụng đất") nên tự nó không bao giờ tích
+                        // được mấy dòng đó. Tích sẵn bằng "Chọn tất cả" thì chúng ở lại, còn các file
+                        // có tên .pdf vẫn bị vòng lặp lọc theo Số phát hành gỡ tích nếu sai đơn.
+                        if (topState.config.qt2SelectAllFiles &&
+                            !chkSelectAll.hasAttribute('data-mplis-selectall') &&
+                            !chkSelectAll.hasAttribute('data-mplis-clicked')) {
+                            writeLog("Bấm 'Chọn tất cả' để tích hết bảng trước khi lọc...");
+                            chkSelectAll.setAttribute('data-mplis-selectall', 'true');
+                            const jqAll = (typeof unsafeWindow !== 'undefined' && unsafeWindow.$) ? unsafeWindow.$ : null;
+                            if (jqAll) jqAll(chkSelectAll).click(); else chkSelectAll.click();
+                            setLastActionTime(now, 600);
+                            return;
+                        }
+
                         if (!chkSelectAll.hasAttribute('data-mplis-clicked')) {
                             writeLog("Đang chọn đúng file của đơn này (SPH/gt/pt)...");
                             chkSelectAll.setAttribute('data-mplis-clicked', 'true');
@@ -649,6 +723,8 @@ import { createModuleRuntime } from './module-runtime.js';
                             // chọn thừa rồi gỡ tích lại. Hồ sơ chỉ 1 đơn duy nhất thì mọi file nạp vào
                             // chắc chắn là của đơn này (dù người dùng gõ sai mã SPH), nên CHỌN HẾT.
                             const totalDons = document.querySelectorAll('#lstDonDangKy ul.dondangky-item').length;
+
+                            if (topState.config.qt2SelectAllFiles) writeLog("Đã tích hết bảng, giờ lọc bỏ file sai Số phát hành...");
 
                             const fileRows = Array.from(document.querySelectorAll('#tbDanhSachGiayToDinhKem tbody tr'));
                             for (const row of fileRows) {
@@ -667,6 +743,8 @@ import { createModuleRuntime } from './module-runtime.js';
                                 // đúng 4 ký tự ".PDF" ngay sau 2 chữ đó).
                                 const isGtPt = /(GT|PT)\.PDF/.test(fileName);
 
+                                // Quy tắc lọc theo Số phát hành LUÔN chạy, kể cả khi bật "chọn hết file" -
+                                // chế độ đó chỉ tích THÊM phần còn lại chứ không thay thế bước lọc này.
                                 let shouldKeep;
                                 if (totalDons <= 1) {
                                     shouldKeep = true;
@@ -713,6 +791,7 @@ import { createModuleRuntime } from './module-runtime.js';
                                 setLastActionTime(now, topState.config.delayOpen);
                                 topState.qt2Phase = 1;
                                 chkSelectAll.removeAttribute('data-mplis-clicked');
+                                chkSelectAll.removeAttribute('data-mplis-selectall');
                                 return;
                             } else {
                                 writeLog("Chờ nút 'Chọn tập tin' hiện ra...");
@@ -1081,6 +1160,8 @@ import { createModuleRuntime } from './module-runtime.js';
                                         topState.processedDonIndexes = new Set();
                                         topState.qt2FileSelected = false;
                                     }
+                                    // Ghi lại quy trình đang chạy để bảng nổi (lúc thu nhỏ panel) biết đang ở bước nào
+                                    topState.currentTaskCode = targetRowData.taskCode || '';
                                     writeLog(`Bấm 'Xử lý tác vụ' cho: ${targetRowData.taskName}...`);
                                     const tr = targetRowData.button.closest('tr');
                                     if (tr) tr.setAttribute('data-mplis-processed', 'true');

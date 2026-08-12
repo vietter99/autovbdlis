@@ -316,49 +316,49 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from
 
             if (bucketDef.rich) {
                 thead.innerHTML = `
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">TTHC</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">B.NHẬN</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">HỌ TÊN</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">GCN</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
-                    <th style="padding:6px 3px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">TTHC</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">B.NHẬN</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">HỌ TÊN</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">GCN</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
+                    <th style="padding:8px 5px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
                 `;
                 tbody.innerHTML = visible.map(({ r, idx }) => `
                     <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.tenTTHCFull || '---')}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.soBienNhan || '')}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.nguoiNop || '')}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.gcn)}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
-                        <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
-                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
-                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.tenTTHCFull || '---')}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.soBienNhan || '')}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.nguoiNop || '')}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.gcn)}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
+                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:14px; padding:6px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
+                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:14px; padding:6px; margin-left:4px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
                         </td>
                     </tr>
                 `).join('');
             } else {
                 thead.innerHTML = `
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">MÃ HS</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">GCN</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
-                    <th style="padding:6px 4px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
+                    <th style="padding:8px 6px; border-bottom:1px solid var(--mplis-border);">MÃ HS</th>
+                    <th style="padding:8px 6px; border-bottom:1px solid var(--mplis-border);">GCN</th>
+                    <th style="padding:8px 6px; border-bottom:1px solid var(--mplis-border);">THỬA</th>
+                    <th style="padding:8px 6px; border-bottom:1px solid var(--mplis-border);">TỜ</th>
+                    <th style="padding:8px 6px; border-bottom:1px solid var(--mplis-border);">D.TÍCH</th>
+                    <th style="padding:8px 6px; border-bottom:1px solid var(--mplis-border);"><i class="fa fa-bolt"></i></th>
                 `;
                 tbody.innerHTML = visible.map(({ r, idx }) => `
                     <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.maHS || '---')}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.gcn)}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
-                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
-                        <td style="padding:2px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
-                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:12px; padding:2px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
-                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:12px; padding:2px; margin-left:6px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05); color:#fde047; font-weight:bold;">${escapeHtml(r.maHS || '---')}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.gcn)}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.thua)}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.to)}</td>
+                        <td style="padding:7px 6px; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(r.dt)}</td>
+                        <td style="padding:4px; border:1px solid rgba(255,255,255,0.05); text-align:center; white-space:nowrap;">
+                            <i class="fa fa-copy btn-copy-row" data-idx="${idx}" style="cursor:pointer; color:#0ea5e9; font-size:14px; padding:6px; pointer-events:auto; position:relative; z-index:9999;" title="Copy dòng này"></i>
+                            <i class="fa fa-trash btn-delete-row" data-idx="${idx}" style="cursor:pointer; color:#f43f5e; font-size:14px; padding:6px; margin-left:4px; pointer-events:auto; position:relative; z-index:9999;" title="Xóa dòng này"></i>
                         </td>
                     </tr>
                 `).join('');
