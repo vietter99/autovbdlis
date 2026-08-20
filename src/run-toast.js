@@ -23,6 +23,9 @@ const HOLD_AFTER_STOP_MS = 8000;
 
 let lastRunning = false;
 let stoppedAt = 0;
+// Người dùng bấm X tắt bảng. Chỉ tắt cho lần chạy hiện tại - bấm "Bắt đầu Xử Lý" lần sau thì
+// bảng hiện lại, khỏi phải nhớ đi bật lại ở đâu.
+let hiddenByUser = false;
 
 function buildToast() {
     const el = document.createElement('div');
@@ -34,6 +37,9 @@ function buildToast() {
             <span class="mplis-status-dot" id="mplis-toast-dot"></span>
             <span class="mplis-toast-step" id="mplis-toast-step">Đang chạy</span>
             <span class="mplis-toast-count" id="mplis-toast-count"></span>
+            <button type="button" class="mplis-toast-close" id="mplis-toast-close" title="Ẩn bảng này" aria-label="Ẩn bảng tiến độ">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
         </div>
         <div class="mplis-toast-bar"><i id="mplis-toast-fill"></i></div>
         <div class="mplis-toast-log" id="mplis-toast-log">Sẵn sàng</div>
@@ -43,6 +49,12 @@ function buildToast() {
     el.onclick = () => {
         const btn = document.getElementById('mplis-btn-maximize');
         if (btn) btn.click();
+    };
+    // stopPropagation để bấm X không kích hoạt luôn onclick mở panel ở dòng trên
+    el.querySelector('#mplis-toast-close').onclick = (e) => {
+        e.stopPropagation();
+        hiddenByUser = true;
+        el.classList.remove('show');
     };
     return el;
 }
@@ -63,10 +75,12 @@ function refresh() {
     if (!state) return;
 
     if (lastRunning && !state.isRunning) stoppedAt = Date.now();
+    // Bắt đầu lượt chạy mới thì bỏ trạng thái đã tắt, cho bảng hiện lại
+    if (!lastRunning && state.isRunning) hiddenByUser = false;
     lastRunning = state.isRunning;
 
     const justStopped = stoppedAt && (Date.now() - stoppedAt < HOLD_AFTER_STOP_MS);
-    const shouldShow = panel.classList.contains('minimized') && (state.isRunning || justStopped);
+    const shouldShow = !hiddenByUser && panel.classList.contains('minimized') && (state.isRunning || justStopped);
     toast.classList.toggle('show', shouldShow);
     if (!shouldShow) return;
 

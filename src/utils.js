@@ -78,8 +78,25 @@
         'QT4': 'Kết ISO'
     };
 
+    // Vòng quét tìm nút bằng CHỮ trên nút ("Cập nhật", "Đóng", "Có"...) và quét cả trang, nên
+    // bảng điều khiển của chính tool cũng lọt vào danh sách rồi bị bấm nhầm. Chặn tại đây - mọi
+    // thao tác click đều đi qua clickElement/querySelectorAllCustom nên chỉ cần khoá 1 chỗ.
+    const MPLIS_UI_SELECTOR = '#mplis-auto-panel, #mplis-run-toast';
+
+    function isInsideMplisUI(el) {
+        try {
+            return !!(el && el.closest && el.closest(MPLIS_UI_SELECTOR));
+        } catch (e) {
+            return false;
+        }
+    }
+
     function clickElement(el) {
         if (!el) return;
+        if (isInsideMplisUI(el)) {
+            console.warn('[MPLIS Auto] Bỏ qua click vào bảng điều khiển của tool:', el);
+            return;
+        }
         if (el.tagName === 'A' && (el.getAttribute('href') === 'javascripts:;' || el.getAttribute('href') === 'javascript:;')) {
             el.setAttribute('href', 'javascript:void(0);');
         }
@@ -137,6 +154,7 @@
                 try {
                     const elements = Array.from(parent.querySelectorAll(baseSelector));
                     elements.forEach(el => {
+                        if (isInsideMplisUI(el)) return;
                         const text = (el.textContent || el.value || "").toLowerCase();
                         if (text.includes(textMatch) && !results.includes(el)) results.push(el);
                     });
@@ -145,6 +163,7 @@
                 try {
                     const elements = Array.from(parent.querySelectorAll(selector));
                     elements.forEach(el => {
+                        if (isInsideMplisUI(el)) return;
                         if (!results.includes(el)) results.push(el);
                     });
                 } catch (e) { }
@@ -197,6 +216,7 @@ export {
     topWin,
     WORKFLOW_NAMES,
     clickElement,
+    isInsideMplisUI,
     isSystemLoading,
     querySelectorAllCustom,
     findCurrentMaHS

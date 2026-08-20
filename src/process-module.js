@@ -9,10 +9,6 @@ import { createModuleRuntime } from './module-runtime.js';
             // true = tích thêm cả file mà bộ lọc không nhận và không gỡ tích file nào - dùng khi tên
             // file đặt sai nên quy tắc lọc bỏ sót. false (mặc định) = chỉ giữ file bộ lọc nhận.
             qt2SelectAllFiles: false,
-            // QT4 - cảnh báo "HỒ SƠ CHƯA ĐÁP ỨNG LIÊN KẾT 3 KHỐI" khi Kết ISO. true = tự bấm
-            // Đồng ý, NHƯNG chỉ khi cảnh báo vỏn vẹn đúng 1 dòng đó. Kèm dòng chi tiết là hồ sơ
-            // thiếu bước thật, luôn dừng bất kể cờ này.
-            qt4BypassLienKet3Khoi: false,
             forwardUser: "",
             delayOpen: 500, delayAction: 500, delayNext: 500,
             selectorMainProcess: "button:contains('Xử lý hồ sơ'), a:contains('Xử lý hồ sơ'), .btn-process",
@@ -34,15 +30,6 @@ import { createModuleRuntime } from './module-runtime.js';
             if (tName === 'QT3') return 'ký số sổ địa chính';
             if (tName === 'QT4') return 'kết iso';
             return tName.toLowerCase();
-        }
-
-        // Tách nội dung hộp cảnh báo thành từng dòng theo thẻ <br>. Đọc innerHTML chứ không dùng
-        // textContent vì textContent nối hết các dòng thành 1 chuỗi liền, không đếm được số dòng.
-        function layDongCanhBao(el) {
-            return (el.innerHTML || '')
-                .split(/<br\s*\/?>/i)
-                .map(part => part.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim())
-                .filter(Boolean);
         }
 
         function findTaskProcessButton(taskNames) {
@@ -132,46 +119,6 @@ import { createModuleRuntime } from './module-runtime.js';
 
                         const msgLower = jcMessage.toLowerCase();
                         const titleLower = jcTitle.toLowerCase();
-
-                        // --- CẢNH BÁO "HỒ SƠ CHƯA ĐÁP ỨNG LIÊN KẾT 3 KHỐI" (Kết ISO) ---
-                        // ThucHienKetISO trả cảnh báo này khi hồ sơ chưa liên kết đủ. Có hồ sơ chỉ
-                        // vướng đúng dòng tiêu đề đó - bấm Đồng ý là kết ISO được. Nhưng nếu kèm
-                        // dòng chi tiết (VD "LIÊN KẾT KHÔNG GIAN / Thửa đất 696(181) không tồn tại
-                        // dữ liệu không gian") thì hồ sơ thiếu bước 1/2/3 thật, bấm Đồng ý sẽ kết
-                        // ISO một hồ sơ chưa đủ điều kiện. Nên chỉ tự đồng ý khi cảnh báo VỎN VẸN
-                        // 1 DÒNG, và phải được bật công tắc trong panel.
-                        if (msgLower.includes('chưa đáp ứng liên kết 3 khối')) {
-                            const contentEl = jconfirmBox.querySelector('.jconfirm-content, .jconfirm-message');
-                            const dongCanhBao = contentEl ? layDongCanhBao(contentEl) : [];
-                            const dongThua = dongCanhBao.slice(1);
-
-                            if (!topState.config.qt4BypassLienKet3Khoi) {
-                                writeLog('⚠️ Cảnh báo LIÊN KẾT 3 KHỐI. Chưa bật "Tự đồng ý" trong panel. DỪNG AUTO.');
-                                updateStatus("Cảnh báo 3 khối - Dừng", "idle");
-                                if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function') topWin.MPLIS_AUTO_TOGGLE_FUNC('⚠️ LIÊN KẾT 3 KHỐI: chưa bật tự đồng ý!');
-                                return;
-                            }
-
-                            if (dongThua.length > 0) {
-                                console.log('[MPLIS QT] Cảnh báo 3 KHỐI kèm dòng chi tiết:', dongThua);
-                                writeLog('⚠️ Cảnh báo 3 KHỐI kèm ' + dongThua.length + ' dòng chi tiết: ' + dongThua.join(' | ') + '. Hồ sơ thiếu bước 1/2/3. DỪNG AUTO.');
-                                updateStatus("Thiếu bước 1/2/3 - Dừng", "idle");
-                                if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function') topWin.MPLIS_AUTO_TOGGLE_FUNC('⚠️ LIÊN KẾT 3 KHỐI CÓ LỖI CHI TIẾT - KHÔNG KẾT ISO!');
-                                return;
-                            }
-
-                            const btnDongY3Khoi = jconfirmBox.querySelector('.jconfirm-buttons .btn-orange, .jconfirm-buttons button:first-child');
-                            if (btnDongY3Khoi && !btnDongY3Khoi.hasAttribute('data-mplis-clicked')) {
-                                writeLog('Cảnh báo 3 KHỐI chỉ có 1 dòng, không kèm lỗi chi tiết. Bấm "Đồng ý" kết ISO...');
-                                btnDongY3Khoi.setAttribute('data-mplis-clicked', 'true');
-                                setTimeout(() => { try { btnDongY3Khoi.removeAttribute('data-mplis-clicked'); } catch (e) { } }, 3000);
-                                const jq3 = (typeof unsafeWindow !== 'undefined' && unsafeWindow.$) ? unsafeWindow.$ : null;
-                                if (jq3) jq3(btnDongY3Khoi).click(); else clickElement(btnDongY3Khoi);
-                                setLastActionTime(now, topState.config.delayNext);
-                                updateStatus("Chờ kết ISO...", "waiting");
-                            }
-                            return;
-                        }
 
                         const isQT1Confirm = msgLower.includes('cập nhật dữ liệu pháp lý') || titleLower.includes('cập nhật dữ liệu pháp lý');
                         const isQT4Confirm = msgLower.includes('bạn có thật sự muốn kết iso hồ sơ này hay không');

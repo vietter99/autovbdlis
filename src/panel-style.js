@@ -87,6 +87,9 @@
         #mplis-run-toast .mplis-toast-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         #mplis-run-toast .mplis-toast-step { font-size: 12px; font-weight: 700; color: var(--mplis-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #mplis-run-toast .mplis-toast-count { margin-left: auto; flex-shrink: 0; font-size: 11px; font-weight: 700; color: var(--mplis-accent-2); font-variant-numeric: tabular-nums; }
+        #mplis-run-toast .mplis-toast-close { flex-shrink: 0; width: 20px; height: 20px; margin: -3px -3px -3px 2px; display: flex; align-items: center; justify-content: center; padding: 0; background: transparent; border: none; border-radius: 6px; color: var(--mplis-text-dim); cursor: pointer; transition: all 0.15s ease; }
+        #mplis-run-toast .mplis-toast-close:hover { background: var(--mplis-surface-hover); color: var(--mplis-text); }
+        #mplis-run-toast .mplis-toast-close:focus-visible { outline: 2px solid var(--mplis-accent-2); outline-offset: 1px; }
         #mplis-run-toast .mplis-toast-bar { height: 4px; border-radius: 3px; background: rgba(255,255,255,0.09); overflow: hidden; }
         #mplis-run-toast .mplis-toast-bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, var(--mplis-accent), var(--mplis-accent-2)); transition: width 0.3s ease; }
         #mplis-run-toast .mplis-toast-bar i.done { background: var(--mplis-good); }

@@ -39,6 +39,9 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         const isQT4 = pCfg.activeWorkflows.includes('QT4') ? 'checked' : '';
 
         const isAutoConfirmChecked = isAutoConfirmEnabled() ? 'checked' : '';
+        // Đọc chung 1 khoá localStorage với phaply-default.js (ENABLED_KEY ở đó) - 2 file không
+        // import lẫn nhau, chỉ cần khớp đúng tên khoá 'mplis_phaply_autofill_enabled'.
+        const isPhapLyAutofillChecked = localStorage.getItem('mplis_phaply_autofill_enabled') !== 'false' ? 'checked' : '';
 
         // Câu mô tả dưới ô "Chọn hết file" - đổi theo trạng thái để nhìn là biết tool sắp làm gì,
         // khỏi phải nhớ ý nghĩa của ô tích.
@@ -51,18 +54,6 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         // Nhãn ngắn hiện ngay trên thanh tiêu đề, đọc được cả khi thẻ đang thu gọn.
         function qt2FileState(selectAll) {
             return selectAll ? 'Chọn tất cả + lọc SPH' : 'Lọc theo SPH';
-        }
-
-        // Cảnh báo "HỒ SƠ CHƯA ĐÁP ỨNG LIÊN KẾT 3 KHỐI" lúc Kết ISO. Nói rõ giới hạn ngay trong
-        // panel: bật lên KHÔNG có nghĩa là bỏ qua mọi cảnh báo - kèm dòng lỗi chi tiết vẫn dừng.
-        function qt4IsoHint(bypass) {
-            return bypass
-                ? 'Cảnh báo chỉ có đúng 1 dòng "3 KHỐI" thì tự bấm Đồng ý. Kèm dòng lỗi chi tiết (thửa thiếu dữ liệu không gian) vẫn dừng auto.'
-                : 'Gặp cảnh báo 3 khối thì dừng auto để bạn tự xem.';
-        }
-
-        function qt4IsoState(bypass) {
-            return bypass ? 'Tự đồng ý' : 'Dừng lại';
         }
 
         function fwUserState(user) {
@@ -139,20 +130,6 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                                     <label><input type="checkbox" id="chk-qt2-selectall" ${pCfg.qt2SelectAllFiles ? 'checked' : ''}> Chọn hết file trong bảng</label>
                                 </div>
                                 <div class="mplis-hint" style="margin:8px 0 0;" id="qt2-file-hint">${qt2FileHint(pCfg.qt2SelectAllFiles)}</div>
-                            </div>
-                        </div>
-
-                        <div class="mplis-card mplis-collapse" id="qt4-iso-group" style="display: ${isQT4 ? 'block' : 'none'};">
-                            <button type="button" class="mplis-collapse-head" id="qt4-iso-toggle" aria-expanded="false" aria-controls="qt4-iso-body">
-                                <span class="mplis-section-label">QT4 · Cảnh báo liên kết 3 khối</span>
-                                <span class="mplis-collapse-state ${pCfg.qt4BypassLienKet3Khoi ? 'on' : ''}" id="qt4-iso-state">${qt4IsoState(pCfg.qt4BypassLienKet3Khoi)}</span>
-                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                            </button>
-                            <div class="mplis-collapse-body" id="qt4-iso-body">
-                                <div class="mplis-checkbox-group">
-                                    <label><input type="checkbox" id="chk-qt4-3khoi" ${pCfg.qt4BypassLienKet3Khoi ? 'checked' : ''}> Tự đồng ý cảnh báo 3 khối</label>
-                                </div>
-                                <div class="mplis-hint" style="margin:8px 0 0;" id="qt4-iso-hint">${qt4IsoHint(pCfg.qt4BypassLienKet3Khoi)}</div>
                             </div>
                         </div>
 
@@ -311,8 +288,14 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                         </div>
 
                         <span class="mplis-section-label">Tự điền sẵn</span>
-                        <div class="mplis-card mplis-hint" style="margin-bottom:0;">
-                            Ở màn hình Cập nhật pháp lý, tool tự tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ là hôm nay. Sửa tay đè lên lúc nào cũng được.
+                        <div class="mplis-card" style="margin-bottom:0;">
+                            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
+                                <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked} style="margin-top:2px;">
+                                <span>
+                                    Tự điền màn hình Cập nhật pháp lý<br/>
+                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ là hôm nay. Sửa tay đè lên lúc nào cũng được. Tắt thì để nguyên form, tự điền tay hết.</span>
+                                </span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -333,6 +316,15 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                     settingsTab.insertBefore(notice, settingsTab.children[1]);
                 }
                 if (notice) notice.textContent = '⚠️ Đã lưu. Tải lại trang (F5) để áp dụng thay đổi.';
+            };
+        }
+
+        // phaply-default.js đọc localStorage mỗi vòng quét (1s) chứ không đọc 1 lần lúc tải trang,
+        // nên đổi công tắc này áp dụng ngay - không cần F5 như ô auto-confirm ở trên.
+        const chkPhapLyAutofill = document.getElementById('chk-phaply-autofill');
+        if (chkPhapLyAutofill) {
+            chkPhapLyAutofill.onchange = (e) => {
+                localStorage.setItem('mplis_phaply_autofill_enabled', e.target.checked ? 'true' : 'false');
             };
         }
 
@@ -417,17 +409,7 @@ import { toggleProcess, toggleReturn } from './toggle.js';
 
         // Nhớ trạng thái đóng/mở qua F5, giống cách nút 3 chấm nhớ mplis_extra_tabs_visible
         bindCollapse('qt2-file-group', 'qt2-file-toggle', 'mplis_qt2_file_open');
-        bindCollapse('qt4-iso-group', 'qt4-iso-toggle', 'mplis_qt4_iso_open');
         bindCollapse('fw-user-group', 'fw-user-toggle', 'mplis_fw_user_open');
-
-        document.getElementById('chk-qt4-3khoi').onchange = (e) => {
-            const checked = e.target.checked;
-            document.getElementById('qt4-iso-hint').textContent = qt4IsoHint(checked);
-            const stateEl = document.getElementById('qt4-iso-state');
-            stateEl.textContent = qt4IsoState(checked);
-            stateEl.classList.toggle('on', checked);
-            ProcessModule.saveConfig({ qt4BypassLienKet3Khoi: checked });
-        };
 
         document.getElementById('chk-qt2-selectall').onchange = (e) => {
             const checked = e.target.checked;
@@ -445,8 +427,6 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                 // Ô "Chọn hết file" chỉ có nghĩa khi QT2 đang chạy - ẩn đi cho đỡ rối khi tắt QT2
                 const qt2Group = document.getElementById('qt2-file-group');
                 if (qt2Group) qt2Group.style.display = checked.includes('QT2') ? 'block' : 'none';
-                const qt4Group = document.getElementById('qt4-iso-group');
-                if (qt4Group) qt4Group.style.display = checked.includes('QT4') ? 'block' : 'none';
             };
         });
 

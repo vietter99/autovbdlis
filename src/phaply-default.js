@@ -12,6 +12,17 @@
 
 const SCAN_INTERVAL_MS = 1000;
 const DONE_ATTR = 'data-mplis-phaply';
+const ENABLED_KEY = 'mplis_phaply_autofill_enabled';
+
+// Mặc định BẬT - giữ đúng hành vi trước khi có công tắc này. Người dùng tắt trong tab Cài đặt
+// khi không muốn tool tự đụng vào form (VD: hồ sơ cần điền tay theo yêu cầu khác thường).
+function isPhapLyAutofillEnabled() {
+    try {
+        return localStorage.getItem(ENABLED_KEY) !== 'false';
+    } catch (e) {
+        return true;
+    }
+}
 
 const CHECKBOX_SELECTOR = '#chkdaCongNhanPhapLy, input[type="checkbox"][name="daCongNhanPhapLy"]';
 const SELECT_SELECTOR = '#ddlloaiGiayChungNhanId, select[name="loaiGiayChungNhanId"]';
@@ -181,6 +192,7 @@ function goDauKhiFormDong() {
 }
 
 function scan() {
+    if (!isPhapLyAutofillEnabled()) return;
     try {
         goDauKhiFormDong();
         tickCongNhanPhapLy();

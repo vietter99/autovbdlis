@@ -82,8 +82,20 @@
   } catch (e) {
   }
   var topWin = window.top || window;
+  var MPLIS_UI_SELECTOR = "#mplis-auto-panel, #mplis-run-toast";
+  function isInsideMplisUI(el) {
+    try {
+      return !!(el && el.closest && el.closest(MPLIS_UI_SELECTOR));
+    } catch (e) {
+      return false;
+    }
+  }
   function clickElement(el) {
     if (!el) return;
+    if (isInsideMplisUI(el)) {
+      console.warn("[MPLIS Auto] Bỏ qua click vào bảng điều khiển của tool:", el);
+      return;
+    }
     if (el.tagName === "A" && (el.getAttribute("href") === "javascripts:;" || el.getAttribute("href") === "javascript:;")) {
       el.setAttribute("href", "javascript:void(0);");
     }
@@ -147,6 +159,7 @@
         try {
           const elements = Array.from(parent.querySelectorAll(baseSelector));
           elements.forEach((el) => {
+            if (isInsideMplisUI(el)) return;
             const text = (el.textContent || el.value || "").toLowerCase();
             if (text.includes(textMatch) && !results.includes(el)) results.push(el);
           });
@@ -156,6 +169,7 @@
         try {
           const elements = Array.from(parent.querySelectorAll(selector));
           elements.forEach((el) => {
+            if (isInsideMplisUI(el)) return;
             if (!results.includes(el)) results.push(el);
           });
         } catch (e) {
@@ -285,6 +299,9 @@
         #mplis-run-toast .mplis-toast-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         #mplis-run-toast .mplis-toast-step { font-size: 12px; font-weight: 700; color: var(--mplis-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #mplis-run-toast .mplis-toast-count { margin-left: auto; flex-shrink: 0; font-size: 11px; font-weight: 700; color: var(--mplis-accent-2); font-variant-numeric: tabular-nums; }
+        #mplis-run-toast .mplis-toast-close { flex-shrink: 0; width: 20px; height: 20px; margin: -3px -3px -3px 2px; display: flex; align-items: center; justify-content: center; padding: 0; background: transparent; border: none; border-radius: 6px; color: var(--mplis-text-dim); cursor: pointer; transition: all 0.15s ease; }
+        #mplis-run-toast .mplis-toast-close:hover { background: var(--mplis-surface-hover); color: var(--mplis-text); }
+        #mplis-run-toast .mplis-toast-close:focus-visible { outline: 2px solid var(--mplis-accent-2); outline-offset: 1px; }
         #mplis-run-toast .mplis-toast-bar { height: 4px; border-radius: 3px; background: rgba(255,255,255,0.09); overflow: hidden; }
         #mplis-run-toast .mplis-toast-bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, var(--mplis-accent), var(--mplis-accent-2)); transition: width 0.3s ease; }
         #mplis-run-toast .mplis-toast-bar i.done { background: var(--mplis-good); }
@@ -433,10 +450,6 @@
       // true = tích thêm cả file mà bộ lọc không nhận và không gỡ tích file nào - dùng khi tên
       // file đặt sai nên quy tắc lọc bỏ sót. false (mặc định) = chỉ giữ file bộ lọc nhận.
       qt2SelectAllFiles: false,
-      // QT4 - cảnh báo "HỒ SƠ CHƯA ĐÁP ỨNG LIÊN KẾT 3 KHỐI" khi Kết ISO. true = tự bấm
-      // Đồng ý, NHƯNG chỉ khi cảnh báo vỏn vẹn đúng 1 dòng đó. Kèm dòng chi tiết là hồ sơ
-      // thiếu bước thật, luôn dừng bất kể cờ này.
-      qt4BypassLienKet3Khoi: false,
       forwardUser: "",
       delayOpen: 500,
       delayAction: 500,
@@ -458,9 +471,6 @@
       if (tName === "QT3") return "ký số sổ địa chính";
       if (tName === "QT4") return "kết iso";
       return tName.toLowerCase();
-    }
-    function layDongCanhBao(el) {
-      return (el.innerHTML || "").split(/<br\s*\/?>/i).map((part) => part.replace(/<[^>]*>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim()).filter(Boolean);
     }
     function findTaskProcessButton(taskNames) {
       if (!taskNames || taskNames.length === 0) return null;
@@ -531,41 +541,6 @@
             const jcTitle = (jconfirmBox.querySelector(".jconfirm-title") || {}).textContent || "";
             const msgLower = jcMessage.toLowerCase();
             const titleLower = jcTitle.toLowerCase();
-            if (msgLower.includes("chưa đáp ứng liên kết 3 khối")) {
-              const contentEl = jconfirmBox.querySelector(".jconfirm-content, .jconfirm-message");
-              const dongCanhBao = contentEl ? layDongCanhBao(contentEl) : [];
-              const dongThua = dongCanhBao.slice(1);
-              if (!topState.config.qt4BypassLienKet3Khoi) {
-                writeLog('⚠️ Cảnh báo LIÊN KẾT 3 KHỐI. Chưa bật "Tự đồng ý" trong panel. DỪNG AUTO.');
-                updateStatus("Cảnh báo 3 khối - Dừng", "idle");
-                if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LIÊN KẾT 3 KHỐI: chưa bật tự đồng ý!");
-                return;
-              }
-              if (dongThua.length > 0) {
-                console.log("[MPLIS QT] Cảnh báo 3 KHỐI kèm dòng chi tiết:", dongThua);
-                writeLog("⚠️ Cảnh báo 3 KHỐI kèm " + dongThua.length + " dòng chi tiết: " + dongThua.join(" | ") + ". Hồ sơ thiếu bước 1/2/3. DỪNG AUTO.");
-                updateStatus("Thiếu bước 1/2/3 - Dừng", "idle");
-                if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LIÊN KẾT 3 KHỐI CÓ LỖI CHI TIẾT - KHÔNG KẾT ISO!");
-                return;
-              }
-              const btnDongY3Khoi = jconfirmBox.querySelector(".jconfirm-buttons .btn-orange, .jconfirm-buttons button:first-child");
-              if (btnDongY3Khoi && !btnDongY3Khoi.hasAttribute("data-mplis-clicked")) {
-                writeLog('Cảnh báo 3 KHỐI chỉ có 1 dòng, không kèm lỗi chi tiết. Bấm "Đồng ý" kết ISO...');
-                btnDongY3Khoi.setAttribute("data-mplis-clicked", "true");
-                setTimeout(() => {
-                  try {
-                    btnDongY3Khoi.removeAttribute("data-mplis-clicked");
-                  } catch (e) {
-                  }
-                }, 3e3);
-                const jq3 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-                if (jq3) jq3(btnDongY3Khoi).click();
-                else clickElement(btnDongY3Khoi);
-                setLastActionTime(now, topState.config.delayNext);
-                updateStatus("Chờ kết ISO...", "waiting");
-              }
-              return;
-            }
             const isQT1Confirm = msgLower.includes("cập nhật dữ liệu pháp lý") || titleLower.includes("cập nhật dữ liệu pháp lý");
             const isQT4Confirm = msgLower.includes("bạn có thật sự muốn kết iso hồ sơ này hay không");
             const isQT5Confirm = msgLower.includes("chuyển bước") || msgLower.includes("chuyển tiếp") || msgLower.includes("chuyển tác vụ") || msgLower.includes("chuyển");
@@ -3464,17 +3439,12 @@
     const isQT3 = pCfg.activeWorkflows.includes("QT3") ? "checked" : "";
     const isQT4 = pCfg.activeWorkflows.includes("QT4") ? "checked" : "";
     const isAutoConfirmChecked = isAutoConfirmEnabled() ? "checked" : "";
+    const isPhapLyAutofillChecked = localStorage.getItem("mplis_phaply_autofill_enabled") !== "false" ? "checked" : "";
     function qt2FileHint(selectAll) {
       return selectAll ? 'Bấm "Chọn tất cả" trước cho tích hết bảng, rồi lọc Số phát hành gỡ tích file sai đơn.' : "Chỉ tích file khớp Số phát hành của đơn, cộng file gt/pt dùng chung.";
     }
     function qt2FileState(selectAll) {
       return selectAll ? "Chọn tất cả + lọc SPH" : "Lọc theo SPH";
-    }
-    function qt4IsoHint(bypass) {
-      return bypass ? 'Cảnh báo chỉ có đúng 1 dòng "3 KHỐI" thì tự bấm Đồng ý. Kèm dòng lỗi chi tiết (thửa thiếu dữ liệu không gian) vẫn dừng auto.' : "Gặp cảnh báo 3 khối thì dừng auto để bạn tự xem.";
-    }
-    function qt4IsoState(bypass) {
-      return bypass ? "Tự đồng ý" : "Dừng lại";
     }
     function fwUserState(user) {
       return (user || "").trim() ? user.trim() : "Chưa đặt";
@@ -3547,20 +3517,6 @@
                                     <label><input type="checkbox" id="chk-qt2-selectall" ${pCfg.qt2SelectAllFiles ? "checked" : ""}> Chọn hết file trong bảng</label>
                                 </div>
                                 <div class="mplis-hint" style="margin:8px 0 0;" id="qt2-file-hint">${qt2FileHint(pCfg.qt2SelectAllFiles)}</div>
-                            </div>
-                        </div>
-
-                        <div class="mplis-card mplis-collapse" id="qt4-iso-group" style="display: ${isQT4 ? "block" : "none"};">
-                            <button type="button" class="mplis-collapse-head" id="qt4-iso-toggle" aria-expanded="false" aria-controls="qt4-iso-body">
-                                <span class="mplis-section-label">QT4 · Cảnh báo liên kết 3 khối</span>
-                                <span class="mplis-collapse-state ${pCfg.qt4BypassLienKet3Khoi ? "on" : ""}" id="qt4-iso-state">${qt4IsoState(pCfg.qt4BypassLienKet3Khoi)}</span>
-                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                            </button>
-                            <div class="mplis-collapse-body" id="qt4-iso-body">
-                                <div class="mplis-checkbox-group">
-                                    <label><input type="checkbox" id="chk-qt4-3khoi" ${pCfg.qt4BypassLienKet3Khoi ? "checked" : ""}> Tự đồng ý cảnh báo 3 khối</label>
-                                </div>
-                                <div class="mplis-hint" style="margin:8px 0 0;" id="qt4-iso-hint">${qt4IsoHint(pCfg.qt4BypassLienKet3Khoi)}</div>
                             </div>
                         </div>
 
@@ -3719,8 +3675,14 @@
                         </div>
 
                         <span class="mplis-section-label">Tự điền sẵn</span>
-                        <div class="mplis-card mplis-hint" style="margin-bottom:0;">
-                            Ở màn hình Cập nhật pháp lý, tool tự tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ là hôm nay. Sửa tay đè lên lúc nào cũng được.
+                        <div class="mplis-card" style="margin-bottom:0;">
+                            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
+                                <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked} style="margin-top:2px;">
+                                <span>
+                                    Tự điền màn hình Cập nhật pháp lý<br/>
+                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ là hôm nay. Sửa tay đè lên lúc nào cũng được. Tắt thì để nguyên form, tự điền tay hết.</span>
+                                </span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -3740,6 +3702,12 @@
           settingsTab.insertBefore(notice, settingsTab.children[1]);
         }
         if (notice) notice.textContent = "⚠️ Đã lưu. Tải lại trang (F5) để áp dụng thay đổi.";
+      };
+    }
+    const chkPhapLyAutofill = document.getElementById("chk-phaply-autofill");
+    if (chkPhapLyAutofill) {
+      chkPhapLyAutofill.onchange = (e) => {
+        localStorage.setItem("mplis_phaply_autofill_enabled", e.target.checked ? "true" : "false");
       };
     }
     if (localStorage.getItem("mplis_auto_minimized") === "true") panel.classList.add("minimized");
@@ -3813,16 +3781,7 @@
       ProcessModule.saveConfig({ forwardUser: user });
     };
     bindCollapse("qt2-file-group", "qt2-file-toggle", "mplis_qt2_file_open");
-    bindCollapse("qt4-iso-group", "qt4-iso-toggle", "mplis_qt4_iso_open");
     bindCollapse("fw-user-group", "fw-user-toggle", "mplis_fw_user_open");
-    document.getElementById("chk-qt4-3khoi").onchange = (e) => {
-      const checked = e.target.checked;
-      document.getElementById("qt4-iso-hint").textContent = qt4IsoHint(checked);
-      const stateEl = document.getElementById("qt4-iso-state");
-      stateEl.textContent = qt4IsoState(checked);
-      stateEl.classList.toggle("on", checked);
-      ProcessModule.saveConfig({ qt4BypassLienKet3Khoi: checked });
-    };
     document.getElementById("chk-qt2-selectall").onchange = (e) => {
       const checked = e.target.checked;
       document.getElementById("qt2-file-hint").textContent = qt2FileHint(checked);
@@ -3837,8 +3796,6 @@
         ProcessModule.saveConfig({ activeWorkflows: checked });
         const qt2Group = document.getElementById("qt2-file-group");
         if (qt2Group) qt2Group.style.display = checked.includes("QT2") ? "block" : "none";
-        const qt4Group = document.getElementById("qt4-iso-group");
-        if (qt4Group) qt4Group.style.display = checked.includes("QT4") ? "block" : "none";
       };
     });
     document.getElementById("btn-toggle-process").onclick = toggleProcess;
@@ -3860,6 +3817,7 @@
   var HOLD_AFTER_STOP_MS = 8e3;
   var lastRunning = false;
   var stoppedAt = 0;
+  var hiddenByUser = false;
   function buildToast() {
     const el = document.createElement("div");
     el.id = "mplis-run-toast";
@@ -3870,6 +3828,9 @@
             <span class="mplis-status-dot" id="mplis-toast-dot"></span>
             <span class="mplis-toast-step" id="mplis-toast-step">Đang chạy</span>
             <span class="mplis-toast-count" id="mplis-toast-count"></span>
+            <button type="button" class="mplis-toast-close" id="mplis-toast-close" title="Ẩn bảng này" aria-label="Ẩn bảng tiến độ">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
         </div>
         <div class="mplis-toast-bar"><i id="mplis-toast-fill"></i></div>
         <div class="mplis-toast-log" id="mplis-toast-log">Sẵn sàng</div>
@@ -3878,6 +3839,11 @@
     el.onclick = () => {
       const btn = document.getElementById("mplis-btn-maximize");
       if (btn) btn.click();
+    };
+    el.querySelector("#mplis-toast-close").onclick = (e) => {
+      e.stopPropagation();
+      hiddenByUser = true;
+      el.classList.remove("show");
     };
     return el;
   }
@@ -3893,9 +3859,10 @@
     const state = ProcessModule.getTopState();
     if (!state) return;
     if (lastRunning && !state.isRunning) stoppedAt = Date.now();
+    if (!lastRunning && state.isRunning) hiddenByUser = false;
     lastRunning = state.isRunning;
     const justStopped = stoppedAt && Date.now() - stoppedAt < HOLD_AFTER_STOP_MS;
-    const shouldShow = panel.classList.contains("minimized") && (state.isRunning || justStopped);
+    const shouldShow = !hiddenByUser && panel.classList.contains("minimized") && (state.isRunning || justStopped);
     toast.classList.toggle("show", shouldShow);
     if (!shouldShow) return;
     const queue = getWorkflowQueue(state.config);
@@ -3995,6 +3962,14 @@
   // src/phaply-default.js
   var SCAN_INTERVAL_MS = 1e3;
   var DONE_ATTR = "data-mplis-phaply";
+  var ENABLED_KEY = "mplis_phaply_autofill_enabled";
+  function isPhapLyAutofillEnabled() {
+    try {
+      return localStorage.getItem(ENABLED_KEY) !== "false";
+    } catch (e) {
+      return true;
+    }
+  }
   var CHECKBOX_SELECTOR = '#chkdaCongNhanPhapLy, input[type="checkbox"][name="daCongNhanPhapLy"]';
   var SELECT_SELECTOR = '#ddlloaiGiayChungNhanId, select[name="loaiGiayChungNhanId"]';
   var NGUOI_KY_SELECTOR = '#txttenNguoiKy, input[name="tenNguoiKy"]';
@@ -4113,6 +4088,7 @@
     }
   }
   function scan() {
+    if (!isPhapLyAutofillEnabled()) return;
     try {
       goDauKhiFormDong();
       tickCongNhanPhapLy();
