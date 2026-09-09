@@ -973,8 +973,11 @@ import { createModuleRuntime } from './module-runtime.js';
                                     // Đọc và ghi nhớ danh sách Số phát hành của đơn đăng ký này
                                     topState.qt2SoPhatHanhList = [];
 
-                                    // Tìm thẻ chứa treeGiayChungNhan ĐANG HIỂN THỊ (thuộc về đơn hiện tại)
-                                    const activeTreeContainer = Array.from(document.querySelectorAll('#treeGiayChungNhan')).find(el => {
+                                    // Tìm thẻ chứa cây Giấy chứng nhận/Thửa đất ĐANG HIỂN THỊ (thuộc về đơn hiện tại).
+                                    // VBDLIS đổi id cây này ít nhất 1 lần (treeGiayChungNhan cũ -> treeThongTinDangKy
+                                    // hiện tại) - dò cả 2 id để không vỡ lại nếu 1 màn khác vẫn còn dùng tên cũ
+                                    // (xem TREE_IDS tương tự trong excel-module.js).
+                                    const activeTreeContainer = Array.from(document.querySelectorAll('#treeThongTinDangKy, #treeGiayChungNhan')).find(el => {
                                         try { return el.getBoundingClientRect().width > 0; } catch (e) { return false; }
                                     });
 

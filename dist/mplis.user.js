@@ -178,8 +178,8 @@
     }
     return results;
   }
-  function findCurrentMaHS() {
-    const allNodes = Array.from(document.querySelectorAll("b, span, .modal-title, h4"));
+  function findCurrentMaHS(root = document) {
+    const allNodes = Array.from(root.querySelectorAll("b, span, .modal-title, h4"));
     const validNodes = [];
     for (let node of allNodes) {
       if (!node.textContent) continue;
@@ -1356,7 +1356,7 @@
                   topState.qt2Phase = 0;
                   topState.qt2SphIndex = 0;
                   topState.qt2SoPhatHanhList = [];
-                  const activeTreeContainer = Array.from(document.querySelectorAll("#treeGiayChungNhan")).find((el) => {
+                  const activeTreeContainer = Array.from(document.querySelectorAll("#treeThongTinDangKy, #treeGiayChungNhan")).find((el) => {
                     try {
                       return el.getBoundingClientRect().width > 0;
                     } catch (e) {
@@ -2601,10 +2601,22 @@
     }
     function pushRecordToSheet(r) {
       const bucket = getBucket(r);
-      if (!PUSHABLE_BUCKETS.includes(bucket)) return;
+      if (!PUSHABLE_BUCKETS.includes(bucket)) {
+        console.log('[Excel] Bỏ qua đẩy - bucket "' + bucket + '" không nằm trong danh sách đồng bộ:', r.maHS);
+        return;
+      }
       const url = getSheetUrl();
-      if (!url) return;
-      if (typeof GM_xmlhttpRequest === "undefined") return;
+      if (!url) {
+        console.log("[Excel] Bỏ qua đẩy - chưa cấu hình link Sheet (ô 🔗 ở tab Excel):", r.maHS);
+        setSheetStatus("❌ chưa cấu hình link Sheet", false);
+        return;
+      }
+      if (typeof GM_xmlhttpRequest === "undefined") {
+        console.log("[Excel] Bỏ qua đẩy - GM_xmlhttpRequest không khả dụng (kiểm tra @grant trong userscript header):", r.maHS);
+        setSheetStatus("❌ GM_xmlhttpRequest không khả dụng", false);
+        return;
+      }
+      console.log("[Excel] Đang đẩy lên Sheet:", bucket, r.maHS, r.gcn, r.thua);
       const isTheChapSheet = bucket === "thechap" || bucket === "xacnhan";
       const payload = isTheChapSheet ? {
         bucket: "thechap",
@@ -2646,15 +2658,18 @@
         data: JSON.stringify(payload),
         headers: { "Content-Type": "application/json" },
         onload: function(res) {
+          console.log("[Excel] Phản hồi từ Sheet:", res.status, res.responseText);
           try {
             const body = JSON.parse(res.responseText);
             if (body.ok) setSheetStatus("✅ đã đồng bộ", true);
             else setSheetStatus("❌ " + (body.error || "lỗi"), false);
           } catch (e) {
+            console.log("[Excel] Không parse được phản hồi JSON:", e);
             setSheetStatus("❌ phản hồi lạ", false);
           }
         },
-        onerror: function() {
+        onerror: function(err) {
+          console.log("[Excel] Lỗi kết nối khi đẩy lên Sheet:", err);
           setSheetStatus("❌ lỗi kết nối", false);
         }
       });
@@ -2776,7 +2791,11 @@
       }
     }
     function saveState() {
-      localStorage.setItem("mplis_excel_cart", JSON.stringify(state.records));
+      try {
+        localStorage.setItem("mplis_excel_cart", JSON.stringify(state.records));
+      } catch (e) {
+        console.log("[Excel] Lỗi khi lưu giỏ hàng vào localStorage (có thể đầy dung lượng):", e);
+      }
     }
     function renderFilterTabs() {
       const bar = document.getElementById("excel-filter-bar");
@@ -2911,13 +2930,47 @@
         setTimeout(() => btn.innerHTML = oldText, 2e3);
       });
     }
+    const TREE_IDS = ["treeThongTinDangKy", "treeGiayChungNhan"];
+    function findTree(root) {
+      for (const id of TREE_IDS) {
+        const el = root.getElementById(id);
+        if (el) return el;
+      }
+      return null;
+    }
+    function findTreeDoc() {
+      if (findTree(document)) return document;
+      try {
+        for (let i = 0; i < window.frames.length; i++) {
+          try {
+            const frameDoc = window.frames[i].document;
+            if (frameDoc && findTree(frameDoc)) return frameDoc;
+          } catch (e) {
+          }
+        }
+      } catch (e) {
+      }
+      return null;
+    }
+    let _scanTreeMissLogged = false;
     function scanTree() {
-      const tree = document.getElementById("treeGiayChungNhan");
-      if (!tree) return;
-      const maHS = findCurrentMaHS();
+      const doc = findTreeDoc();
+      if (!doc) {
+        if (!_scanTreeMissLogged) {
+          console.log("[Excel] Không tìm thấy cây GCN/Thửa (đã thử id: " + TREE_IDS.join(", ") + " - cả document chính lẫn iframe con cùng-origin). Nếu vẫn thấy cây trên màn hình, VBDLIS có thể đã đổi id lần nữa - báo lại id thật (F12 > Elements > bấm chọn phần tử cây).");
+          _scanTreeMissLogged = true;
+        }
+        return;
+      }
+      if (_scanTreeMissLogged) {
+        console.log("[Excel] Đã tìm thấy cây trở lại.");
+        _scanTreeMissLogged = false;
+      }
+      const tree = findTree(doc);
+      const maHS = findCurrentMaHS(doc) || (doc !== document ? findCurrentMaHS(document) : "");
       let loaiHS = "", nguoiNop = "", diaChi = "", rawTitle = "", titleStr = "";
       if (maHS) {
-        const trs = Array.from(document.querySelectorAll('tr[role="row"]'));
+        const trs = Array.from(doc.querySelectorAll('tr[role="row"]')).concat(doc !== document ? Array.from(document.querySelectorAll('tr[role="row"]')) : []);
         for (let tr of trs) {
           if (tr.textContent.includes(maHS)) {
             const col1 = tr.querySelector(".col-md-3:nth-child(1)");
@@ -2960,6 +3013,9 @@
         const a = li.querySelector(":scope > a.jstree-anchor");
         return a && (a.textContent.includes("Giấy chứng nhận") || a.textContent.includes("Số phát hành:"));
       });
+      if (gcnNodes.length === 0) {
+        console.log('[Excel] Tìm thấy #treeGiayChungNhan nhưng 0 node Giấy chứng nhận (li.jstree-node chứa "Giấy chứng nhận" hoặc "Số phát hành:") - cấu trúc cây có thể đã đổi. maHS:', maHS);
+      }
       gcnNodes.forEach((gcnLi) => {
         let gcn = "";
         const gcnAnchor = gcnLi.querySelector(":scope > a.jstree-anchor");
@@ -2978,6 +3034,9 @@
           const a = li.querySelector(":scope > a.jstree-anchor");
           return a && a.textContent.includes("Thửa đất");
         });
+        if (thuaNodes.length === 0) {
+          console.log('[Excel] GCN "' + gcn + '" có 0 node Thửa đất bên trong.');
+        }
         thuaNodes.forEach((thuaLi) => {
           let thua = "", to = "", dt = 0;
           const thuaAnchor = thuaLi.querySelector(":scope > a.jstree-anchor");
@@ -2989,7 +3048,10 @@
               dt = parseFloat(m[3]);
             }
           }
-          if (!thua) return;
+          if (!thua) {
+            console.log("[Excel] Không parse được Thửa/Tờ từ text node (regex không khớp):", thuaAnchor ? thuaAnchor.textContent : "(không có anchor)");
+            return;
+          }
           let dienTichCacLoai = { ODT: 0, ONT: 0, CLN: 0, TSN: 0, LUC: 0, LUK: 0, BUN: 0, LUA: 0, HNK: 0, SKC: 0 };
           const loaiDatNodes = Array.from(thuaLi.querySelectorAll("a.jstree-anchor")).filter((a) => /^[A-Z]{3}:/.test(a.textContent.trim()));
           loaiDatNodes.forEach((node) => {
@@ -3007,7 +3069,11 @@
           const datHNK = dienTichCacLoai.HNK || 0;
           const datSKC = dienTichCacLoai.SKC || 0;
           const exists = state.records.some((r) => r.gcn === gcn && r.thua === thua && r.to === to);
-          if (!exists) {
+          if (exists) {
+            console.log('[Excel] GCN "' + gcn + '" Thửa ' + thua + " Tờ " + to + " đã có trong giỏ - bỏ qua, KHÔNG đẩy lại (kể cả nếu lần trước lỗi). Xóa dòng này ở tab Excel để thử đẩy lại.");
+            return;
+          }
+          {
             const newRecord = {
               maHS,
               loaiHS,
@@ -3440,6 +3506,7 @@
     const isQT4 = pCfg.activeWorkflows.includes("QT4") ? "checked" : "";
     const isAutoConfirmChecked = isAutoConfirmEnabled() ? "checked" : "";
     const isPhapLyAutofillChecked = localStorage.getItem("mplis_phaply_autofill_enabled") !== "false" ? "checked" : "";
+    const isNotifyCaptureChecked = localStorage.getItem("mplis_notify_capture_enabled") !== "false" ? "checked" : "";
     function qt2FileHint(selectAll) {
       return selectAll ? 'Bấm "Chọn tất cả" trước cho tích hết bảng, rồi lọc Số phát hành gỡ tích file sai đơn.' : "Chỉ tích file khớp Số phát hành của đơn, cộng file gt/pt dùng chung.";
     }
@@ -3675,12 +3742,23 @@
                         </div>
 
                         <span class="mplis-section-label">Tự điền sẵn</span>
-                        <div class="mplis-card" style="margin-bottom:0;">
+                        <div class="mplis-card">
                             <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
                                 <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked} style="margin-top:2px;">
                                 <span>
                                     Tự điền màn hình Cập nhật pháp lý<br/>
                                     <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ là hôm nay. Sửa tay đè lên lúc nào cũng được. Tắt thì để nguyên form, tự điền tay hết.</span>
+                                </span>
+                            </label>
+                        </div>
+
+                        <span class="mplis-section-label">Thông báo hồ sơ mới</span>
+                        <div class="mplis-card" style="margin-bottom:0;">
+                            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
+                                <input type="checkbox" id="chk-notify-capture" ${isNotifyCaptureChecked} style="margin-top:2px;">
+                                <span>
+                                    Tự đẩy hồ sơ mới nhận lên Sheet "Thông báo nhận HS"<br/>
+                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Mỗi lần tải trang, tool quét danh sách công việc, tìm hồ sơ mới xuất hiện rồi ghi vào Sheet. Tắt thì tool ngưng quét, hồ sơ mới không được ghi nhận nữa. Cần <b>tải lại trang</b> để áp dụng thay đổi.</span>
                                 </span>
                             </label>
                         </div>
@@ -3708,6 +3786,12 @@
     if (chkPhapLyAutofill) {
       chkPhapLyAutofill.onchange = (e) => {
         localStorage.setItem("mplis_phaply_autofill_enabled", e.target.checked ? "true" : "false");
+      };
+    }
+    const chkNotifyCapture = document.getElementById("chk-notify-capture");
+    if (chkNotifyCapture) {
+      chkNotifyCapture.onchange = (e) => {
+        localStorage.setItem("mplis_notify_capture_enabled", e.target.checked ? "true" : "false");
       };
     }
     if (localStorage.getItem("mplis_auto_minimized") === "true") panel.classList.add("minimized");
@@ -4102,11 +4186,19 @@
   setInterval(scan, SCAN_INTERVAL_MS);
 
   // src/notify-capture.js
+  var ENABLED_KEY2 = "mplis_notify_capture_enabled";
   var WORK_LOGGED_KEY = "mplis_notify_logged";
   var WORK_SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
   var NOTIFY_ACCOUNT_FILTER_KEY = "mplis_notify_account_filter";
   var NOTIFY_RESOLVED_KEY = "mplis_notify_resolved";
   var _workPending = /* @__PURE__ */ new Set();
+  function isNotifyCaptureEnabled() {
+    try {
+      return localStorage.getItem(ENABLED_KEY2) !== "false";
+    } catch (e) {
+      return true;
+    }
+  }
   function getNotifyAccountFilter() {
     try {
       return (localStorage.getItem(NOTIFY_ACCOUNT_FILTER_KEY) || "").trim().toLowerCase();
@@ -4304,6 +4396,10 @@
     });
   }
   function pollWorkList() {
+    if (!isNotifyCaptureEnabled()) {
+      console.log("[Notify] Tắt trong Cài đặt - bỏ qua quét GetXuLyCongViec.");
+      return;
+    }
     const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
     if (!jq || !jq.ajax) {
       console.log("[Notify] Không tìm thấy jQuery ($) trên trang, không thể gọi GetXuLyCongViec.");

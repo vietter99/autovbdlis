@@ -98,10 +98,22 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from
 
         function pushRecordToSheet(r) {
             const bucket = getBucket(r);
-            if (!PUSHABLE_BUCKETS.includes(bucket)) return;
+            if (!PUSHABLE_BUCKETS.includes(bucket)) {
+                console.log('[Excel] Bỏ qua đẩy - bucket "' + bucket + '" không nằm trong danh sách đồng bộ:', r.maHS);
+                return;
+            }
             const url = getSheetUrl();
-            if (!url) return;
-            if (typeof GM_xmlhttpRequest === 'undefined') return;
+            if (!url) {
+                console.log('[Excel] Bỏ qua đẩy - chưa cấu hình link Sheet (ô 🔗 ở tab Excel):', r.maHS);
+                setSheetStatus('❌ chưa cấu hình link Sheet', false);
+                return;
+            }
+            if (typeof GM_xmlhttpRequest === 'undefined') {
+                console.log('[Excel] Bỏ qua đẩy - GM_xmlhttpRequest không khả dụng (kiểm tra @grant trong userscript header):', r.maHS);
+                setSheetStatus('❌ GM_xmlhttpRequest không khả dụng', false);
+                return;
+            }
+            console.log('[Excel] Đang đẩy lên Sheet:', bucket, r.maHS, r.gcn, r.thua);
 
             // "xacnhan" (bucket cục bộ để lọc riêng trên UI) dùng CHUNG shape + tab Sheet với
             // "thechap" - gửi bucket:'thechap' lên server vì handleTheChap là handler duy nhất
@@ -148,15 +160,18 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from
                 data: JSON.stringify(payload),
                 headers: { 'Content-Type': 'application/json' },
                 onload: function (res) {
+                    console.log('[Excel] Phản hồi từ Sheet:', res.status, res.responseText);
                     try {
                         const body = JSON.parse(res.responseText);
                         if (body.ok) setSheetStatus('✅ đã đồng bộ', true);
                         else setSheetStatus('❌ ' + (body.error || 'lỗi'), false);
                     } catch (e) {
+                        console.log('[Excel] Không parse được phản hồi JSON:', e);
                         setSheetStatus('❌ phản hồi lạ', false);
                     }
                 },
-                onerror: function () {
+                onerror: function (err) {
+                    console.log('[Excel] Lỗi kết nối khi đẩy lên Sheet:', err);
                     setSheetStatus('❌ lỗi kết nối', false);
                 }
             });
@@ -287,7 +302,14 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from
         }
 
         function saveState() {
-            localStorage.setItem('mplis_excel_cart', JSON.stringify(state.records));
+            // Không try/catch trước đây khiến QuotaExceededError (giỏ hàng phình to sau thời gian
+            // dài dùng) ném lỗi ngay TRƯỚC dòng gọi pushRecordToSheet trong scanTree, làm phần tự
+            // đẩy Sheet ngưng chạy mà không có cách nào biết lý do.
+            try {
+                localStorage.setItem('mplis_excel_cart', JSON.stringify(state.records));
+            } catch (e) {
+                console.log('[Excel] Lỗi khi lưu giỏ hàng vào localStorage (có thể đầy dung lượng):', e);
+            }
         }
 
         function renderFilterTabs() {
@@ -412,17 +434,62 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from
             });
         }
 
-        function scanTree() {
-            // Chỉ sử dụng cây của QT3 vì thông tin chính xác hơn
-            const tree = document.getElementById('treeGiayChungNhan');
-            if (!tree) return;
+        // ID cây jstree hiển thị Giấy chứng nhận/Thửa đất - VBDLIS đổi tên id này ít nhất 1 lần
+        // (treeGiayChungNhan cũ -> treeThongTinDangKy ở màn "Lưu kho hồ sơ quét" hiện tại), giữ
+        // CẢ HAI để không vỡ lại lần nữa nếu 1 màn khác vẫn còn dùng tên cũ. Cấu trúc HTML bên
+        // trong (li.jstree-node, "Giấy chứng nhận", "Thửa đất"...) không đổi, chỉ đổi id gốc.
+        const TREE_IDS = ['treeThongTinDangKy', 'treeGiayChungNhan'];
+        function findTree(root) {
+            for (const id of TREE_IDS) {
+                const el = root.getElementById(id);
+                if (el) return el;
+            }
+            return null;
+        }
+        // Phòng trường hợp cây nằm trong 1 iframe cùng-origin thay vì trực tiếp trên document top
+        // (document.getElementById ở top sẽ luôn trả null dù mắt thấy cây rành rành trên màn hình).
+        // Dò thêm qua các iframe con (bọc try/catch vì iframe khác-origin sẽ ném lỗi khi đọc .document).
+        function findTreeDoc() {
+            if (findTree(document)) return document;
+            try {
+                for (let i = 0; i < window.frames.length; i++) {
+                    try {
+                        const frameDoc = window.frames[i].document;
+                        if (frameDoc && findTree(frameDoc)) return frameDoc;
+                    } catch (e) { /* iframe khác-origin - bỏ qua */ }
+                }
+            } catch (e) { }
+            return null;
+        }
 
-            const maHS = findCurrentMaHS();
+        let _scanTreeMissLogged = false;
+        function scanTree() {
+            const doc = findTreeDoc();
+            if (!doc) {
+                // Chỉ log 1 lần khi mất tree (chuyển màn/đóng modal) - log mỗi giây (interval 1s)
+                // sẽ spam Console không đọc nổi.
+                if (!_scanTreeMissLogged) {
+                    console.log('[Excel] Không tìm thấy cây GCN/Thửa (đã thử id: ' + TREE_IDS.join(', ') + ' - cả document chính lẫn iframe con cùng-origin). Nếu vẫn thấy cây trên màn hình, VBDLIS có thể đã đổi id lần nữa - báo lại id thật (F12 > Elements > bấm chọn phần tử cây).');
+                    _scanTreeMissLogged = true;
+                }
+                return;
+            }
+            if (_scanTreeMissLogged) {
+                console.log('[Excel] Đã tìm thấy cây trở lại.');
+                _scanTreeMissLogged = false;
+            }
+            const tree = findTree(doc);
+
+            // Mã hồ sơ/tiêu đề đôi khi nằm ở document top (bảng danh sách) dù cây nằm trong iframe
+            // (VD modal QT2 che lên bảng danh sách phía sau) - thử doc chứa cây trước, hụt thì thử
+            // document top, phòng khi 2 mảnh thông tin nằm ở 2 nơi khác nhau.
+            const maHS = findCurrentMaHS(doc) || (doc !== document ? findCurrentMaHS(document) : '');
 
             // Truy tìm thêm thông tin: Loại HS, Người Nộp, Địa chỉ, tiêu đề gốc từ bảng nền
             let loaiHS = '', nguoiNop = '', diaChi = '', rawTitle = '', titleStr = '';
             if (maHS) {
-                const trs = Array.from(document.querySelectorAll('tr[role="row"]'));
+                const trs = Array.from(doc.querySelectorAll('tr[role="row"]'))
+                    .concat(doc !== document ? Array.from(document.querySelectorAll('tr[role="row"]')) : []);
                 for (let tr of trs) {
                     if (tr.textContent.includes(maHS)) {
                         const col1 = tr.querySelector('.col-md-3:nth-child(1)');
@@ -479,6 +546,9 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from
                 const a = li.querySelector(':scope > a.jstree-anchor');
                 return a && (a.textContent.includes('Giấy chứng nhận') || a.textContent.includes('Số phát hành:'));
             });
+            if (gcnNodes.length === 0) {
+                console.log('[Excel] Tìm thấy #treeGiayChungNhan nhưng 0 node Giấy chứng nhận (li.jstree-node chứa "Giấy chứng nhận" hoặc "Số phát hành:") - cấu trúc cây có thể đã đổi. maHS:', maHS);
+            }
 
             gcnNodes.forEach(gcnLi => {
                 let gcn = '';
@@ -501,6 +571,9 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from
                     const a = li.querySelector(':scope > a.jstree-anchor');
                     return a && a.textContent.includes('Thửa đất');
                 });
+                if (thuaNodes.length === 0) {
+                    console.log('[Excel] GCN "' + gcn + '" có 0 node Thửa đất bên trong.');
+                }
 
                 thuaNodes.forEach(thuaLi => {
                     let thua = '', to = '', dt = 0;
@@ -514,7 +587,10 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from
                             dt = parseFloat(m[3]);
                         }
                     }
-                    if (!thua) return;
+                    if (!thua) {
+                        console.log('[Excel] Không parse được Thửa/Tờ từ text node (regex không khớp):', thuaAnchor ? thuaAnchor.textContent : '(không có anchor)');
+                        return;
+                    }
 
                     let dienTichCacLoai = { ODT: 0, ONT: 0, CLN: 0, TSN: 0, LUC: 0, LUK: 0, BUN: 0, LUA: 0, HNK: 0, SKC: 0 };
                     // Lấy các mục đích sử dụng nằm bên trong Thửa đất này
@@ -536,7 +612,13 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from
                     const datSKC = dienTichCacLoai.SKC || 0;
 
                     const exists = state.records.some(r => r.gcn === gcn && r.thua === thua && r.to === to);
-                    if (!exists) {
+                    if (exists) {
+                        // Đã có trong giỏ (kể cả khi lần đẩy trước đó thất bại) -> sẽ KHÔNG bao giờ thử
+                        // đẩy lại record này nữa cho tới khi bị xóa khỏi giỏ (nút XÓA ở tab Excel).
+                        console.log('[Excel] GCN "' + gcn + '" Thửa ' + thua + ' Tờ ' + to + ' đã có trong giỏ - bỏ qua, KHÔNG đẩy lại (kể cả nếu lần trước lỗi). Xóa dòng này ở tab Excel để thử đẩy lại.');
+                        return;
+                    }
+                    {
                         const newRecord = {
                             maHS, loaiHS, tenTTHCFull, soBienNhan, nguoiNop, diaChi, gcn, thua, to, dt,
                             dtO: datO, dtCLN: datCLN, dtTSN: datTSN,
