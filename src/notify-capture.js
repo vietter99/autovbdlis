@@ -8,11 +8,16 @@ import { topWin } from './utils.js';
 // (lưu trong localStorage theo Mã hồ sơ) để tìm hồ sơ MỚI xuất hiện, rồi đẩy lên Google Sheet
 // tab "Thông báo nhận HS" - giải quyết vấn đề thông báo miệng/giấy từ lãnh đạo hay thiếu/sai lệch.
 
+const ENABLED_KEY = 'mplis_notify_capture_enabled'; // mặc định BẬT - tắt trong tab Cài đặt khi không cần đẩy hồ sơ mới lên Sheet nữa
 const WORK_LOGGED_KEY = 'mplis_notify_logged'; // { [soBienNhan]: true } - đã đẩy thành công (bền, qua localStorage)
 const WORK_SHEET_URL_KEY = 'mplis_excel_sheet_url_mine'; // dùng chung Web App URL với "của tôi"
 const NOTIFY_ACCOUNT_FILTER_KEY = 'mplis_notify_account_filter'; // lọc theo nguoiTiepNhan (tài khoản đăng nhập) - đề phòng đồng nghiệp cùng dùng tool, tránh lẫn hồ sơ của nhau
 const NOTIFY_RESOLVED_KEY = 'mplis_notify_resolved'; // { [soBienNhan]: true } - đã TRẢ hồ sơ, ngưng tra lại trạng thái để đỡ tốn request mỗi lần F5
 const _workPending = new Set(); // khóa tạm trong phiên hiện tại, chống đẩy trùng khi quét trước chưa kịp trả lời
+
+function isNotifyCaptureEnabled() {
+    try { return localStorage.getItem(ENABLED_KEY) !== 'false'; } catch (e) { return true; }
+}
 
 function getNotifyAccountFilter() {
     try { return (localStorage.getItem(NOTIFY_ACCOUNT_FILTER_KEY) || '').trim().toLowerCase(); } catch (e) { return ''; }
@@ -231,6 +236,10 @@ function pollAllStatuses(onProgress) {
 // (unsafeWindow.$) để tự động thừa hưởng token đó, không cần biết nó nằm ở đâu (giống GetNotify).
 // Payload dưới đây sao y nguyên request thật của trang Xử Lý Công Việc (bắt qua DevTools).
 function pollWorkList() {
+    if (!isNotifyCaptureEnabled()) {
+        console.log('[Notify] Tắt trong Cài đặt - bỏ qua quét GetXuLyCongViec.');
+        return;
+    }
     const jq = typeof unsafeWindow !== 'undefined' && unsafeWindow.$ ? unsafeWindow.$ : null;
     if (!jq || !jq.ajax) {
         console.log('[Notify] Không tìm thấy jQuery ($) trên trang, không thể gọi GetXuLyCongViec.');

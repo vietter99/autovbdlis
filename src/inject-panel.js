@@ -42,6 +42,7 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         // Đọc chung 1 khoá localStorage với phaply-default.js (ENABLED_KEY ở đó) - 2 file không
         // import lẫn nhau, chỉ cần khớp đúng tên khoá 'mplis_phaply_autofill_enabled'.
         const isPhapLyAutofillChecked = localStorage.getItem('mplis_phaply_autofill_enabled') !== 'false' ? 'checked' : '';
+        const isNotifyCaptureChecked = localStorage.getItem('mplis_notify_capture_enabled') !== 'false' ? 'checked' : '';
 
         // Câu mô tả dưới ô "Chọn hết file" - đổi theo trạng thái để nhìn là biết tool sắp làm gì,
         // khỏi phải nhớ ý nghĩa của ô tích.
@@ -288,12 +289,23 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                         </div>
 
                         <span class="mplis-section-label">Tự điền sẵn</span>
-                        <div class="mplis-card" style="margin-bottom:0;">
+                        <div class="mplis-card">
                             <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
                                 <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked} style="margin-top:2px;">
                                 <span>
                                     Tự điền màn hình Cập nhật pháp lý<br/>
                                     <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ là hôm nay. Sửa tay đè lên lúc nào cũng được. Tắt thì để nguyên form, tự điền tay hết.</span>
+                                </span>
+                            </label>
+                        </div>
+
+                        <span class="mplis-section-label">Thông báo hồ sơ mới</span>
+                        <div class="mplis-card" style="margin-bottom:0;">
+                            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
+                                <input type="checkbox" id="chk-notify-capture" ${isNotifyCaptureChecked} style="margin-top:2px;">
+                                <span>
+                                    Tự đẩy hồ sơ mới nhận lên Sheet "Thông báo nhận HS"<br/>
+                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Mỗi lần tải trang, tool quét danh sách công việc, tìm hồ sơ mới xuất hiện rồi ghi vào Sheet. Tắt thì tool ngưng quét, hồ sơ mới không được ghi nhận nữa. Cần <b>tải lại trang</b> để áp dụng thay đổi.</span>
                                 </span>
                             </label>
                         </div>
@@ -325,6 +337,15 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         if (chkPhapLyAutofill) {
             chkPhapLyAutofill.onchange = (e) => {
                 localStorage.setItem('mplis_phaply_autofill_enabled', e.target.checked ? 'true' : 'false');
+            };
+        }
+
+        // notify-capture.js chỉ chạy pollWorkList() 1 lần lúc tải trang - khác phaply-default, đổi
+        // công tắc này KHÔNG áp dụng ngay, phải F5.
+        const chkNotifyCapture = document.getElementById('chk-notify-capture');
+        if (chkNotifyCapture) {
+            chkNotifyCapture.onchange = (e) => {
+                localStorage.setItem('mplis_notify_capture_enabled', e.target.checked ? 'true' : 'false');
             };
         }
 
