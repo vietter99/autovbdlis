@@ -3507,6 +3507,7 @@
     const isAutoConfirmChecked = isAutoConfirmEnabled() ? "checked" : "";
     const isPhapLyAutofillChecked = localStorage.getItem("mplis_phaply_autofill_enabled") !== "false" ? "checked" : "";
     const isNotifyCaptureChecked = localStorage.getItem("mplis_notify_capture_enabled") !== "false" ? "checked" : "";
+    const isBypassSpatialLinkChecked = localStorage.getItem("mplis_bypass_spatial_link_enabled") === "true" ? "checked" : "";
     function qt2FileHint(selectAll) {
       return selectAll ? 'Bấm "Chọn tất cả" trước cho tích hết bảng, rồi lọc Số phát hành gỡ tích file sai đơn.' : "Chỉ tích file khớp Số phát hành của đơn, cộng file gt/pt dùng chung.";
     }
@@ -3596,6 +3597,20 @@
                             <div class="mplis-collapse-body" id="fw-user-body">
                                 <input type="text" id="cfg-p-forwardUser" value="${escapeHtml(pCfg.forwardUser || "")}" placeholder="Tên tài khoản, VD: dla.thoitd" style="background: rgba(0,0,0,0.25); border: 1px solid var(--mplis-border); border-radius: 8px; padding: 8px 10px; color: #f8fafc; width: 100%; font-size: 12px;">
                                 <div class="mplis-hint" style="margin:8px 0 0;">Bỏ trống thì tool dừng lại sau Kết ISO, không chuyển cho ai.</div>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="kg-bypass-group" style="display: ${isQT4 ? "block" : "none"};">
+                            <button type="button" class="mplis-collapse-head" id="kg-bypass-toggle" aria-expanded="false" aria-controls="kg-bypass-body">
+                                <span class="mplis-section-label">QT4 · Bỏ qua cảnh báo liên kết không gian</span>
+                                <span class="mplis-collapse-state ${isBypassSpatialLinkChecked ? "on" : ""}" id="kg-bypass-state">${isBypassSpatialLinkChecked ? "Bật" : "Tắt"}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="kg-bypass-body">
+                                <div class="mplis-checkbox-group">
+                                    <label><input type="checkbox" id="chk-bypass-kg" ${isBypassSpatialLinkChecked}> Tự bỏ qua cảnh báo "chưa liên kết không gian" khi Kết ISO</label>
+                                </div>
+                                <div class="mplis-hint" style="margin:8px 0 0;">Thay cho việc tự F12 vá request ThucHienKetISO bằng tay. <b>Mặc định TẮT</b> - chỉ bật khi biết chắc hồ sơ đã đúng, chỉ vướng lỗi liên kết giả/kỹ thuật. Áp dụng ngay, không cần tải lại trang.</div>
                             </div>
                         </div>
 
@@ -3794,6 +3809,18 @@
         localStorage.setItem("mplis_notify_capture_enabled", e.target.checked ? "true" : "false");
       };
     }
+    const chkBypassSpatialLink = document.getElementById("chk-bypass-kg");
+    if (chkBypassSpatialLink) {
+      chkBypassSpatialLink.onchange = (e) => {
+        const checked = e.target.checked;
+        localStorage.setItem("mplis_bypass_spatial_link_enabled", checked ? "true" : "false");
+        const stateEl = document.getElementById("kg-bypass-state");
+        if (stateEl) {
+          stateEl.textContent = checked ? "Bật" : "Tắt";
+          stateEl.classList.toggle("on", checked);
+        }
+      };
+    }
     if (localStorage.getItem("mplis_auto_minimized") === "true") panel.classList.add("minimized");
     document.getElementById("mplis-btn-minimize").onclick = () => {
       panel.classList.add("minimized");
@@ -3866,6 +3893,7 @@
     };
     bindCollapse("qt2-file-group", "qt2-file-toggle", "mplis_qt2_file_open");
     bindCollapse("fw-user-group", "fw-user-toggle", "mplis_fw_user_open");
+    bindCollapse("kg-bypass-group", "kg-bypass-toggle", "mplis_kg_bypass_open");
     document.getElementById("chk-qt2-selectall").onchange = (e) => {
       const checked = e.target.checked;
       document.getElementById("qt2-file-hint").textContent = qt2FileHint(checked);
@@ -3880,6 +3908,8 @@
         ProcessModule.saveConfig({ activeWorkflows: checked });
         const qt2Group = document.getElementById("qt2-file-group");
         if (qt2Group) qt2Group.style.display = checked.includes("QT2") ? "block" : "none";
+        const kgGroup = document.getElementById("kg-bypass-group");
+        if (kgGroup) kgGroup.style.display = checked.includes("QT4") ? "block" : "none";
       };
     });
     document.getElementById("btn-toggle-process").onclick = toggleProcess;
@@ -4468,6 +4498,61 @@
     setTimeout(pollWorkList, 3e3);
     topWin.MPLIS_POLL_ALL_STATUSES = pollAllStatuses;
   }
+
+  // src/spatial-link-bypass.js
+  var ENABLED_KEY3 = "mplis_bypass_spatial_link_enabled";
+  var ENDPOINT = "ThucHienKetISO";
+  function isSpatialLinkBypassEnabled() {
+    try {
+      return localStorage.getItem(ENABLED_KEY3) === "true";
+    } catch (e) {
+      return false;
+    }
+  }
+  function patchJsonBody(bodyStr) {
+    try {
+      const obj = JSON.parse(bodyStr);
+      if (obj.bypassWarning === true) return bodyStr;
+      obj.bypassWarning = true;
+      return JSON.stringify(obj);
+    } catch (e) {
+      return bodyStr;
+    }
+  }
+  function installAjaxPatch() {
+    const jq = typeof unsafeWindow !== "undefined" ? unsafeWindow.$ : null;
+    if (!jq || !jq.ajaxPrefilter) return;
+    jq.ajaxPrefilter((options) => {
+      if (!isSpatialLinkBypassEnabled()) return;
+      if (typeof options.url !== "string" || options.url.indexOf(ENDPOINT) === -1) return;
+      if (typeof options.data === "string") {
+        options.data = patchJsonBody(options.data);
+      } else if (options.data && typeof options.data === "object") {
+        options.data.bypassWarning = true;
+      }
+      console.log("[MPLIS] Đã tự chèn bypassWarning=true vào request " + ENDPOINT + " (qua $.ajax).");
+    });
+  }
+  function installFetchPatch() {
+    if (typeof unsafeWindow === "undefined" || typeof unsafeWindow.fetch !== "function") return;
+    if (unsafeWindow.fetch.__mplisSpatialPatched) return;
+    const originalFetch = unsafeWindow.fetch;
+    const patchedFetch = function(input, init) {
+      try {
+        const url = typeof input === "string" ? input : input && input.url || "";
+        if (isSpatialLinkBypassEnabled() && url.indexOf(ENDPOINT) !== -1 && init && typeof init.body === "string") {
+          init = Object.assign({}, init, { body: patchJsonBody(init.body) });
+          console.log("[MPLIS] Đã tự chèn bypassWarning=true vào request " + ENDPOINT + " (qua fetch).");
+        }
+      } catch (e) {
+      }
+      return originalFetch.call(this, input, init);
+    };
+    patchedFetch.__mplisSpatialPatched = true;
+    unsafeWindow.fetch = patchedFetch;
+  }
+  installAjaxPatch();
+  installFetchPatch();
 
   // src/main.js
   if (window === window.top) {

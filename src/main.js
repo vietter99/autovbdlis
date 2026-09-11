@@ -12,6 +12,7 @@ import './receipt-copy.js';
 import './bien-dong-capture.js';
 import './phaply-default.js';
 import './notify-capture.js';
+import './spatial-link-bypass.js';
 
     if (window === window.top) {
         const checkBody = setInterval(() => {

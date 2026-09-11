@@ -43,6 +43,9 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         // import lẫn nhau, chỉ cần khớp đúng tên khoá 'mplis_phaply_autofill_enabled'.
         const isPhapLyAutofillChecked = localStorage.getItem('mplis_phaply_autofill_enabled') !== 'false' ? 'checked' : '';
         const isNotifyCaptureChecked = localStorage.getItem('mplis_notify_capture_enabled') !== 'false' ? 'checked' : '';
+        // Đọc chung 1 khoá localStorage với spatial-link-bypass.js - mặc định TẮT (khác các ô
+        // trên) vì đây là bypass cảnh báo nghiệp vụ, không phải tiện ích an toàn.
+        const isBypassSpatialLinkChecked = localStorage.getItem('mplis_bypass_spatial_link_enabled') === 'true' ? 'checked' : '';
 
         // Câu mô tả dưới ô "Chọn hết file" - đổi theo trạng thái để nhìn là biết tool sắp làm gì,
         // khỏi phải nhớ ý nghĩa của ô tích.
@@ -143,6 +146,20 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                             <div class="mplis-collapse-body" id="fw-user-body">
                                 <input type="text" id="cfg-p-forwardUser" value="${escapeHtml(pCfg.forwardUser || '')}" placeholder="Tên tài khoản, VD: dla.thoitd" style="background: rgba(0,0,0,0.25); border: 1px solid var(--mplis-border); border-radius: 8px; padding: 8px 10px; color: #f8fafc; width: 100%; font-size: 12px;">
                                 <div class="mplis-hint" style="margin:8px 0 0;">Bỏ trống thì tool dừng lại sau Kết ISO, không chuyển cho ai.</div>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="kg-bypass-group" style="display: ${isQT4 ? 'block' : 'none'};">
+                            <button type="button" class="mplis-collapse-head" id="kg-bypass-toggle" aria-expanded="false" aria-controls="kg-bypass-body">
+                                <span class="mplis-section-label">QT4 · Bỏ qua cảnh báo liên kết không gian</span>
+                                <span class="mplis-collapse-state ${isBypassSpatialLinkChecked ? 'on' : ''}" id="kg-bypass-state">${isBypassSpatialLinkChecked ? 'Bật' : 'Tắt'}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="kg-bypass-body">
+                                <div class="mplis-checkbox-group">
+                                    <label><input type="checkbox" id="chk-bypass-kg" ${isBypassSpatialLinkChecked}> Tự bỏ qua cảnh báo "chưa liên kết không gian" khi Kết ISO</label>
+                                </div>
+                                <div class="mplis-hint" style="margin:8px 0 0;">Thay cho việc tự F12 vá request ThucHienKetISO bằng tay. <b>Mặc định TẮT</b> - chỉ bật khi biết chắc hồ sơ đã đúng, chỉ vướng lỗi liên kết giả/kỹ thuật. Áp dụng ngay, không cần tải lại trang.</div>
                             </div>
                         </div>
 
@@ -349,6 +366,21 @@ import { toggleProcess, toggleReturn } from './toggle.js';
             };
         }
 
+        // spatial-link-bypass.js đọc localStorage mỗi request ThucHienKetISO chứ không đọc 1 lần
+        // lúc tải trang, nên đổi công tắc này áp dụng ngay - không cần F5 (giống chk-phaply-autofill).
+        const chkBypassSpatialLink = document.getElementById('chk-bypass-kg');
+        if (chkBypassSpatialLink) {
+            chkBypassSpatialLink.onchange = (e) => {
+                const checked = e.target.checked;
+                localStorage.setItem('mplis_bypass_spatial_link_enabled', checked ? 'true' : 'false');
+                const stateEl = document.getElementById('kg-bypass-state');
+                if (stateEl) {
+                    stateEl.textContent = checked ? 'Bật' : 'Tắt';
+                    stateEl.classList.toggle('on', checked);
+                }
+            };
+        }
+
         if (localStorage.getItem('mplis_auto_minimized') === 'true') panel.classList.add('minimized');
 
         // --- Events ---
@@ -431,6 +463,7 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         // Nhớ trạng thái đóng/mở qua F5, giống cách nút 3 chấm nhớ mplis_extra_tabs_visible
         bindCollapse('qt2-file-group', 'qt2-file-toggle', 'mplis_qt2_file_open');
         bindCollapse('fw-user-group', 'fw-user-toggle', 'mplis_fw_user_open');
+        bindCollapse('kg-bypass-group', 'kg-bypass-toggle', 'mplis_kg_bypass_open');
 
         document.getElementById('chk-qt2-selectall').onchange = (e) => {
             const checked = e.target.checked;
@@ -448,6 +481,9 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                 // Ô "Chọn hết file" chỉ có nghĩa khi QT2 đang chạy - ẩn đi cho đỡ rối khi tắt QT2
                 const qt2Group = document.getElementById('qt2-file-group');
                 if (qt2Group) qt2Group.style.display = checked.includes('QT2') ? 'block' : 'none';
+                // Bypass liên kết không gian chỉ có nghĩa khi QT4 đang chạy - ẩn đi cho đỡ rối khi tắt QT4
+                const kgGroup = document.getElementById('kg-bypass-group');
+                if (kgGroup) kgGroup.style.display = checked.includes('QT4') ? 'block' : 'none';
             };
         });
 
