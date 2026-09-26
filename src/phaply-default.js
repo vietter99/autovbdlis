@@ -1,10 +1,15 @@
+import { findCurrentMaHS } from './utils.js';
+
 // Tự điền 2 mặc định ở màn hình "Cập nhật pháp lý giấy chứng nhận":
 //   1. Tích ô "Chính thức có pháp lý"  (#chkdaCongNhanPhapLy, name="daCongNhanPhapLy")
 //   2. Chọn Loại giấy chứng nhận = "Giấy chứng nhận QSDĐ, QSHTSGLVĐ năm 2024"
 //      (#ddlloaiGiayChungNhanId, name="loaiGiayChungNhanId", option value 98)
 //   3. Điền Người ký (#txttenNguoiKy) bằng tên "CB chuyển" hiện trên trang, đổi từ VIẾT HOA
 //      TOÀN BỘ sang viết hoa chữ đầu
-//   4. Điền Ngày vào sổ (input[name="ngayVaoSo"]) bằng ngày hôm nay
+//   4. Điền Ngày vào sổ (input[name="ngayVaoSo"]) bằng ngày hôm nay - riêng ô này còn TỰ CẬP
+//      NHẬT lại thành hôm nay nếu hồ sơ bị để qua ngày mới mà người dùng chưa tự tay đổi ngày
+//      (xem AUTO_DATE_KEY/dienNgayVaoSo bên dưới), phòng trường hợp làm không kịp, mai làm tiếp
+//      mà quên sửa nên lỡ lưu với ngày ký của hôm qua.
 //
 // Chạy độc lập với vòng auto của ProcessModule - mở form bằng tay cũng được điền, không cần
 // bấm "Bắt đầu Xử Lý". Mỗi phần tử chỉ được đụng vào ĐÚNG 1 LẦN (đánh dấu data-mplis-phaply):
@@ -147,13 +152,32 @@ function dinhDangNgayVN(d) {
     return `${dd}/${mm}/${d.getFullYear()}`;
 }
 
-function dienNgayVaoSo() {
-    const input = document.querySelector(NGAY_VAO_SO_SELECTOR);
-    if (!input || input.hasAttribute(DONE_ATTR) || !isFormVisible(input)) return;
+// Ghi nhớ ngày TOOL từng tự điền cho từng hồ sơ (theo mã hồ sơ, qua localStorage - sống sót cả
+// khi tải lại trang/đóng máy) - để phân biệt "người dùng chưa đụng vào, chỉ để hồ sơ qua ngày mới
+// rồi làm tiếp" (nên tự cập nhật lại thành hôm nay) với "người dùng đã tự tay chọn ngày khác" (giữ
+// nguyên, không đụng vào nữa dù có qua ngày).
+const AUTO_DATE_KEY = 'mplis_phaply_autodate';
 
-    input.setAttribute(DONE_ATTR, 'true');
-    if (input.value.trim()) return; // đã có ngày sẵn thì để nguyên
+function getStoredAutoDate(maHS) {
+    if (!maHS) return '';
+    try {
+        const stored = JSON.parse(localStorage.getItem(AUTO_DATE_KEY) || '{}');
+        return stored[maHS] || '';
+    } catch (e) { return ''; }
+}
 
+function saveStoredAutoDate(maHS, value) {
+    if (!maHS) return;
+    try {
+        const stored = JSON.parse(localStorage.getItem(AUTO_DATE_KEY) || '{}');
+        stored[maHS] = value;
+        localStorage.setItem(AUTO_DATE_KEY, JSON.stringify(stored));
+    } catch (e) { }
+}
+
+// Điền ô Ngày vào sổ bằng ngày hôm nay, trả về chữ đã điền được (đọc lại từ ô sau khi điền vì
+// datepicker có thể tự định dạng khác đi).
+function dienHomNayVaoO(input) {
     const jq = getJq();
     const homNay = new Date();
     let daDien = '';
@@ -178,6 +202,35 @@ function dienNgayVaoSo() {
         }
     }
 
+    return daDien;
+}
+
+function dienNgayVaoSo() {
+    const input = document.querySelector(NGAY_VAO_SO_SELECTOR);
+    if (!input || !isFormVisible(input)) return;
+
+    const maHS = findCurrentMaHS();
+    const todayStr = dinhDangNgayVN(new Date());
+    const currentVal = input.value.trim();
+    const lastAuto = getStoredAutoDate(maHS);
+
+    // Giá trị hiện tại đúng y hệt ngày mà TOOL từng tự điền cho hồ sơ này, nhưng không còn là
+    // hôm nay nữa - để hồ sơ qua ngày mới rồi quay lại làm tiếp, người dùng CHƯA tự tay sửa ô
+    // này. Tự cập nhật lại thành hôm nay (dù DOM đã tải lại, dù ô đã "xử lý xong" từ trước).
+    if (lastAuto && currentVal === lastAuto && currentVal !== todayStr) {
+        input.setAttribute(DONE_ATTR, 'true');
+        const daDien = dienHomNayVaoO(input);
+        saveStoredAutoDate(maHS, daDien);
+        console.log('[MPLIS PhapLy] Ngày vào sổ đã cũ (' + lastAuto + '), tự cập nhật lại thành hôm nay:', daDien);
+        return;
+    }
+
+    if (input.hasAttribute(DONE_ATTR)) return; // đã xử lý trong phiên form đang mở, không đụng nữa
+    input.setAttribute(DONE_ATTR, 'true');
+    if (currentVal) return; // đã có ngày khác (người dùng tự chọn) thì để nguyên
+
+    const daDien = dienHomNayVaoO(input);
+    saveStoredAutoDate(maHS, daDien);
     console.log('[MPLIS PhapLy] Đã điền Ngày vào sổ:', daDien);
 }
 

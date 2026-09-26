@@ -177,9 +177,7 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                     <div class="mplis-panel-body" id="tab-alert">
                         <div style="display:flex; gap:4px; background:var(--mplis-surface); padding:4px; border-radius:9px; margin-bottom:12px;">
                             <button class="mplis-filter-tab active" data-step="all" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#fff; cursor:pointer;">Tất cả</button>
-                            <button class="mplis-filter-tab" data-step="2" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">2·Xử lý</button>
-                            <button class="mplis-filter-tab" data-step="4" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">4·Thế chấp</button>
-                            <button class="mplis-filter-tab" data-step="5" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">5·Xác nhận</button>
+                            <button class="mplis-filter-tab" data-step="luutru" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">Lưu trữ hồ sơ</button>
                             <button class="mplis-filter-tab" data-step="iso" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">Kết ISO</button>
 
                         </div>

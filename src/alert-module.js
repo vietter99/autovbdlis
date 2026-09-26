@@ -74,40 +74,14 @@ import { fallbackCopyTextToClipboard } from './utils.js';
             return null;
         }
 
-        const TONGHOP_PROCS = [
-            'tách thửa hoặc hợp thửa đất - trường hợp không thay đổi người sử dụng đất',
-            'tách thửa hoặc hợp thửa đất - trường hợp có thay đổi người sử dụng đất',
-            'trường hợp cấp đổi giấy chứng nhận đã cấp theo quy định tại điểm h mục 1 phần vii'
-        ];
-
-        function isTongHop(dos) {
-            // Phải là bước 5. Lưu trữ hoặc 8. Lưu trữ
-            const isLuuTru = /^5\./.test(dos.buocXl) || /^8\./.test(dos.buocXl);
-            if (!isLuuTru) return false;
-            // Phải khớp một trong các tên thủ tục Tổng hợp
-            const rowText = (dos.element.textContent || '').toLowerCase();
-            return TONGHOP_PROCS.some(p => rowText.includes(p));
-        }
-
         function applyFilters() {
             let visibleCount = 0;
             state.allDossiers.forEach(dos => {
                 let isMatch = true;
 
-                if (state.currentTab === 'tonghop') {
-                    isMatch = isTongHop(dos);
-                } else {
-                    if (state.currentTab !== 'iso' && dos.isKetIso) isMatch = false;
-
-                    if (isMatch && state.currentTab !== 'all') {
-                        if (state.currentTab === 'iso') {
-                            if (!dos.isKetIso) isMatch = false;
-                        } else {
-                            const regex = new RegExp('(^|[^0-9])' + state.currentTab + '\\.');
-                            if (!regex.test(dos.buocXl)) isMatch = false;
-                        }
-                    }
-                }
+                if (state.currentTab !== 'iso' && dos.isKetIso) isMatch = false;
+                if (isMatch && state.currentTab === 'iso' && !dos.isKetIso) isMatch = false;
+                if (isMatch && state.currentTab === 'luutru' && !dos.buocXl.includes('Lưu trữ hồ sơ')) isMatch = false;
 
                 if (isMatch && state.searchQuery) {
                     const queryMatch = dos.maHoSo.toLowerCase().includes(state.searchQuery) ||
@@ -223,36 +197,19 @@ import { fallbackCopyTextToClipboard } from './utils.js';
                 }
 
                 if (maHoSoFull) {
-                    if ((buocXl.includes('4.') || buocXl.includes('5.')) && col1 && !col1.querySelector('.mplis-btn-copy')) {
-                        const copyBtn = document.createElement('a');
-                        copyBtn.className = 'mplis-btn-copy';
-                        copyBtn.innerHTML = '<span style="font-size:10px; font-weight:bold;">COPY</span>';
-                        copyBtn.style.cssText = 'margin-left:8px; cursor:pointer; color:#0ea5e9; font-size:14px; transition: color 0.2s;';
-                        copyBtn.title = 'Copy nhanh: Loại HS | Mã HS | Người Nộp | Địa Chỉ';
-                        copyBtn.onclick = (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const textToCopy = `${loaiHoSo}\t${maHoSoRutGon}\t${nguoiNop}\t${diaChi}`;
-                            fallbackCopyTextToClipboard(textToCopy).then(() => {
-                                copyBtn.innerHTML = '<span style="color:#10b981; font-size:10px; font-weight:bold;">OK</span>';
-                                setTimeout(() => {
-                                    copyBtn.innerHTML = '<span style="font-size:10px; font-weight:bold;">COPY</span>';
-                                }, 2000);
-                            });
-                        };
-                        if (maHoSoEl) maHoSoEl.parentNode.appendChild(copyBtn);
-                    }
-
                     const dossier = { maHoSo: maHoSoFull, maHoSoRutGon, loaiHoSo, diaChi, tiepNhanStr, henTraStr, buocXl, nguoiNop, isPaused, isKetIso, element: tr };
                     state.allDossiers.push(dossier);
 
                     tr.style.backgroundColor = '';
                     tr.style.borderLeft = '';
 
+                    // Chỉ báo trễ hạn khi buocXl có chữ "Lưu trữ hồ sơ" (của tôi).
+                    const isCuaToi = buocXl.includes('Lưu trữ hồ sơ');
+
                     if (isPaused) {
                         tr.style.backgroundColor = '#f1f5f9';
                         tr.style.borderLeft = '4px solid #94a3b8';
-                    } else if (henTraStr && !isKetIso) {
+                    } else if (henTraStr && !isKetIso && isCuaToi) {
                         const henTra = parseDateVn(henTraStr);
                         if (henTra) {
                             const diffMs = henTra - now;

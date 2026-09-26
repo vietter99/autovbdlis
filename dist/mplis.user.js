@@ -3176,34 +3176,13 @@
       }
       return null;
     }
-    const TONGHOP_PROCS = [
-      "tách thửa hoặc hợp thửa đất - trường hợp không thay đổi người sử dụng đất",
-      "tách thửa hoặc hợp thửa đất - trường hợp có thay đổi người sử dụng đất",
-      "trường hợp cấp đổi giấy chứng nhận đã cấp theo quy định tại điểm h mục 1 phần vii"
-    ];
-    function isTongHop(dos) {
-      const isLuuTru = /^5\./.test(dos.buocXl) || /^8\./.test(dos.buocXl);
-      if (!isLuuTru) return false;
-      const rowText = (dos.element.textContent || "").toLowerCase();
-      return TONGHOP_PROCS.some((p) => rowText.includes(p));
-    }
     function applyFilters() {
       let visibleCount = 0;
       state.allDossiers.forEach((dos) => {
         let isMatch = true;
-        if (state.currentTab === "tonghop") {
-          isMatch = isTongHop(dos);
-        } else {
-          if (state.currentTab !== "iso" && dos.isKetIso) isMatch = false;
-          if (isMatch && state.currentTab !== "all") {
-            if (state.currentTab === "iso") {
-              if (!dos.isKetIso) isMatch = false;
-            } else {
-              const regex = new RegExp("(^|[^0-9])" + state.currentTab + "\\.");
-              if (!regex.test(dos.buocXl)) isMatch = false;
-            }
-          }
-        }
+        if (state.currentTab !== "iso" && dos.isKetIso) isMatch = false;
+        if (isMatch && state.currentTab === "iso" && !dos.isKetIso) isMatch = false;
+        if (isMatch && state.currentTab === "luutru" && !dos.buocXl.includes("Lưu trữ hồ sơ")) isMatch = false;
         if (isMatch && state.searchQuery) {
           const queryMatch = dos.maHoSo.toLowerCase().includes(state.searchQuery) || dos.nguoiNop.toLowerCase().includes(state.searchQuery);
           if (!queryMatch) isMatch = false;
@@ -3300,33 +3279,15 @@
           if (bElements.length > 0) nguoiNop = bElements[0].textContent.trim().toUpperCase();
         }
         if (maHoSoFull) {
-          if ((buocXl.includes("4.") || buocXl.includes("5.")) && col1 && !col1.querySelector(".mplis-btn-copy")) {
-            const copyBtn = document.createElement("a");
-            copyBtn.className = "mplis-btn-copy";
-            copyBtn.innerHTML = '<span style="font-size:10px; font-weight:bold;">COPY</span>';
-            copyBtn.style.cssText = "margin-left:8px; cursor:pointer; color:#0ea5e9; font-size:14px; transition: color 0.2s;";
-            copyBtn.title = "Copy nhanh: Loại HS | Mã HS | Người Nộp | Địa Chỉ";
-            copyBtn.onclick = (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const textToCopy = `${loaiHoSo}	${maHoSoRutGon}	${nguoiNop}	${diaChi}`;
-              fallbackCopyTextToClipboard(textToCopy).then(() => {
-                copyBtn.innerHTML = '<span style="color:#10b981; font-size:10px; font-weight:bold;">OK</span>';
-                setTimeout(() => {
-                  copyBtn.innerHTML = '<span style="font-size:10px; font-weight:bold;">COPY</span>';
-                }, 2e3);
-              });
-            };
-            if (maHoSoEl) maHoSoEl.parentNode.appendChild(copyBtn);
-          }
           const dossier = { maHoSo: maHoSoFull, maHoSoRutGon, loaiHoSo, diaChi, tiepNhanStr, henTraStr, buocXl, nguoiNop, isPaused, isKetIso, element: tr };
           state.allDossiers.push(dossier);
           tr.style.backgroundColor = "";
           tr.style.borderLeft = "";
+          const isCuaToi = buocXl.includes("Lưu trữ hồ sơ");
           if (isPaused) {
             tr.style.backgroundColor = "#f1f5f9";
             tr.style.borderLeft = "4px solid #94a3b8";
-          } else if (henTraStr && !isKetIso) {
+          } else if (henTraStr && !isKetIso && isCuaToi) {
             const henTra = parseDateVn(henTraStr);
             if (henTra) {
               const diffMs = henTra - now;
@@ -3628,9 +3589,7 @@
                     <div class="mplis-panel-body" id="tab-alert">
                         <div style="display:flex; gap:4px; background:var(--mplis-surface); padding:4px; border-radius:9px; margin-bottom:12px;">
                             <button class="mplis-filter-tab active" data-step="all" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#fff; cursor:pointer;">Tất cả</button>
-                            <button class="mplis-filter-tab" data-step="2" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">2·Xử lý</button>
-                            <button class="mplis-filter-tab" data-step="4" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">4·Thế chấp</button>
-                            <button class="mplis-filter-tab" data-step="5" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">5·Xác nhận</button>
+                            <button class="mplis-filter-tab" data-step="luutru" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">Lưu trữ hồ sơ</button>
                             <button class="mplis-filter-tab" data-step="iso" style="flex:1; padding:8px 0; font-size:12px; border:none; background:transparent; border-radius:6px; color:#94a3b8; cursor:pointer;">Kết ISO</button>
 
                         </div>
@@ -4169,11 +4128,26 @@
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     return `${dd}/${mm}/${d.getFullYear()}`;
   }
-  function dienNgayVaoSo() {
-    const input = document.querySelector(NGAY_VAO_SO_SELECTOR);
-    if (!input || input.hasAttribute(DONE_ATTR) || !isFormVisible(input)) return;
-    input.setAttribute(DONE_ATTR, "true");
-    if (input.value.trim()) return;
+  var AUTO_DATE_KEY = "mplis_phaply_autodate";
+  function getStoredAutoDate(maHS) {
+    if (!maHS) return "";
+    try {
+      const stored = JSON.parse(localStorage.getItem(AUTO_DATE_KEY) || "{}");
+      return stored[maHS] || "";
+    } catch (e) {
+      return "";
+    }
+  }
+  function saveStoredAutoDate(maHS, value) {
+    if (!maHS) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(AUTO_DATE_KEY) || "{}");
+      stored[maHS] = value;
+      localStorage.setItem(AUTO_DATE_KEY, JSON.stringify(stored));
+    } catch (e) {
+    }
+  }
+  function dienHomNayVaoO(input) {
     const jq = getJq();
     const homNay = /* @__PURE__ */ new Date();
     let daDien = "";
@@ -4193,6 +4167,27 @@
         input.dispatchEvent(new Event("change", { bubbles: true }));
       }
     }
+    return daDien;
+  }
+  function dienNgayVaoSo() {
+    const input = document.querySelector(NGAY_VAO_SO_SELECTOR);
+    if (!input || !isFormVisible(input)) return;
+    const maHS = findCurrentMaHS();
+    const todayStr = dinhDangNgayVN(/* @__PURE__ */ new Date());
+    const currentVal = input.value.trim();
+    const lastAuto = getStoredAutoDate(maHS);
+    if (lastAuto && currentVal === lastAuto && currentVal !== todayStr) {
+      input.setAttribute(DONE_ATTR, "true");
+      const daDien2 = dienHomNayVaoO(input);
+      saveStoredAutoDate(maHS, daDien2);
+      console.log("[MPLIS PhapLy] Ngày vào sổ đã cũ (" + lastAuto + "), tự cập nhật lại thành hôm nay:", daDien2);
+      return;
+    }
+    if (input.hasAttribute(DONE_ATTR)) return;
+    input.setAttribute(DONE_ATTR, "true");
+    if (currentVal) return;
+    const daDien = dienHomNayVaoO(input);
+    saveStoredAutoDate(maHS, daDien);
     console.log("[MPLIS PhapLy] Đã điền Ngày vào sổ:", daDien);
   }
   function goDauKhiFormDong() {
