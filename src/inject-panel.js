@@ -43,6 +43,9 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         // import lẫn nhau, chỉ cần khớp đúng tên khoá 'mplis_phaply_autofill_enabled'.
         const isPhapLyAutofillChecked = localStorage.getItem('mplis_phaply_autofill_enabled') !== 'false' ? 'checked' : '';
         const isNotifyCaptureChecked = localStorage.getItem('mplis_notify_capture_enabled') !== 'false' ? 'checked' : '';
+        // Ngày vào sổ chọn sẵn - đọc chung khoá 'mplis_phaply_ngay_vao_so' với phaply-default.js.
+        // Để trống = tool tự điền ngày hôm nay.
+        const phapLyNgayVaoSo = (localStorage.getItem('mplis_phaply_ngay_vao_so') || '').trim();
         // Đọc chung 1 khoá localStorage với spatial-link-bypass.js - mặc định TẮT (khác các ô
         // trên) vì đây là bypass cảnh báo nghiệp vụ, không phải tiện ích an toàn.
         const isBypassSpatialLinkChecked = localStorage.getItem('mplis_bypass_spatial_link_enabled') === 'true' ? 'checked' : '';
@@ -309,9 +312,16 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                                 <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked} style="margin-top:2px;">
                                 <span>
                                     Tự điền màn hình Cập nhật pháp lý<br/>
-                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ là hôm nay. Sửa tay đè lên lúc nào cũng được. Tắt thì để nguyên form, tự điền tay hết.</span>
+                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ theo ô dưới. Sửa tay đè lên lúc nào cũng được. Tắt thì để nguyên form, tự điền tay hết.</span>
                                 </span>
                             </label>
+
+                            <div style="display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
+                                <label for="cfg-phaply-ngay-vao-so" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Ngày vào sổ:</label>
+                                <input type="date" id="cfg-phaply-ngay-vao-so" value="${escapeHtml(phapLyNgayVaoSo)}" style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px; color-scheme:dark;">
+                                <button type="button" id="btn-phaply-ngay-hom-nay" class="mplis-btn-ghost" style="padding:7px 10px; font-size:11.5px; flex-shrink:0;">Hôm nay</button>
+                            </div>
+                            <div id="phaply-ngay-state" style="margin-top:6px; font-size:11.5px; line-height:1.5;"></div>
                         </div>
 
                         <span class="mplis-section-label">Thông báo hồ sơ mới</span>
@@ -353,6 +363,43 @@ import { toggleProcess, toggleReturn } from './toggle.js';
             chkPhapLyAutofill.onchange = (e) => {
                 localStorage.setItem('mplis_phaply_autofill_enabled', e.target.checked ? 'true' : 'false');
             };
+        }
+
+        // Ô chọn Ngày vào sổ. Để trống = hôm nay (mặc định). Chọn ngày cụ thể thì MỌI hồ sơ điền
+        // ngày đó cho tới khi bấm "Hôm nay" - dễ quên nên dòng trạng thái dưới ô tô màu cảnh báo.
+        const inpPhapLyNgay = document.getElementById('cfg-phaply-ngay-vao-so');
+        const statePhapLyNgay = document.getElementById('phaply-ngay-state');
+        if (inpPhapLyNgay && statePhapLyNgay) {
+            const veTrangThai = () => {
+                const val = inpPhapLyNgay.value.trim();
+                if (!val) {
+                    statePhapLyNgay.style.color = 'var(--mplis-text-dim)';
+                    statePhapLyNgay.textContent = 'Đang để trống: tự điền ngày hôm nay.';
+                    return;
+                }
+                const [yyyy, mm, dd] = val.split('-');
+                statePhapLyNgay.style.color = '#f59e0b';
+                statePhapLyNgay.textContent = '⚠️ Cố định ' + dd + '/' + mm + '/' + yyyy
+                    + ' cho mọi hồ sơ. Bấm "Hôm nay" để trả về mặc định.';
+            };
+
+            const luuNgay = () => {
+                try { localStorage.setItem('mplis_phaply_ngay_vao_so', inpPhapLyNgay.value.trim()); } catch (e) { }
+                veTrangThai();
+            };
+
+            inpPhapLyNgay.onchange = luuNgay;
+            inpPhapLyNgay.oninput = luuNgay;
+
+            const btnNgayHomNay = document.getElementById('btn-phaply-ngay-hom-nay');
+            if (btnNgayHomNay) {
+                btnNgayHomNay.onclick = () => {
+                    inpPhapLyNgay.value = '';
+                    luuNgay();
+                };
+            }
+
+            veTrangThai();
         }
 
         // notify-capture.js chỉ chạy pollWorkList() 1 lần lúc tải trang - khác phaply-default, đổi

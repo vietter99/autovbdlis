@@ -6,10 +6,11 @@ import { findCurrentMaHS } from './utils.js';
 //      (#ddlloaiGiayChungNhanId, name="loaiGiayChungNhanId", option value 98)
 //   3. Điền Người ký (#txttenNguoiKy) bằng tên "CB chuyển" hiện trên trang, đổi từ VIẾT HOA
 //      TOÀN BỘ sang viết hoa chữ đầu
-//   4. Điền Ngày vào sổ (input[name="ngayVaoSo"]) bằng ngày hôm nay - riêng ô này còn TỰ CẬP
-//      NHẬT lại thành hôm nay nếu hồ sơ bị để qua ngày mới mà người dùng chưa tự tay đổi ngày
-//      (xem AUTO_DATE_KEY/dienNgayVaoSo bên dưới), phòng trường hợp làm không kịp, mai làm tiếp
-//      mà quên sửa nên lỡ lưu với ngày ký của hôm qua.
+//   4. Điền Ngày vào sổ (input[name="ngayVaoSo"]) bằng NGÀY CHỌN SẴN trong tab Cài đặt, để
+//      trống thì lấy ngày hôm nay. Riêng ô này còn TỰ CẬP NHẬT lại theo ngày chọn/hôm nay nếu
+//      hồ sơ bị để qua ngày mới mà người dùng chưa tự tay đổi ngày (xem AUTO_DATE_KEY/
+//      dienNgayVaoSo bên dưới), phòng trường hợp làm không kịp, mai làm tiếp mà quên sửa nên
+//      lỡ lưu với ngày ký của hôm qua.
 //
 // Chạy độc lập với vòng auto của ProcessModule - mở form bằng tay cũng được điền, không cần
 // bấm "Bắt đầu Xử Lý". Mỗi phần tử chỉ được đụng vào ĐÚNG 1 LẦN (đánh dấu data-mplis-phaply):
@@ -112,16 +113,102 @@ function vietHoaChuDau(text) {
         .join(' ');
 }
 
+function dangHien(el) {
+    if (!el || !el.offsetParent) return false;
+    try {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+    } catch (e) {
+        return false;
+    }
+}
+
 // Ô "CB chuyển" không có id, chỉ là 2 div float cạnh nhau: div nhãn rồi div giá trị.
 // Bắt theo chữ "CB chuyển" rồi lấy thẻ <b> trong div kế bên.
+// Trang liệt kê NHIỀU bước xử lý cùng lúc, mỗi bước 1 khối "CB chuyển" - cấu trúc DOM của các
+// khối GIỐNG HỆT nhau (div.row > div.col-md-3 > div.row > div.col-md-12 > div > span), lại nằm
+// ở panel khác với ô Người ký (#frmThongTinGiayChungNhan), nên KHÔNG phân biệt được bằng khoảng
+// cách DOM hay toạ độ. Phân biệt bằng NGÀY của bước: bước mới nhất là bước vừa chuyển cho mình.
+function layKhoiBuoc(label) {
+    // Cả bước xử lý nằm trong div.row bọc ngoài cột col-md-3 chứa khối "CB chuyển".
+    const cot = label.closest('.col-md-3, .col-md-4, .col-md-6');
+    return (cot && cot.parentElement) || label.closest('.row') || label.parentElement;
+}
+
+// Lấy mốc thời gian LỚN NHẤT xuất hiện trong chữ của bước (dd/mm/yyyy, có thể kèm HH:mm).
+function layMocThoiGian(text) {
+    const re = /(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/g;
+    let m, max = 0;
+    while ((m = re.exec(text)) !== null) {
+        const t = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]),
+            Number(m[4] || 0), Number(m[5] || 0)).getTime();
+        if (t > max) max = t;
+    }
+    return max;
+}
+
+function layTatCaCbChuyen() {
+    return Array.from(document.querySelectorAll('span'))
+        .filter(s => (s.textContent || '').trim().toLowerCase().startsWith('cb chuyển'))
+        .map(label => {
+            const valueBox = label.parentElement && label.parentElement.nextElementSibling;
+            const b = valueBox ? valueBox.querySelector('b') : null;
+            const name = b ? b.textContent.trim() : '';
+            if (!name) return null;
+            const khoi = layKhoiBuoc(label);
+            const chuBuoc = ((khoi && khoi.textContent) || '').replace(/\s+/g, ' ').trim();
+            return { label, name, chuBuoc, moc: layMocThoiGian(chuBuoc) };
+        })
+        .filter(c => c && dangHien(c.label));
+}
+
+// Chọn bước MỚI NHẤT theo ngày đọc được trong chữ của bước. Không bước nào có ngày (trang đổi
+// cách hiện, hoặc khối không nằm trong bước) thì lấy khối ĐẦU TIÊN - danh sách bước xếp mới nhất
+// lên trên, khối đầu là bước vừa chuyển cho mình.
+function chonKhoiMoiNhat(list) {
+    const coMoc = list.filter(c => c.moc > 0);
+    if (!coMoc.length) return list[0];
+    return coMoc.reduce((a, b) => (b.moc > a.moc ? b : a));
+}
+
+// Mô tả vị trí 1 thẻ trong DOM để đọc được trong console: chuỗi tag#id.class leo lên 6 cấp.
+function moTaViTri(el) {
+    const parts = [];
+    for (let node = el, i = 0; node && node.tagName && i < 6; node = node.parentElement, i++) {
+        let s = node.tagName.toLowerCase();
+        if (node.id) s += '#' + node.id;
+        const cls = (node.className || '').toString().trim().split(/\s+/).filter(Boolean).slice(0, 2);
+        if (cls.length) s += '.' + cls.join('.');
+        parts.unshift(s);
+    }
+    return parts.join(' > ');
+}
+
+// In ra từng khối "CB chuyển" đang hiện kèm mốc thời gian đọc được và chữ của bước - sai lần nào
+// cũng nhìn log là biết trang cho chữ gì, không phải đoán.
+function dumpCbChuyen(list, chon) {
+    console.log('[MPLIS PhapLy] === soi khối "CB chuyển" ===');
+    list.forEach((c, i) => {
+        let top = null;
+        try { top = Math.round(c.label.getBoundingClientRect().top); } catch (e) { }
+        const mocStr = c.moc ? new Date(c.moc).toLocaleString('vi-VN') : '(không đọc được ngày)';
+        console.log('  [' + i + ']' + (c === chon ? ' <== đang lấy' : '') + ' ' + c.name
+            + ' | moc=' + mocStr + ' | top=' + top);
+        console.log('      viTri: ' + moTaViTri(c.label));
+        console.log('      chuBuoc: ' + c.chuBuoc.slice(0, 300));
+    });
+}
+
 function layTenCbChuyen() {
-    const spans = Array.from(document.querySelectorAll('span'));
-    const label = spans.find(s => (s.textContent || '').trim().toLowerCase().startsWith('cb chuyển'));
-    if (!label || !label.parentElement) return '';
-    const valueBox = label.parentElement.nextElementSibling;
-    if (!valueBox) return '';
-    const b = valueBox.querySelector('b');
-    return b ? b.textContent.trim() : '';
+    const list = layTatCaCbChuyen();
+    if (!list.length) return '';
+    if (list.length === 1) return list[0].name;
+
+    const chon = chonKhoiMoiNhat(list);
+    console.log('[MPLIS PhapLy] Có ' + list.length + ' khối "CB chuyển" đang hiện ('
+        + list.map(c => c.name).join(' | ') + '), lấy bước mới nhất:', chon.name);
+    dumpCbChuyen(list, chon);
+    return chon.name;
 }
 
 function dienNguoiKy() {
@@ -158,6 +245,26 @@ function dinhDangNgayVN(d) {
 // nguyên, không đụng vào nữa dù có qua ngày).
 const AUTO_DATE_KEY = 'mplis_phaply_autodate';
 
+// Ngày người dùng chọn sẵn trong tab Cài đặt (dạng yyyy-mm-dd của <input type="date">). Để trống
+// thì tool lấy ngày hôm nay - đúng hành vi trước khi có ô chọn này. Đọc lại mỗi vòng quét nên đổi
+// ngày trong bảng điều khiển là áp dụng ngay, không cần F5.
+const NGAY_CHON_KEY = 'mplis_phaply_ngay_vao_so';
+
+function layNgayMucTieu() {
+    let raw = '';
+    try { raw = (localStorage.getItem(NGAY_CHON_KEY) || '').trim(); } catch (e) { }
+
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+    if (m) {
+        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        // Chặn ngày rác kiểu 2026-02-31 (Date tự nhảy sang 03/03) - lệch thì bỏ, dùng hôm nay.
+        if (d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3])) {
+            return d;
+        }
+    }
+    return new Date();
+}
+
 function getStoredAutoDate(maHS) {
     if (!maHS) return '';
     try {
@@ -175,11 +282,10 @@ function saveStoredAutoDate(maHS, value) {
     } catch (e) { }
 }
 
-// Điền ô Ngày vào sổ bằng ngày hôm nay, trả về chữ đã điền được (đọc lại từ ô sau khi điền vì
+// Điền ô Ngày vào sổ bằng ngày truyền vào, trả về chữ đã điền được (đọc lại từ ô sau khi điền vì
 // datepicker có thể tự định dạng khác đi).
-function dienHomNayVaoO(input) {
+function dienNgayVaoO(input, ngay) {
     const jq = getJq();
-    const homNay = new Date();
     let daDien = '';
 
     // Ô này là jQuery UI datepicker (class hasDatepicker). Gọi setDate để widget tự định dạng
@@ -187,13 +293,13 @@ function dienHomNayVaoO(input) {
     // ô hiện đúng chữ nhưng datepicker vẫn giữ ngày cũ, mở lịch ra sẽ thấy lệch.
     if (jq && jq.fn && jq.fn.datepicker && input.classList.contains('hasDatepicker')) {
         try {
-            jq(input).datepicker('setDate', homNay);
+            jq(input).datepicker('setDate', ngay);
             daDien = input.value.trim();
         } catch (e) { }
     }
 
     if (!daDien) {
-        daDien = dinhDangNgayVN(homNay);
+        daDien = dinhDangNgayVN(ngay);
         input.value = daDien;
         if (jq) jq(input).val(daDien).trigger('input').trigger('change');
         else {
@@ -210,18 +316,20 @@ function dienNgayVaoSo() {
     if (!input || !isFormVisible(input)) return;
 
     const maHS = findCurrentMaHS();
-    const todayStr = dinhDangNgayVN(new Date());
+    const ngayMucTieu = layNgayMucTieu();
+    const mucTieuStr = dinhDangNgayVN(ngayMucTieu);
     const currentVal = input.value.trim();
     const lastAuto = getStoredAutoDate(maHS);
 
-    // Giá trị hiện tại đúng y hệt ngày mà TOOL từng tự điền cho hồ sơ này, nhưng không còn là
-    // hôm nay nữa - để hồ sơ qua ngày mới rồi quay lại làm tiếp, người dùng CHƯA tự tay sửa ô
-    // này. Tự cập nhật lại thành hôm nay (dù DOM đã tải lại, dù ô đã "xử lý xong" từ trước).
-    if (lastAuto && currentVal === lastAuto && currentVal !== todayStr) {
+    // Giá trị hiện tại đúng y hệt ngày mà TOOL từng tự điền cho hồ sơ này, nhưng không còn khớp
+    // ngày mục tiêu nữa - hoặc để hồ sơ qua ngày mới rồi quay lại làm tiếp, hoặc vừa đổi ngày
+    // chọn sẵn trong Cài đặt. Cả 2 trường hợp người dùng đều CHƯA tự tay sửa ô này, nên điền lại
+    // theo ngày mục tiêu (dù DOM đã tải lại, dù ô đã "xử lý xong" từ trước).
+    if (lastAuto && currentVal === lastAuto && currentVal !== mucTieuStr) {
         input.setAttribute(DONE_ATTR, 'true');
-        const daDien = dienHomNayVaoO(input);
+        const daDien = dienNgayVaoO(input, ngayMucTieu);
         saveStoredAutoDate(maHS, daDien);
-        console.log('[MPLIS PhapLy] Ngày vào sổ đã cũ (' + lastAuto + '), tự cập nhật lại thành hôm nay:', daDien);
+        console.log('[MPLIS PhapLy] Ngày vào sổ cũ (' + lastAuto + '), điền lại theo ngày mục tiêu:', daDien);
         return;
     }
 
@@ -229,7 +337,7 @@ function dienNgayVaoSo() {
     input.setAttribute(DONE_ATTR, 'true');
     if (currentVal) return; // đã có ngày khác (người dùng tự chọn) thì để nguyên
 
-    const daDien = dienHomNayVaoO(input);
+    const daDien = dienNgayVaoO(input, ngayMucTieu);
     saveStoredAutoDate(maHS, daDien);
     console.log('[MPLIS PhapLy] Đã điền Ngày vào sổ:', daDien);
 }

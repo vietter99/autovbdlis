@@ -3468,6 +3468,7 @@
     const isAutoConfirmChecked = isAutoConfirmEnabled() ? "checked" : "";
     const isPhapLyAutofillChecked = localStorage.getItem("mplis_phaply_autofill_enabled") !== "false" ? "checked" : "";
     const isNotifyCaptureChecked = localStorage.getItem("mplis_notify_capture_enabled") !== "false" ? "checked" : "";
+    const phapLyNgayVaoSo = (localStorage.getItem("mplis_phaply_ngay_vao_so") || "").trim();
     const isBypassSpatialLinkChecked = localStorage.getItem("mplis_bypass_spatial_link_enabled") === "true" ? "checked" : "";
     function qt2FileHint(selectAll) {
       return selectAll ? 'Bấm "Chọn tất cả" trước cho tích hết bảng, rồi lọc Số phát hành gỡ tích file sai đơn.' : "Chỉ tích file khớp Số phát hành của đơn, cộng file gt/pt dùng chung.";
@@ -3721,9 +3722,16 @@
                                 <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked} style="margin-top:2px;">
                                 <span>
                                     Tự điền màn hình Cập nhật pháp lý<br/>
-                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ là hôm nay. Sửa tay đè lên lúc nào cũng được. Tắt thì để nguyên form, tự điền tay hết.</span>
+                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ theo ô dưới. Sửa tay đè lên lúc nào cũng được. Tắt thì để nguyên form, tự điền tay hết.</span>
                                 </span>
                             </label>
+
+                            <div style="display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
+                                <label for="cfg-phaply-ngay-vao-so" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Ngày vào sổ:</label>
+                                <input type="date" id="cfg-phaply-ngay-vao-so" value="${escapeHtml(phapLyNgayVaoSo)}" style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px; color-scheme:dark;">
+                                <button type="button" id="btn-phaply-ngay-hom-nay" class="mplis-btn-ghost" style="padding:7px 10px; font-size:11.5px; flex-shrink:0;">Hôm nay</button>
+                            </div>
+                            <div id="phaply-ngay-state" style="margin-top:6px; font-size:11.5px; line-height:1.5;"></div>
                         </div>
 
                         <span class="mplis-section-label">Thông báo hồ sơ mới</span>
@@ -3761,6 +3769,38 @@
       chkPhapLyAutofill.onchange = (e) => {
         localStorage.setItem("mplis_phaply_autofill_enabled", e.target.checked ? "true" : "false");
       };
+    }
+    const inpPhapLyNgay = document.getElementById("cfg-phaply-ngay-vao-so");
+    const statePhapLyNgay = document.getElementById("phaply-ngay-state");
+    if (inpPhapLyNgay && statePhapLyNgay) {
+      const veTrangThai = () => {
+        const val = inpPhapLyNgay.value.trim();
+        if (!val) {
+          statePhapLyNgay.style.color = "var(--mplis-text-dim)";
+          statePhapLyNgay.textContent = "Đang để trống: tự điền ngày hôm nay.";
+          return;
+        }
+        const [yyyy, mm, dd] = val.split("-");
+        statePhapLyNgay.style.color = "#f59e0b";
+        statePhapLyNgay.textContent = "⚠️ Cố định " + dd + "/" + mm + "/" + yyyy + ' cho mọi hồ sơ. Bấm "Hôm nay" để trả về mặc định.';
+      };
+      const luuNgay = () => {
+        try {
+          localStorage.setItem("mplis_phaply_ngay_vao_so", inpPhapLyNgay.value.trim());
+        } catch (e) {
+        }
+        veTrangThai();
+      };
+      inpPhapLyNgay.onchange = luuNgay;
+      inpPhapLyNgay.oninput = luuNgay;
+      const btnNgayHomNay = document.getElementById("btn-phaply-ngay-hom-nay");
+      if (btnNgayHomNay) {
+        btnNgayHomNay.onclick = () => {
+          inpPhapLyNgay.value = "";
+          luuNgay();
+        };
+      }
+      veTrangThai();
     }
     const chkNotifyCapture = document.getElementById("chk-notify-capture");
     if (chkNotifyCapture) {
@@ -4097,14 +4137,83 @@
   function vietHoaChuDau(text) {
     return (text || "").toLowerCase().split(/\s+/).filter(Boolean).map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
   }
+  function dangHien(el) {
+    if (!el || !el.offsetParent) return false;
+    try {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+  function layKhoiBuoc(label) {
+    const cot = label.closest(".col-md-3, .col-md-4, .col-md-6");
+    return cot && cot.parentElement || label.closest(".row") || label.parentElement;
+  }
+  function layMocThoiGian(text) {
+    const re = /(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/g;
+    let m, max = 0;
+    while ((m = re.exec(text)) !== null) {
+      const t = new Date(
+        Number(m[3]),
+        Number(m[2]) - 1,
+        Number(m[1]),
+        Number(m[4] || 0),
+        Number(m[5] || 0)
+      ).getTime();
+      if (t > max) max = t;
+    }
+    return max;
+  }
+  function layTatCaCbChuyen() {
+    return Array.from(document.querySelectorAll("span")).filter((s) => (s.textContent || "").trim().toLowerCase().startsWith("cb chuyển")).map((label) => {
+      const valueBox = label.parentElement && label.parentElement.nextElementSibling;
+      const b = valueBox ? valueBox.querySelector("b") : null;
+      const name = b ? b.textContent.trim() : "";
+      if (!name) return null;
+      const khoi = layKhoiBuoc(label);
+      const chuBuoc = (khoi && khoi.textContent || "").replace(/\s+/g, " ").trim();
+      return { label, name, chuBuoc, moc: layMocThoiGian(chuBuoc) };
+    }).filter((c) => c && dangHien(c.label));
+  }
+  function chonKhoiMoiNhat(list) {
+    const coMoc = list.filter((c) => c.moc > 0);
+    if (!coMoc.length) return list[0];
+    return coMoc.reduce((a, b) => b.moc > a.moc ? b : a);
+  }
+  function moTaViTri(el) {
+    const parts = [];
+    for (let node = el, i = 0; node && node.tagName && i < 6; node = node.parentElement, i++) {
+      let s = node.tagName.toLowerCase();
+      if (node.id) s += "#" + node.id;
+      const cls = (node.className || "").toString().trim().split(/\s+/).filter(Boolean).slice(0, 2);
+      if (cls.length) s += "." + cls.join(".");
+      parts.unshift(s);
+    }
+    return parts.join(" > ");
+  }
+  function dumpCbChuyen(list, chon) {
+    console.log('[MPLIS PhapLy] === soi khối "CB chuyển" ===');
+    list.forEach((c, i) => {
+      let top = null;
+      try {
+        top = Math.round(c.label.getBoundingClientRect().top);
+      } catch (e) {
+      }
+      const mocStr = c.moc ? new Date(c.moc).toLocaleString("vi-VN") : "(không đọc được ngày)";
+      console.log("  [" + i + "]" + (c === chon ? " <== đang lấy" : "") + " " + c.name + " | moc=" + mocStr + " | top=" + top);
+      console.log("      viTri: " + moTaViTri(c.label));
+      console.log("      chuBuoc: " + c.chuBuoc.slice(0, 300));
+    });
+  }
   function layTenCbChuyen() {
-    const spans = Array.from(document.querySelectorAll("span"));
-    const label = spans.find((s) => (s.textContent || "").trim().toLowerCase().startsWith("cb chuyển"));
-    if (!label || !label.parentElement) return "";
-    const valueBox = label.parentElement.nextElementSibling;
-    if (!valueBox) return "";
-    const b = valueBox.querySelector("b");
-    return b ? b.textContent.trim() : "";
+    const list = layTatCaCbChuyen();
+    if (!list.length) return "";
+    if (list.length === 1) return list[0].name;
+    const chon = chonKhoiMoiNhat(list);
+    console.log("[MPLIS PhapLy] Có " + list.length + ' khối "CB chuyển" đang hiện (' + list.map((c) => c.name).join(" | ") + "), lấy bước mới nhất:", chon.name);
+    dumpCbChuyen(list, chon);
+    return chon.name;
   }
   function dienNguoiKy() {
     const input = document.querySelector(NGUOI_KY_SELECTOR);
@@ -4129,6 +4238,22 @@
     return `${dd}/${mm}/${d.getFullYear()}`;
   }
   var AUTO_DATE_KEY = "mplis_phaply_autodate";
+  var NGAY_CHON_KEY = "mplis_phaply_ngay_vao_so";
+  function layNgayMucTieu() {
+    let raw = "";
+    try {
+      raw = (localStorage.getItem(NGAY_CHON_KEY) || "").trim();
+    } catch (e) {
+    }
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+    if (m) {
+      const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      if (d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3])) {
+        return d;
+      }
+    }
+    return /* @__PURE__ */ new Date();
+  }
   function getStoredAutoDate(maHS) {
     if (!maHS) return "";
     try {
@@ -4147,19 +4272,18 @@
     } catch (e) {
     }
   }
-  function dienHomNayVaoO(input) {
+  function dienNgayVaoO(input, ngay) {
     const jq = getJq();
-    const homNay = /* @__PURE__ */ new Date();
     let daDien = "";
     if (jq && jq.fn && jq.fn.datepicker && input.classList.contains("hasDatepicker")) {
       try {
-        jq(input).datepicker("setDate", homNay);
+        jq(input).datepicker("setDate", ngay);
         daDien = input.value.trim();
       } catch (e) {
       }
     }
     if (!daDien) {
-      daDien = dinhDangNgayVN(homNay);
+      daDien = dinhDangNgayVN(ngay);
       input.value = daDien;
       if (jq) jq(input).val(daDien).trigger("input").trigger("change");
       else {
@@ -4173,20 +4297,21 @@
     const input = document.querySelector(NGAY_VAO_SO_SELECTOR);
     if (!input || !isFormVisible(input)) return;
     const maHS = findCurrentMaHS();
-    const todayStr = dinhDangNgayVN(/* @__PURE__ */ new Date());
+    const ngayMucTieu = layNgayMucTieu();
+    const mucTieuStr = dinhDangNgayVN(ngayMucTieu);
     const currentVal = input.value.trim();
     const lastAuto = getStoredAutoDate(maHS);
-    if (lastAuto && currentVal === lastAuto && currentVal !== todayStr) {
+    if (lastAuto && currentVal === lastAuto && currentVal !== mucTieuStr) {
       input.setAttribute(DONE_ATTR, "true");
-      const daDien2 = dienHomNayVaoO(input);
+      const daDien2 = dienNgayVaoO(input, ngayMucTieu);
       saveStoredAutoDate(maHS, daDien2);
-      console.log("[MPLIS PhapLy] Ngày vào sổ đã cũ (" + lastAuto + "), tự cập nhật lại thành hôm nay:", daDien2);
+      console.log("[MPLIS PhapLy] Ngày vào sổ cũ (" + lastAuto + "), điền lại theo ngày mục tiêu:", daDien2);
       return;
     }
     if (input.hasAttribute(DONE_ATTR)) return;
     input.setAttribute(DONE_ATTR, "true");
     if (currentVal) return;
-    const daDien = dienHomNayVaoO(input);
+    const daDien = dienNgayVaoO(input, ngayMucTieu);
     saveStoredAutoDate(maHS, daDien);
     console.log("[MPLIS PhapLy] Đã điền Ngày vào sổ:", daDien);
   }
