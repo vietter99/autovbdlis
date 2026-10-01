@@ -74,7 +74,7 @@
         .mplis-collapse-caret { flex-shrink: 0; color: var(--mplis-text-dim); transition: transform 0.2s ease; }
         .mplis-collapse.open .mplis-collapse-caret { transform: rotate(180deg); }
         .mplis-collapse-body { max-height: 0; opacity: 0; overflow: hidden; padding: 0 12px; transition: max-height 0.22s ease, opacity 0.16s ease, padding-bottom 0.22s ease; }
-        .mplis-collapse.open .mplis-collapse-body { max-height: 260px; opacity: 1; padding-bottom: 12px; }
+        .mplis-collapse.open .mplis-collapse-body { max-height: 420px; overflow-y: auto; opacity: 1; padding-bottom: 12px; }
         @media (prefers-reduced-motion: reduce) {
             .mplis-collapse-body, .mplis-collapse-caret { transition: none; }
         }
@@ -106,6 +106,11 @@
         .mplis-btn-primary:active { transform: translateY(0); }
         .mplis-btn-primary.running { background: linear-gradient(135deg, var(--mplis-bad), #be123c) !important; box-shadow: 0 4px 14px rgba(244,63,94,0.35); }
         .mplis-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; filter: none; }
+
+        /* Chọn hậu tố GT/PT - 2 nút kiểu segmented, nút đang chọn đổi màu + đậm để nhìn là biết. */
+        .mplis-hauto-btn { padding: 7px 10px !important; font: 650 12.5px 'Segoe UI', sans-serif !important; color: var(--mplis-text-dim) !important; background: var(--mplis-surface) !important; border: 1px solid var(--mplis-border) !important; border-radius: 8px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
+        .mplis-hauto-btn:hover { background: var(--mplis-surface-hover) !important; color: var(--mplis-text) !important; }
+        .mplis-hauto-btn.on { color: #fff !important; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5) !important; border-color: transparent !important; box-shadow: 0 3px 12px rgba(99,102,241,0.35) !important; }
 
         .mplis-btn-ghost { background: var(--mplis-surface) !important; border: 1px solid var(--mplis-border) !important; color: var(--mplis-text) !important; border-radius: 9px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
         .mplis-btn-ghost:hover { background: var(--mplis-surface-hover) !important; }

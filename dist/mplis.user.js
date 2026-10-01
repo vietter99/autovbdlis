@@ -286,7 +286,7 @@
         .mplis-collapse-caret { flex-shrink: 0; color: var(--mplis-text-dim); transition: transform 0.2s ease; }
         .mplis-collapse.open .mplis-collapse-caret { transform: rotate(180deg); }
         .mplis-collapse-body { max-height: 0; opacity: 0; overflow: hidden; padding: 0 12px; transition: max-height 0.22s ease, opacity 0.16s ease, padding-bottom 0.22s ease; }
-        .mplis-collapse.open .mplis-collapse-body { max-height: 260px; opacity: 1; padding-bottom: 12px; }
+        .mplis-collapse.open .mplis-collapse-body { max-height: 420px; overflow-y: auto; opacity: 1; padding-bottom: 12px; }
         @media (prefers-reduced-motion: reduce) {
             .mplis-collapse-body, .mplis-collapse-caret { transition: none; }
         }
@@ -318,6 +318,11 @@
         .mplis-btn-primary:active { transform: translateY(0); }
         .mplis-btn-primary.running { background: linear-gradient(135deg, var(--mplis-bad), #be123c) !important; box-shadow: 0 4px 14px rgba(244,63,94,0.35); }
         .mplis-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; filter: none; }
+
+        /* Chọn hậu tố GT/PT - 2 nút kiểu segmented, nút đang chọn đổi màu + đậm để nhìn là biết. */
+        .mplis-hauto-btn { padding: 7px 10px !important; font: 650 12.5px 'Segoe UI', sans-serif !important; color: var(--mplis-text-dim) !important; background: var(--mplis-surface) !important; border: 1px solid var(--mplis-border) !important; border-radius: 8px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
+        .mplis-hauto-btn:hover { background: var(--mplis-surface-hover) !important; color: var(--mplis-text) !important; }
+        .mplis-hauto-btn.on { color: #fff !important; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5) !important; border-color: transparent !important; box-shadow: 0 3px 12px rgba(99,102,241,0.35) !important; }
 
         .mplis-btn-ghost { background: var(--mplis-surface) !important; border: 1px solid var(--mplis-border) !important; color: var(--mplis-text) !important; border-radius: 9px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
         .mplis-btn-ghost:hover { background: var(--mplis-surface-hover) !important; }
@@ -3469,6 +3474,8 @@
     const isPhapLyAutofillChecked = localStorage.getItem("mplis_phaply_autofill_enabled") !== "false" ? "checked" : "";
     const isNotifyCaptureChecked = localStorage.getItem("mplis_notify_capture_enabled") !== "false" ? "checked" : "";
     const phapLyNgayVaoSo = (localStorage.getItem("mplis_phaply_ngay_vao_so") || "").trim();
+    const hauToTenFile = ["GT", "PT"].includes((localStorage.getItem("mplis_tenfile_hau_to") || "").toUpperCase()) ? localStorage.getItem("mplis_tenfile_hau_to").toUpperCase() : "GT";
+    const isTuTichDongBoChecked = localStorage.getItem("mplis_tenfile_tu_tich_dongbo") === "true" ? "checked" : "";
     const isBypassSpatialLinkChecked = localStorage.getItem("mplis_bypass_spatial_link_enabled") === "true" ? "checked" : "";
     function qt2FileHint(selectAll) {
       return selectAll ? 'Bấm "Chọn tất cả" trước cho tích hết bảng, rồi lọc Số phát hành gỡ tích file sai đơn.' : "Chỉ tích file khớp Số phát hành của đơn, cộng file gt/pt dùng chung.";
@@ -3698,57 +3705,116 @@
                     </div>
 
                     <!-- TAB 6: SETTINGS -->
+                    <!-- Mỗi mục là 1 thẻ thu gọn: đóng lại chỉ còn tiêu đề + trạng thái, nên tab
+                         Cài đặt không dài tới mức phải cuộn mới thấy mục cuối. Trạng thái nằm trên
+                         thanh tiêu đề để đóng vẫn biết đang bật/tắt gì. -->
                     <div class="mplis-panel-body" id="tab-settings">
-                        <span class="mplis-section-label">An toàn</span>
-                        <div class="mplis-card">
-                            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
-                                <input type="checkbox" id="chk-auto-confirm" ${isAutoConfirmChecked} style="margin-top:2px;">
-                                <span>
-                                    Tự động chấp nhận mọi hộp thoại confirm()/alert() của trang<br/>
-                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Tắt nếu bạn muốn tự tay xác nhận từng hộp thoại quan trọng (VD: ký số, kết ISO). Cần <b>tải lại trang</b> để áp dụng thay đổi.</span>
-                                </span>
-                            </label>
-                        </div>
-
-                        <span class="mplis-section-label">Phím tắt</span>
-                        <div class="mplis-card" style="font-size:11.5px; color:#cbd5e1; line-height:2;">
-                            <div><b style="color:#fff;">Alt + S</b> — Bật/tắt tab đang mở (Xử lý hoặc Trả hồ sơ)</div>
-                            <div><b style="color:#fff;">Alt + H</b> — Ẩn/hiện bảng điều khiển</div>
-                        </div>
-
-                        <span class="mplis-section-label">Tự điền sẵn</span>
-                        <div class="mplis-card">
-                            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
-                                <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked} style="margin-top:2px;">
-                                <span>
-                                    Tự điền màn hình Cập nhật pháp lý<br/>
-                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ theo ô dưới. Sửa tay đè lên lúc nào cũng được. Tắt thì để nguyên form, tự điền tay hết.</span>
-                                </span>
-                            </label>
-
-                            <div style="display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
-                                <label for="cfg-phaply-ngay-vao-so" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Ngày vào sổ:</label>
-                                <input type="date" id="cfg-phaply-ngay-vao-so" value="${escapeHtml(phapLyNgayVaoSo)}" style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px; color-scheme:dark;">
-                                <button type="button" id="btn-phaply-ngay-hom-nay" class="mplis-btn-ghost" style="padding:7px 10px; font-size:11.5px; flex-shrink:0;">Hôm nay</button>
+                        <div class="mplis-card mplis-collapse" id="set-safe-group">
+                            <button type="button" class="mplis-collapse-head" id="set-safe-toggle" aria-expanded="false" aria-controls="set-safe-body">
+                                <span class="mplis-section-label">An toàn</span>
+                                <span class="mplis-collapse-state ${isAutoConfirmChecked ? "on" : ""}" id="set-safe-state">${isAutoConfirmChecked ? "Tự đồng ý" : "Hỏi tay"}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-safe-body">
+                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
+                                    <input type="checkbox" id="chk-auto-confirm" ${isAutoConfirmChecked} style="margin-top:2px;">
+                                    <span>
+                                        Tự động chấp nhận mọi hộp thoại confirm()/alert() của trang<br/>
+                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Tắt nếu muốn tự tay xác nhận từng hộp quan trọng (ký số, kết ISO). Cần <b>tải lại trang</b>.</span>
+                                    </span>
+                                </label>
                             </div>
-                            <div id="phaply-ngay-state" style="margin-top:6px; font-size:11.5px; line-height:1.5;"></div>
                         </div>
 
-                        <span class="mplis-section-label">Thông báo hồ sơ mới</span>
-                        <div class="mplis-card" style="margin-bottom:0;">
-                            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
-                                <input type="checkbox" id="chk-notify-capture" ${isNotifyCaptureChecked} style="margin-top:2px;">
-                                <span>
-                                    Tự đẩy hồ sơ mới nhận lên Sheet "Thông báo nhận HS"<br/>
-                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Mỗi lần tải trang, tool quét danh sách công việc, tìm hồ sơ mới xuất hiện rồi ghi vào Sheet. Tắt thì tool ngưng quét, hồ sơ mới không được ghi nhận nữa. Cần <b>tải lại trang</b> để áp dụng thay đổi.</span>
-                                </span>
-                            </label>
+                        <div class="mplis-card mplis-collapse" id="set-autofill-group">
+                            <button type="button" class="mplis-collapse-head" id="set-autofill-toggle" aria-expanded="false" aria-controls="set-autofill-body">
+                                <span class="mplis-section-label">Tự điền pháp lý</span>
+                                <span class="mplis-collapse-state ${isPhapLyAutofillChecked ? "on" : ""}" id="set-autofill-state">${isPhapLyAutofillChecked ? phapLyNgayVaoSo ? "Bật · ngày cố định" : "Bật · hôm nay" : "Tắt"}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-autofill-body">
+                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
+                                    <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked} style="margin-top:2px;">
+                                    <span>
+                                        Tự điền màn hình Cập nhật pháp lý<br/>
+                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", Loại GCN năm 2024, Người ký theo CB chuyển, Ngày vào sổ theo ô dưới. Sửa tay đè lên được.</span>
+                                    </span>
+                                </label>
+
+                                <div style="display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
+                                    <label for="cfg-phaply-ngay-vao-so" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Ngày vào sổ:</label>
+                                    <input type="date" id="cfg-phaply-ngay-vao-so" value="${escapeHtml(phapLyNgayVaoSo)}" style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px; color-scheme:dark;">
+                                    <button type="button" id="btn-phaply-ngay-hom-nay" class="mplis-btn-ghost" style="padding:7px 10px; font-size:11.5px; flex-shrink:0;">Hôm nay</button>
+                                </div>
+                                <div id="phaply-ngay-state" style="margin-top:6px; font-size:11.5px; line-height:1.5;"></div>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="set-tenfile-group">
+                            <button type="button" class="mplis-collapse-head" id="set-tenfile-toggle" aria-expanded="false" aria-controls="set-tenfile-body">
+                                <span class="mplis-section-label">Tên file quét</span>
+                                <span class="mplis-collapse-state on" id="set-tenfile-state">${hauToTenFile}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-tenfile-body">
+                                <div style="font-size:12px; color:#e2e8f0;">Hậu tố tên <b>giấy tờ kèm</b></div>
+                                <div id="tenfile-hauto-group" role="radiogroup" aria-label="Hậu tố tên file giấy tờ kèm" style="display:flex; gap:6px; margin-top:8px;">
+                                    <button type="button" class="mplis-hauto-btn" data-hauto="GT" aria-checked="${hauToTenFile === "GT" ? "true" : "false"}" role="radio" style="flex:1; min-height:34px;">GT</button>
+                                    <button type="button" class="mplis-hauto-btn" data-hauto="PT" aria-checked="${hauToTenFile === "PT" ? "true" : "false"}" role="radio" style="flex:1; min-height:34px;">PT</button>
+                                </div>
+                                <div id="tenfile-hauto-state" style="margin-top:8px; font-size:11.5px; color:var(--mplis-text-dim); line-height:1.6;"></div>
+
+                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0; margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
+                                    <input type="checkbox" id="chk-tenfile-dongbo" ${isTuTichDongBoChecked} style="margin-top:2px;">
+                                    <span>
+                                        Tự tích ô "đồng bộ về một cửa"<br/>
+                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Dòng file tên theo Số phát hành thì tích, dòng GT/PT thì bỏ tích. <b>Mặc định TẮT</b> vì ghi lên form thật. Dòng có nhiều hơn 1 ô tích thì tool không đụng, chỉ ghi log.</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="set-notify-group">
+                            <button type="button" class="mplis-collapse-head" id="set-notify-toggle" aria-expanded="false" aria-controls="set-notify-body">
+                                <span class="mplis-section-label">Thông báo hồ sơ mới</span>
+                                <span class="mplis-collapse-state ${isNotifyCaptureChecked ? "on" : ""}" id="set-notify-state">${isNotifyCaptureChecked ? "Bật" : "Tắt"}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-notify-body">
+                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
+                                    <input type="checkbox" id="chk-notify-capture" ${isNotifyCaptureChecked} style="margin-top:2px;">
+                                    <span>
+                                        Tự đẩy hồ sơ mới nhận lên Sheet "Thông báo nhận HS"<br/>
+                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Mỗi lần tải trang, tool quét danh sách công việc rồi ghi hồ sơ mới vào Sheet. Cần <b>tải lại trang</b>.</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="set-keys-group" style="margin-bottom:0;">
+                            <button type="button" class="mplis-collapse-head" id="set-keys-toggle" aria-expanded="false" aria-controls="set-keys-body">
+                                <span class="mplis-section-label">Phím tắt</span>
+                                <span class="mplis-collapse-state" id="set-keys-state">4 phím</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-keys-body" style="font-size:11.5px; color:#cbd5e1; line-height:1.9;">
+                                <div><b style="color:#fff;">Alt + S</b> — Bật/tắt tab đang mở</div>
+                                <div><b style="color:#fff;">Alt + H</b> — Ẩn/hiện bảng điều khiển</div>
+                                <div><b style="color:#fff;">Alt + D</b> — Copy tên file giấy chứng nhận</div>
+                                <div><b style="color:#fff;">Alt + G</b> — Copy tên file giấy tờ kèm</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         `;
     document.body.appendChild(panel);
+    function veBadge(id, chu, on) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = chu;
+      el.classList.toggle("on", !!on);
+    }
     const chkAutoConfirm = document.getElementById("chk-auto-confirm");
     if (chkAutoConfirm) {
       chkAutoConfirm.onchange = (e) => {
@@ -3761,6 +3827,7 @@
           notice.style.cssText = "margin-top:8px; font-size:12px; color:#f59e0b; font-weight:600;";
           settingsTab.insertBefore(notice, settingsTab.children[1]);
         }
+        veBadge("set-safe-state", e.target.checked ? "Tự đồng ý" : "Hỏi tay", e.target.checked);
         if (notice) notice.textContent = "⚠️ Đã lưu. Tải lại trang (F5) để áp dụng thay đổi.";
       };
     }
@@ -3768,6 +3835,12 @@
     if (chkPhapLyAutofill) {
       chkPhapLyAutofill.onchange = (e) => {
         localStorage.setItem("mplis_phaply_autofill_enabled", e.target.checked ? "true" : "false");
+        const coNgay = !!(document.getElementById("cfg-phaply-ngay-vao-so") || {}).value;
+        veBadge(
+          "set-autofill-state",
+          e.target.checked ? coNgay ? "Bật · ngày cố định" : "Bật · hôm nay" : "Tắt",
+          e.target.checked
+        );
       };
     }
     const inpPhapLyNgay = document.getElementById("cfg-phaply-ngay-vao-so");
@@ -3790,6 +3863,12 @@
         } catch (e) {
         }
         veTrangThai();
+        const bat = (document.getElementById("chk-phaply-autofill") || {}).checked;
+        veBadge(
+          "set-autofill-state",
+          bat ? inpPhapLyNgay.value.trim() ? "Bật · ngày cố định" : "Bật · hôm nay" : "Tắt",
+          bat
+        );
       };
       inpPhapLyNgay.onchange = luuNgay;
       inpPhapLyNgay.oninput = luuNgay;
@@ -3802,10 +3881,41 @@
       }
       veTrangThai();
     }
+    const hauToGroup = document.getElementById("tenfile-hauto-group");
+    const hauToState = document.getElementById("tenfile-hauto-state");
+    if (hauToGroup && hauToState) {
+      const veHauTo = (hauTo) => {
+        hauToGroup.querySelectorAll(".mplis-hauto-btn").forEach((b) => {
+          const on = b.dataset.hauto === hauTo;
+          b.setAttribute("aria-checked", on ? "true" : "false");
+          b.classList.toggle("on", on);
+        });
+        veBadge("set-tenfile-state", hauTo, true);
+        hauToState.innerHTML = 'Giấy tờ kèm: <b style="color:#fff;">&lt;mã hồ sơ&gt;-' + hauTo + '.pdf</b> — không tích ô đồng bộ một cửa.<br/>Giấy chứng nhận: <b style="color:#fff;">&lt;mã hồ sơ&gt;-&lt;Số phát hành&gt;.pdf</b> — tích ô đồng bộ một cửa.<br/>Phím tắt: <b style="color:#fff;">Alt+D</b> giấy chứng nhận, <b style="color:#fff;">Alt+G</b> giấy tờ kèm.';
+      };
+      hauToGroup.querySelectorAll(".mplis-hauto-btn").forEach((b) => {
+        b.onclick = () => {
+          const hauTo = b.dataset.hauto;
+          try {
+            localStorage.setItem("mplis_tenfile_hau_to", hauTo);
+          } catch (e) {
+          }
+          veHauTo(hauTo);
+        };
+      });
+      veHauTo(hauToTenFile);
+    }
+    const chkTenFileDongBo = document.getElementById("chk-tenfile-dongbo");
+    if (chkTenFileDongBo) {
+      chkTenFileDongBo.onchange = (e) => {
+        localStorage.setItem("mplis_tenfile_tu_tich_dongbo", e.target.checked ? "true" : "false");
+      };
+    }
     const chkNotifyCapture = document.getElementById("chk-notify-capture");
     if (chkNotifyCapture) {
       chkNotifyCapture.onchange = (e) => {
         localStorage.setItem("mplis_notify_capture_enabled", e.target.checked ? "true" : "false");
+        veBadge("set-notify-state", e.target.checked ? "Bật" : "Tắt", e.target.checked);
       };
     }
     const chkBypassSpatialLink = document.getElementById("chk-bypass-kg");
@@ -3893,6 +4003,11 @@
     bindCollapse("qt2-file-group", "qt2-file-toggle", "mplis_qt2_file_open");
     bindCollapse("fw-user-group", "fw-user-toggle", "mplis_fw_user_open");
     bindCollapse("kg-bypass-group", "kg-bypass-toggle", "mplis_kg_bypass_open");
+    bindCollapse("set-safe-group", "set-safe-toggle", "mplis_set_safe_open");
+    bindCollapse("set-autofill-group", "set-autofill-toggle", "mplis_set_autofill_open");
+    bindCollapse("set-tenfile-group", "set-tenfile-toggle", "mplis_set_tenfile_open");
+    bindCollapse("set-notify-group", "set-notify-toggle", "mplis_set_notify_open");
+    bindCollapse("set-keys-group", "set-keys-toggle", "mplis_set_keys_open");
     document.getElementById("chk-qt2-selectall").onchange = (e) => {
       const checked = e.target.checked;
       document.getElementById("qt2-file-hint").textContent = qt2FileHint(checked);
@@ -4150,6 +4265,11 @@
     const cot = label.closest(".col-md-3, .col-md-4, .col-md-6");
     return cot && cot.parentElement || label.closest(".row") || label.parentElement;
   }
+  var MA_HS_DAY_DU_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+){2,}-(\d{6})-(\d{3,})/i;
+  function rutGonMaHS(text) {
+    const m = MA_HS_DAY_DU_RE.exec(text || "");
+    return m ? (m[1].slice(-2) + "-" + m[2]).toUpperCase() : "";
+  }
   function layMocThoiGian(text) {
     const re = /(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/g;
     let m, max = 0;
@@ -4173,13 +4293,26 @@
       if (!name) return null;
       const khoi = layKhoiBuoc(label);
       const chuBuoc = (khoi && khoi.textContent || "").replace(/\s+/g, " ").trim();
-      return { label, name, chuBuoc, moc: layMocThoiGian(chuBuoc) };
+      return { label, name, chuBuoc, maHS: rutGonMaHS(chuBuoc), moc: layMocThoiGian(chuBuoc) };
     }).filter((c) => c && dangHien(c.label));
   }
   function chonKhoiMoiNhat(list) {
     const coMoc = list.filter((c) => c.moc > 0);
     if (!coMoc.length) return list[0];
     return coMoc.reduce((a, b) => b.moc > a.moc ? b : a);
+  }
+  function chonKhoiTheoHoSo(list, maHSHienTai) {
+    if (maHSHienTai) {
+      const khop = list.filter((c) => c.maHS && c.maHS === maHSHienTai);
+      if (khop.length === 1) return { chon: khop[0], cach: "khớp mã hồ sơ " + maHSHienTai };
+      if (khop.length > 1) {
+        return { chon: chonKhoiMoiNhat(khop), cach: "khớp mã hồ sơ " + maHSHienTai + ", lấy bước mới nhất" };
+      }
+    }
+    return {
+      chon: chonKhoiMoiNhat(list),
+      cach: maHSHienTai ? "⚠️ KHÔNG khối nào mang mã hồ sơ " + maHSHienTai + ", đành lấy bước mới nhất" : "⚠️ không đọc được mã hồ sơ đang mở, đành lấy bước mới nhất"
+    };
   }
   function moTaViTri(el) {
     const parts = [];
@@ -4201,7 +4334,7 @@
       } catch (e) {
       }
       const mocStr = c.moc ? new Date(c.moc).toLocaleString("vi-VN") : "(không đọc được ngày)";
-      console.log("  [" + i + "]" + (c === chon ? " <== đang lấy" : "") + " " + c.name + " | moc=" + mocStr + " | top=" + top);
+      console.log("  [" + i + "]" + (c === chon ? " <== đang lấy" : "") + " " + c.name + " | hồ sơ=" + (c.maHS || "?") + " | moc=" + mocStr + " | top=" + top);
       console.log("      viTri: " + moTaViTri(c.label));
       console.log("      chuBuoc: " + c.chuBuoc.slice(0, 300));
     });
@@ -4209,9 +4342,9 @@
   function layTenCbChuyen() {
     const list = layTatCaCbChuyen();
     if (!list.length) return "";
-    if (list.length === 1) return list[0].name;
-    const chon = chonKhoiMoiNhat(list);
-    console.log("[MPLIS PhapLy] Có " + list.length + ' khối "CB chuyển" đang hiện (' + list.map((c) => c.name).join(" | ") + "), lấy bước mới nhất:", chon.name);
+    const maHSHienTai = findCurrentMaHS();
+    const { chon, cach } = chonKhoiTheoHoSo(list, maHSHienTai);
+    console.log("[MPLIS PhapLy] Hồ sơ đang mở: " + (maHSHienTai || "(không đọc được)") + " | " + list.length + ' khối "CB chuyển" đang hiện (' + list.map((c) => c.name).join(" | ") + ") | lấy: " + chon.name + " (" + cach + ")");
     dumpCbChuyen(list, chon);
     return chon.name;
   }
@@ -4334,6 +4467,500 @@
     }
   }
   setInterval(scan, SCAN_INTERVAL_MS);
+
+  // src/filename-copy.js
+  var SCAN_INTERVAL_MS2 = 1e3;
+  var BTN_CLASS = "mplis-btn-copy-tenfile";
+  var BTN_MARK = "data-mplis-tenfile";
+  var MA_HS_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+){2,}-\d{6}-\d{3,}/i;
+  var DUOI = ".pdf";
+  var SPH_RE = /\b([A-Z]{2})\s*(\d{6,})\b/;
+  var GIAY_IN_MOI_RE = /giấy in mới/i;
+  var HAU_TO_KEY = "mplis_tenfile_hau_to";
+  var HAU_TO_HOP_LE = ["GT", "PT"];
+  var BANG_DINH_KEM_SELECTOR = "#tbGiayToDinhKem, #tbDanhSachGiayToDinhKem";
+  var THANH_NUT_ID = "mplis-tenfile-toolbar";
+  var TU_TICH_KEY = "mplis_tenfile_tu_tich_dongbo";
+  var DA_TICH_ATTR = "data-mplis-dongbo";
+  function tuTichBat() {
+    try {
+      return localStorage.getItem(TU_TICH_KEY) === "true";
+    } catch (e) {
+      return false;
+    }
+  }
+  function layHauTo() {
+    let v = "";
+    try {
+      v = (localStorage.getItem(HAU_TO_KEY) || "").trim().toUpperCase();
+    } catch (e) {
+    }
+    return HAU_TO_HOP_LE.includes(v) ? v : "GT";
+  }
+  function dangHien2(el) {
+    if (!el) return false;
+    try {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+  function layMaHoSoDayDu() {
+    const nodes = Array.from(document.querySelectorAll("b, span, h4, .modal-title, div[title]"));
+    let found = "";
+    for (const node of nodes) {
+      const text = (node.textContent || "").trim();
+      if (!text || text.length > 200) continue;
+      const m = MA_HS_RE.exec(text);
+      if (m && dangHien2(node)) found = m[0].toUpperCase();
+    }
+    return found;
+  }
+  function layDongGiayInMoi() {
+    return Array.from(document.querySelectorAll("tr")).map((tr) => {
+      const cells = Array.from(tr.querySelectorAll("td"));
+      if (!cells.length) return null;
+      if (!GIAY_IN_MOI_RE.test(cells[0].textContent || "")) return null;
+      for (const td of cells) {
+        const m = SPH_RE.exec((td.textContent || "").trim().toUpperCase());
+        if (m) return { tr, cells, sph: m[1] + " " + m[2] };
+      }
+      return null;
+    }).filter((r) => r && dangHien2(r.tr));
+  }
+  function baoNhanh(text, mau) {
+    let el = document.getElementById("mplis-tenfile-toast");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "mplis-tenfile-toast";
+      el.style.cssText = 'position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:999999999; max-width:min(560px, calc(100vw - 32px)); padding:10px 14px; border-radius:10px; font:600 13px "Segoe UI", sans-serif; color:#fff; box-shadow:0 10px 28px rgba(0,0,0,0.45); pointer-events:none; opacity:0; transition:opacity 0.15s ease;';
+      document.body.appendChild(el);
+    }
+    el.style.background = mau;
+    el.textContent = text;
+    el.style.opacity = "1";
+    clearTimeout(el._an);
+    el._an = setTimeout(() => {
+      el.style.opacity = "0";
+    }, 2600);
+  }
+  function copyChuoi(ten, ghiChu) {
+    fallbackCopyTextToClipboard(ten).then(() => {
+      console.log("[MPLIS TenFile] Đã copy tên file:", ten, ghiChu || "");
+      baoNhanh("Đã copy: " + ten + (ghiChu ? "  (" + ghiChu + ")" : ""), "#047857");
+    }).catch((err) => {
+      console.log("[MPLIS TenFile] Lỗi copy:", err);
+      baoNhanh("Lỗi copy, xem console", "#b91c1c");
+    });
+  }
+  function copyTen(sph) {
+    const maHS = layMaHoSoDayDu();
+    if (!maHS) {
+      console.log('[MPLIS TenFile] Có Số phát hành "' + sph + '" nhưng không thấy mã hồ sơ đầy đủ trên trang (dạng H15.50.05.12-260917-0681). Chỉ copy Số phát hành.');
+      fallbackCopyTextToClipboard(sph + DUOI);
+      baoNhanh("Không thấy mã hồ sơ, đã copy: " + sph + DUOI, "#b45309");
+      return;
+    }
+    copyChuoi(maHS + "-" + sph + DUOI, "giấy chứng nhận - TÍCH ô đồng bộ một cửa");
+  }
+  function copyTenGiayToKem() {
+    const maHS = layMaHoSoDayDu();
+    const hauTo = layHauTo();
+    if (!maHS) {
+      console.log("[MPLIS TenFile] Không thấy mã hồ sơ đầy đủ trên trang, không ghép được tên giấy tờ kèm (<mã hồ sơ>-" + hauTo + DUOI + ").");
+      baoNhanh("Không thấy mã hồ sơ trên trang", "#b91c1c");
+      return;
+    }
+    copyChuoi(maHS + "-" + hauTo + DUOI, "giấy tờ kèm - KHÔNG tích ô đồng bộ");
+  }
+  var SPH_NHO_KEY = "mplis_tenfile_sph_theo_hoso";
+  function nhoSph(maHS, sphList) {
+    if (!maHS || !sphList.length) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(SPH_NHO_KEY) || "{}");
+      if (JSON.stringify(stored[maHS]) === JSON.stringify(sphList)) return;
+      stored[maHS] = sphList;
+      localStorage.setItem(SPH_NHO_KEY, JSON.stringify(stored));
+    } catch (e) {
+    }
+  }
+  function themSphTay(maHS, sph) {
+    if (!maHS || !sph) return [];
+    const ds = doclaiSph(maHS);
+    if (!ds.includes(sph)) ds.push(sph);
+    nhoSph(maHS, ds);
+    return ds;
+  }
+  function xoaSphNho(maHS, sph) {
+    const ds = doclaiSph(maHS).filter((x) => x !== sph);
+    try {
+      const stored = JSON.parse(localStorage.getItem(SPH_NHO_KEY) || "{}");
+      if (ds.length) stored[maHS] = ds;
+      else delete stored[maHS];
+      localStorage.setItem(SPH_NHO_KEY, JSON.stringify(stored));
+    } catch (e) {
+    }
+    console.log('[MPLIS TenFile] Đã xoá "' + sph + '" khỏi danh sách nhớ của hồ sơ ' + maHS + ". Dòng đã tạo trong bảng (nếu có) KHÔNG bị xoá.");
+    baoNhanh("Đã xoá số " + sph + " khỏi danh sách nhớ", "#b45309");
+    const cu = document.getElementById(THANH_NUT_ID);
+    if (cu) cu.remove();
+  }
+  function doclaiSph(maHS) {
+    if (!maHS) return [];
+    try {
+      const stored = JSON.parse(localStorage.getItem(SPH_NHO_KEY) || "{}");
+      return Array.isArray(stored[maHS]) ? stored[maHS] : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  var O_TEN_SELECTOR = 'input[placeholder*="tên tài liệu" i], input[placeholder*="Tên tài liệu" i]';
+  function timODienTen() {
+    return Array.from(document.querySelectorAll(O_TEN_SELECTOR)).find(dangHien2) || null;
+  }
+  function timNutThem(o) {
+    const khung = o.closest(".input-group, .form-group, div") || o.parentElement;
+    if (!khung) return null;
+    const nut = Array.from(khung.querySelectorAll("button, a.btn, span.input-group-addon")).filter(dangHien2).filter((b) => !b.closest("#" + THANH_NUT_ID));
+    if (!nut.length) return null;
+    return nut.find((b) => /^\+?$/.test((b.textContent || "").trim()) && (/\+/.test(b.textContent || "") || b.querySelector(".fa-plus, .glyphicon-plus"))) || nut.find((b) => b.querySelector(".fa-plus, .glyphicon-plus")) || null;
+  }
+  function daCoDong(ten) {
+    const bang = Array.from(document.querySelectorAll(BANG_DINH_KEM_SELECTOR)).find(dangHien2);
+    if (!bang) return false;
+    const gon = ten.replace(/\s+/g, "").toUpperCase();
+    return Array.from(bang.querySelectorAll("tbody tr")).some((tr) => (tr.textContent || "").replace(/\s+/g, "").toUpperCase().includes(gon));
+  }
+  function themDong(ten) {
+    if (!ten) return;
+    if (daCoDong(ten)) {
+      console.log('[MPLIS TenFile] Bảng đã có dòng "' + ten + '" - không thêm nữa.');
+      baoNhanh("Đã có dòng: " + ten, "#b45309");
+      return;
+    }
+    const o = timODienTen();
+    const nut = o && timNutThem(o);
+    if (!o || !nut) {
+      console.log('[MPLIS TenFile] Không thấy ô "Tên tài liệu muốn thêm" hoặc nút "+" đang hiện. Ô tìm được: ' + (o ? "có" : "không") + ", nút: " + (nut ? "có" : "không"));
+      baoNhanh("Không thấy ô thêm tài liệu trên trang", "#b91c1c");
+      return;
+    }
+    const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+    o.value = ten;
+    if (jq) jq(o).val(ten).trigger("input").trigger("change");
+    else {
+      o.dispatchEvent(new Event("input", { bubbles: true }));
+      o.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    if (jq) jq(nut).click();
+    else nut.click();
+    console.log('[MPLIS TenFile] Đã điền "' + ten + '" và bấm "+" để tạo dòng.');
+    baoNhanh("Đã tạo dòng: " + ten, "#047857");
+  }
+  var THEM_DELAY_MS = 1200;
+  function themNhieuDong(dsTen) {
+    const con = dsTen.filter(Boolean).filter((t) => !daCoDong(t));
+    if (!con.length) {
+      console.log("[MPLIS TenFile] Mọi dòng cần thêm đều đã có trong bảng.");
+      baoNhanh("Bảng đã có đủ các dòng", "#b45309");
+      return;
+    }
+    console.log("[MPLIS TenFile] Thêm " + con.length + " dòng, cách nhau " + THEM_DELAY_MS + "ms: " + con.join(" | "));
+    con.forEach((ten, i) => setTimeout(() => themDong(ten), i * THEM_DELAY_MS));
+  }
+  function tenGiayChungNhan(sph) {
+    const maHS = layMaHoSoDayDu();
+    return maHS && sph ? maHS + "-" + sph + DUOI : "";
+  }
+  function tenGiayToKem() {
+    const maHS = layMaHoSoDayDu();
+    return maHS ? maHS + "-" + layHauTo() + DUOI : "";
+  }
+  function themDongTay(raw, maHS) {
+    const text = (raw || "").trim().toUpperCase();
+    if (!text) {
+      baoNhanh("Chưa gõ số nào", "#b45309");
+      return;
+    }
+    if (!maHS) {
+      baoNhanh("Không thấy mã hồ sơ trên trang", "#b91c1c");
+      return;
+    }
+    const m = SPH_RE.exec(text);
+    const sph = m ? m[1] + " " + m[2] : text;
+    const ten = maHS + "-" + sph + DUOI;
+    if (m) {
+      themSphTay(maHS, sph);
+    } else {
+      console.log('[MPLIS TenFile] Số tự nhập "' + text + '" không đúng dạng "2 chữ cái + số" nên tool sẽ KHÔNG tự tích ô gửi về một cửa cho dòng này.');
+      baoNhanh("Tạo dòng nhưng không tự tích ô một cửa (số không đúng dạng)", "#b45309");
+    }
+    themDong(ten);
+  }
+  function ganThanhNut() {
+    const bang = Array.from(document.querySelectorAll(BANG_DINH_KEM_SELECTOR)).find(dangHien2);
+    const cu = document.getElementById(THANH_NUT_ID);
+    if (!bang) {
+      if (cu) cu.remove();
+      return;
+    }
+    const maHS = layMaHoSoDayDu();
+    const tren = layDongGiayInMoi().map((d) => d.sph);
+    const sphList = Array.from(new Set(tren.concat(doclaiSph(maHS))));
+    const hauTo = layHauTo();
+    const dauTay = sphList.join(",");
+    if (cu && cu._sph === dauTay && cu._hauTo === hauTo && cu.parentElement) return;
+    if (cu && cu.contains(document.activeElement)) return;
+    if (cu) cu.remove();
+    const thanh = document.createElement("div");
+    thanh.id = THANH_NUT_ID;
+    thanh._sph = dauTay;
+    thanh._hauTo = hauTo;
+    thanh.style.cssText = 'display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:8px 0; padding:7px 9px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:8px; font:12px "Segoe UI", sans-serif; color:#1e293b; max-height:84px; overflow-y:auto;';
+    const themNut = (chu, mau, title, onClick, tat, hep) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = chu;
+      b.title = title;
+      b.disabled = !!tat;
+      b.style.cssText = "min-height:30px; padding:" + (hep ? "5px 8px" : "5px 11px") + '; font:600 12px "Segoe UI", sans-serif; color:#fff; background:' + mau + "; border:none; border-radius:6px; cursor:" + (tat ? "not-allowed" : "pointer") + "; opacity:" + (tat ? "0.5" : "1") + ";";
+      if (!tat) {
+        b.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onClick();
+        };
+      }
+      thanh.appendChild(b);
+    };
+    if (!sphList.length) {
+      themNut(
+        "+ Dòng giấy chứng nhận (chưa có Số phát hành)",
+        "#4f46e5",
+        "Chưa biết Số phát hành. Mở màn hình Cập nhật pháp lý giấy chứng nhận một lần để tool nhớ.",
+        () => {
+        },
+        true
+      );
+    } else if (sphList.length > 1) {
+      themNut(
+        "+ Tất cả (" + sphList.length + ")",
+        "#4f46e5",
+        "Tạo lần lượt " + sphList.length + " dòng: " + sphList.map((x) => maHS + "-" + x + DUOI).join(", "),
+        () => themNhieuDong(sphList.map(tenGiayChungNhan)),
+        !maHS
+      );
+    }
+    for (const sph of sphList) {
+      themNut(
+        "+ " + sph,
+        "#4f46e5",
+        'Tạo dòng "' + (maHS || "<mã hồ sơ>") + "-" + sph + DUOI + '" rồi tích ô gửi về một cửa.',
+        () => themDong(tenGiayChungNhan(sph)),
+        !maHS
+      );
+      themNut(
+        "⧉",
+        "#475569",
+        'Copy "' + (maHS || "<mã hồ sơ>") + "-" + sph + DUOI + '" để đổi tên file quét trên máy.',
+        () => copyTen(sph),
+        false,
+        true
+      );
+      if (!tren.includes(sph)) {
+        themNut(
+          "✕",
+          "#b91c1c",
+          'Xoá "' + sph + '" khỏi danh sách nhớ của tool (gõ nhầm thì xoá ở đây). KHÔNG xoá dòng đã tạo trong bảng - dòng đó xoá bằng nút "Xóa" màu đỏ của cổng.',
+          () => xoaSphNho(maHS, sph),
+          !maHS,
+          true
+        );
+      }
+    }
+    themNut(
+      "+ " + hauTo,
+      "#0f766e",
+      'Tạo dòng "' + (maHS || "<mã hồ sơ>") + "-" + hauTo + DUOI + '", KHÔNG tích ô gửi về một cửa. Đổi GT/PT trong tab Cài đặt của tool.',
+      () => themDong(tenGiayToKem()),
+      !maHS
+    );
+    themNut(
+      "⧉",
+      "#475569",
+      'Copy "' + (maHS || "<mã hồ sơ>") + "-" + hauTo + DUOI + '" để đổi tên file quét trên máy.',
+      copyTenGiayToKem,
+      false,
+      true
+    );
+    const o = document.createElement("input");
+    o.type = "text";
+    o.id = "mplis-tenfile-input-tay";
+    o.placeholder = "Số tự nhập, VD: BN 600374";
+    o.title = 'Gõ số rồi bấm "+ Thêm": tạo dòng "' + (maHS || "<mã hồ sơ>") + "-<số>" + DUOI + '"';
+    o.style.cssText = 'min-height:30px; width:150px; padding:4px 8px; font:12px "Segoe UI", sans-serif; color:#1e293b; background:#fff; border:1px solid #c7d2fe; border-radius:6px;';
+    o.onkeydown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        themDongTay(o.value, maHS);
+      }
+    };
+    thanh.appendChild(o);
+    themNut(
+      "+",
+      "#7c3aed",
+      'Tạo dòng theo số vừa gõ. Số dạng "BN 600374" thì tool tích luôn ô gửi về một cửa.',
+      () => themDongTay(o.value, maHS),
+      !maHS
+    );
+    const nhac = document.createElement("span");
+    nhac.style.cssText = "margin-left:auto; font-size:11px; color:#475569; white-space:nowrap;";
+    nhac.title = 'Dòng tên theo Số phát hành thì tool tích ô "Giấy tờ gửi về một cửa"; dòng ' + hauTo + " thì bỏ tích.";
+    nhac.textContent = sphList.length + " GCN · tích một cửa | " + hauTo + " · không tích";
+    thanh.appendChild(nhac);
+    const noi = bang.parentElement || bang;
+    noi.insertBefore(thanh, bang);
+  }
+  var COT_MOT_CUA_RE = /một cửa/i;
+  var COT_TEN_RE = /tên giấy tờ/i;
+  var TEN_GCN_RE = /-[A-Z]{2}\s*\d{6,}\.PDF$/;
+  var TEN_KEM_RE = /-(GT|PT)\.PDF$/;
+  function layChiSoCot(hang, re) {
+    if (!hang) return -1;
+    const o = Array.from(hang.children);
+    for (let i = 0; i < o.length; i++) {
+      if (re.test((o[i].textContent || "").trim())) return i;
+    }
+    return -1;
+  }
+  function timOMotCua(tr, cotMotCua, soOTieuDe) {
+    const o = Array.from(tr.children);
+    const layTrongO = (idx) => {
+      const cell = idx >= 0 ? o[idx] : null;
+      return cell ? cell.querySelector('input[type="checkbox"]') : null;
+    };
+    let cb = layTrongO(cotMotCua);
+    if (cb) return { cb, cach: "đúng chỉ số cột tiêu đề" };
+    const lech = o.length - soOTieuDe;
+    if (lech > 0) {
+      cb = layTrongO(cotMotCua + lech);
+      if (cb) return { cb, cach: "bù lệch " + lech + " ô so với tiêu đề" };
+    }
+    const tatCa = Array.from(tr.querySelectorAll('input[type="checkbox"]'));
+    const conLai = tatCa.filter((x) => x.closest("td") !== o[0] && x.closest("th") !== o[0]);
+    if (conLai.length === 1) return { cb: conLai[0], cach: "ô tích duy nhất ngoài cột chọn dòng" };
+    return {
+      cb: null,
+      cach: "không xác định được (dòng có " + o.length + " ô, tiêu đề " + soOTieuDe + " ô, " + tatCa.length + " ô tích)"
+    };
+  }
+  var _daLogThieuCot = false;
+  var _daLogBang = "";
+  function tuTichDongBo() {
+    if (!tuTichBat()) return;
+    const bang = Array.from(document.querySelectorAll(BANG_DINH_KEM_SELECTOR)).find(dangHien2);
+    if (!bang) return;
+    const hangTieuDe = bang.querySelector("thead tr") || bang.querySelector("tr");
+    const soOTieuDe = hangTieuDe ? hangTieuDe.children.length : 0;
+    const cotMotCua = layChiSoCot(hangTieuDe, COT_MOT_CUA_RE);
+    const cotTen = layChiSoCot(hangTieuDe, COT_TEN_RE);
+    if (cotMotCua < 0) {
+      if (!_daLogThieuCot) {
+        console.log('[MPLIS TenFile] Không thấy cột "một cửa" trong bảng giấy tờ đính kèm nên KHÔNG tích gì. Tiêu đề các cột đang có: ' + (hangTieuDe ? Array.from(hangTieuDe.children).map((x) => (x.textContent || "").trim() || "(trống)").join(" | ") : "(không đọc được)"));
+        _daLogThieuCot = true;
+      }
+      return;
+    }
+    _daLogThieuCot = false;
+    const dauBang = (bang.id || "") + "#" + cotMotCua + "#" + soOTieuDe;
+    if (_daLogBang !== dauBang) {
+      _daLogBang = dauBang;
+      console.log('[MPLIS TenFile] Bảng "' + (bang.id || "(không id)") + '": cột "một cửa" ở vị trí ' + cotMotCua + ', cột "tên giấy tờ" ở vị trí ' + cotTen + ", tiêu đề " + soOTieuDe + " ô.");
+    }
+    for (const tr of Array.from(bang.querySelectorAll("tbody tr"))) {
+      if (!dangHien2(tr)) continue;
+      const o = Array.from(tr.children);
+      const lech = Math.max(0, o.length - soOTieuDe);
+      const ungVienTen = [o[cotTen], o[cotTen + lech]].filter(Boolean);
+      const ten = ungVienTen.map((x) => (x.textContent || "").replace(/\s+/g, " ").trim()).find((t) => /\.PDF$/i.test(t)) || (tr.textContent || "").replace(/\s+/g, " ").trim();
+      const tenGon = ten.replace(/\s+/g, "").toUpperCase();
+      const laGcn = TEN_GCN_RE.test(tenGon);
+      const laKem = TEN_KEM_RE.test(tenGon);
+      if (!laGcn && !laKem) continue;
+      const { cb, cach } = timOMotCua(tr, cotMotCua, soOTieuDe);
+      if (!cb) {
+        if (tr.getAttribute(DA_TICH_ATTR) !== "bo-qua") {
+          tr.setAttribute(DA_TICH_ATTR, "bo-qua");
+          console.log('[MPLIS TenFile] Dòng "' + ten + '": không tìm được ô "gửi về một cửa" - ' + cach + ". Không đụng gì.");
+        }
+        continue;
+      }
+      const muon = laGcn;
+      if (tr.getAttribute(DA_TICH_ATTR) === (muon ? "tich" : "bo-tich")) continue;
+      tr.setAttribute(DA_TICH_ATTR, muon ? "tich" : "bo-tich");
+      if (cb.checked === muon) continue;
+      const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+      if (jq) jq(cb).click();
+      else cb.click();
+      console.log("[MPLIS TenFile] " + (muon ? "Đã TÍCH" : "Đã BỎ TÍCH") + ' ô "gửi về một cửa" cho: ' + ten + " (tìm ô theo: " + cach + ")");
+    }
+  }
+  function ganNut() {
+    const dong = layDongGiayInMoi();
+    if (dong.length) nhoSph(layMaHoSoDayDu(), dong.map((d) => d.sph));
+    for (const d of dong) {
+      if (d.tr.querySelector("." + BTN_CLASS)) continue;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = BTN_CLASS;
+      btn.setAttribute(BTN_MARK, d.sph);
+      btn.textContent = "Copy tên file";
+      btn.title = 'Copy "<mã hồ sơ>-' + d.sph + DUOI + '" để đổi tên file quét';
+      btn.style.cssText = 'margin-left:6px; padding:3px 8px; font:600 11px "Segoe UI", sans-serif; color:#fff; background:#4f46e5; border:none; border-radius:5px; cursor:pointer;';
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        copyTen(d.sph);
+      };
+      d.cells[d.cells.length - 1].appendChild(btn);
+    }
+  }
+  var _thieuDaLog = false;
+  setInterval(() => {
+    try {
+      ganNut();
+      ganThanhNut();
+      tuTichDongBo();
+    } catch (e) {
+      console.error("[MPLIS TenFile] Lỗi:", e);
+    }
+  }, SCAN_INTERVAL_MS2);
+  window.addEventListener("keydown", (e) => {
+    if (!e.altKey || e.key !== "d" && e.key !== "D") return;
+    e.preventDefault();
+    const dong = layDongGiayInMoi();
+    if (!dong.length) {
+      if (!_thieuDaLog) {
+        console.log('[MPLIS TenFile] Không thấy dòng "Giấy in mới" nào đang hiện. Mở màn hình "Cập nhật pháp lý giấy chứng nhận" (sau bước 1) rồi bấm lại Alt+D.');
+        _thieuDaLog = true;
+      }
+      baoNhanh("Không thấy giấy in mới trên trang", "#b91c1c");
+      return;
+    }
+    _thieuDaLog = false;
+    copyTen(dong[0].sph);
+    if (dong.length > 1) {
+      console.log("[MPLIS TenFile] Hồ sơ có " + dong.length + " giấy in mới (" + dong.map((d) => d.sph).join(", ") + '). Alt+D lấy giấy đầu; giấy còn lại bấm nút "Copy tên file" ngay trên dòng của nó.');
+      baoNhanh("Có " + dong.length + " giấy in mới - đã copy giấy đầu, giấy khác bấm nút trên dòng", "#b45309");
+    }
+  });
+  window.addEventListener("keydown", (e) => {
+    if (!e.altKey || e.key !== "g" && e.key !== "G") return;
+    e.preventDefault();
+    copyTenGiayToKem();
+  });
 
   // src/notify-capture.js
   var ENABLED_KEY2 = "mplis_notify_capture_enabled";

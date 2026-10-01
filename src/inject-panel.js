@@ -46,6 +46,11 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         // Ngày vào sổ chọn sẵn - đọc chung khoá 'mplis_phaply_ngay_vao_so' với phaply-default.js.
         // Để trống = tool tự điền ngày hôm nay.
         const phapLyNgayVaoSo = (localStorage.getItem('mplis_phaply_ngay_vao_so') || '').trim();
+        // Hậu tố tên file giấy tờ kèm - đọc chung khoá 'mplis_tenfile_hau_to' với filename-copy.js.
+        const hauToTenFile = ['GT', 'PT'].includes((localStorage.getItem('mplis_tenfile_hau_to') || '').toUpperCase())
+            ? localStorage.getItem('mplis_tenfile_hau_to').toUpperCase() : 'GT';
+        // Tự tích ô đồng bộ một cửa - mặc định TẮT (ghi lên form thật của cổng).
+        const isTuTichDongBoChecked = localStorage.getItem('mplis_tenfile_tu_tich_dongbo') === 'true' ? 'checked' : '';
         // Đọc chung 1 khoá localStorage với spatial-link-bypass.js - mặc định TẮT (khác các ô
         // trên) vì đây là bypass cảnh báo nghiệp vụ, không phải tiện ích an toàn.
         const isBypassSpatialLinkChecked = localStorage.getItem('mplis_bypass_spatial_link_enabled') === 'true' ? 'checked' : '';
@@ -288,57 +293,118 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                     </div>
 
                     <!-- TAB 6: SETTINGS -->
+                    <!-- Mỗi mục là 1 thẻ thu gọn: đóng lại chỉ còn tiêu đề + trạng thái, nên tab
+                         Cài đặt không dài tới mức phải cuộn mới thấy mục cuối. Trạng thái nằm trên
+                         thanh tiêu đề để đóng vẫn biết đang bật/tắt gì. -->
                     <div class="mplis-panel-body" id="tab-settings">
-                        <span class="mplis-section-label">An toàn</span>
-                        <div class="mplis-card">
-                            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
-                                <input type="checkbox" id="chk-auto-confirm" ${isAutoConfirmChecked} style="margin-top:2px;">
-                                <span>
-                                    Tự động chấp nhận mọi hộp thoại confirm()/alert() của trang<br/>
-                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Tắt nếu bạn muốn tự tay xác nhận từng hộp thoại quan trọng (VD: ký số, kết ISO). Cần <b>tải lại trang</b> để áp dụng thay đổi.</span>
-                                </span>
-                            </label>
-                        </div>
-
-                        <span class="mplis-section-label">Phím tắt</span>
-                        <div class="mplis-card" style="font-size:11.5px; color:#cbd5e1; line-height:2;">
-                            <div><b style="color:#fff;">Alt + S</b> — Bật/tắt tab đang mở (Xử lý hoặc Trả hồ sơ)</div>
-                            <div><b style="color:#fff;">Alt + H</b> — Ẩn/hiện bảng điều khiển</div>
-                        </div>
-
-                        <span class="mplis-section-label">Tự điền sẵn</span>
-                        <div class="mplis-card">
-                            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
-                                <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked} style="margin-top:2px;">
-                                <span>
-                                    Tự điền màn hình Cập nhật pháp lý<br/>
-                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", chọn Loại GCN năm 2024, điền Người ký theo CB chuyển và Ngày vào sổ theo ô dưới. Sửa tay đè lên lúc nào cũng được. Tắt thì để nguyên form, tự điền tay hết.</span>
-                                </span>
-                            </label>
-
-                            <div style="display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
-                                <label for="cfg-phaply-ngay-vao-so" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Ngày vào sổ:</label>
-                                <input type="date" id="cfg-phaply-ngay-vao-so" value="${escapeHtml(phapLyNgayVaoSo)}" style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px; color-scheme:dark;">
-                                <button type="button" id="btn-phaply-ngay-hom-nay" class="mplis-btn-ghost" style="padding:7px 10px; font-size:11.5px; flex-shrink:0;">Hôm nay</button>
+                        <div class="mplis-card mplis-collapse" id="set-safe-group">
+                            <button type="button" class="mplis-collapse-head" id="set-safe-toggle" aria-expanded="false" aria-controls="set-safe-body">
+                                <span class="mplis-section-label">An toàn</span>
+                                <span class="mplis-collapse-state ${isAutoConfirmChecked ? 'on' : ''}" id="set-safe-state">${isAutoConfirmChecked ? 'Tự đồng ý' : 'Hỏi tay'}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-safe-body">
+                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
+                                    <input type="checkbox" id="chk-auto-confirm" ${isAutoConfirmChecked} style="margin-top:2px;">
+                                    <span>
+                                        Tự động chấp nhận mọi hộp thoại confirm()/alert() của trang<br/>
+                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Tắt nếu muốn tự tay xác nhận từng hộp quan trọng (ký số, kết ISO). Cần <b>tải lại trang</b>.</span>
+                                    </span>
+                                </label>
                             </div>
-                            <div id="phaply-ngay-state" style="margin-top:6px; font-size:11.5px; line-height:1.5;"></div>
                         </div>
 
-                        <span class="mplis-section-label">Thông báo hồ sơ mới</span>
-                        <div class="mplis-card" style="margin-bottom:0;">
-                            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
-                                <input type="checkbox" id="chk-notify-capture" ${isNotifyCaptureChecked} style="margin-top:2px;">
-                                <span>
-                                    Tự đẩy hồ sơ mới nhận lên Sheet "Thông báo nhận HS"<br/>
-                                    <span style="color:var(--mplis-text-dim); font-size:12px;">Mỗi lần tải trang, tool quét danh sách công việc, tìm hồ sơ mới xuất hiện rồi ghi vào Sheet. Tắt thì tool ngưng quét, hồ sơ mới không được ghi nhận nữa. Cần <b>tải lại trang</b> để áp dụng thay đổi.</span>
-                                </span>
-                            </label>
+                        <div class="mplis-card mplis-collapse" id="set-autofill-group">
+                            <button type="button" class="mplis-collapse-head" id="set-autofill-toggle" aria-expanded="false" aria-controls="set-autofill-body">
+                                <span class="mplis-section-label">Tự điền pháp lý</span>
+                                <span class="mplis-collapse-state ${isPhapLyAutofillChecked ? 'on' : ''}" id="set-autofill-state">${isPhapLyAutofillChecked ? (phapLyNgayVaoSo ? 'Bật · ngày cố định' : 'Bật · hôm nay') : 'Tắt'}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-autofill-body">
+                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
+                                    <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked} style="margin-top:2px;">
+                                    <span>
+                                        Tự điền màn hình Cập nhật pháp lý<br/>
+                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", Loại GCN năm 2024, Người ký theo CB chuyển, Ngày vào sổ theo ô dưới. Sửa tay đè lên được.</span>
+                                    </span>
+                                </label>
+
+                                <div style="display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
+                                    <label for="cfg-phaply-ngay-vao-so" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Ngày vào sổ:</label>
+                                    <input type="date" id="cfg-phaply-ngay-vao-so" value="${escapeHtml(phapLyNgayVaoSo)}" style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px; color-scheme:dark;">
+                                    <button type="button" id="btn-phaply-ngay-hom-nay" class="mplis-btn-ghost" style="padding:7px 10px; font-size:11.5px; flex-shrink:0;">Hôm nay</button>
+                                </div>
+                                <div id="phaply-ngay-state" style="margin-top:6px; font-size:11.5px; line-height:1.5;"></div>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="set-tenfile-group">
+                            <button type="button" class="mplis-collapse-head" id="set-tenfile-toggle" aria-expanded="false" aria-controls="set-tenfile-body">
+                                <span class="mplis-section-label">Tên file quét</span>
+                                <span class="mplis-collapse-state on" id="set-tenfile-state">${hauToTenFile}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-tenfile-body">
+                                <div style="font-size:12px; color:#e2e8f0;">Hậu tố tên <b>giấy tờ kèm</b></div>
+                                <div id="tenfile-hauto-group" role="radiogroup" aria-label="Hậu tố tên file giấy tờ kèm" style="display:flex; gap:6px; margin-top:8px;">
+                                    <button type="button" class="mplis-hauto-btn" data-hauto="GT" aria-checked="${hauToTenFile === 'GT' ? 'true' : 'false'}" role="radio" style="flex:1; min-height:34px;">GT</button>
+                                    <button type="button" class="mplis-hauto-btn" data-hauto="PT" aria-checked="${hauToTenFile === 'PT' ? 'true' : 'false'}" role="radio" style="flex:1; min-height:34px;">PT</button>
+                                </div>
+                                <div id="tenfile-hauto-state" style="margin-top:8px; font-size:11.5px; color:var(--mplis-text-dim); line-height:1.6;"></div>
+
+                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0; margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
+                                    <input type="checkbox" id="chk-tenfile-dongbo" ${isTuTichDongBoChecked} style="margin-top:2px;">
+                                    <span>
+                                        Tự tích ô "đồng bộ về một cửa"<br/>
+                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Dòng file tên theo Số phát hành thì tích, dòng GT/PT thì bỏ tích. <b>Mặc định TẮT</b> vì ghi lên form thật. Dòng có nhiều hơn 1 ô tích thì tool không đụng, chỉ ghi log.</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="set-notify-group">
+                            <button type="button" class="mplis-collapse-head" id="set-notify-toggle" aria-expanded="false" aria-controls="set-notify-body">
+                                <span class="mplis-section-label">Thông báo hồ sơ mới</span>
+                                <span class="mplis-collapse-state ${isNotifyCaptureChecked ? 'on' : ''}" id="set-notify-state">${isNotifyCaptureChecked ? 'Bật' : 'Tắt'}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-notify-body">
+                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
+                                    <input type="checkbox" id="chk-notify-capture" ${isNotifyCaptureChecked} style="margin-top:2px;">
+                                    <span>
+                                        Tự đẩy hồ sơ mới nhận lên Sheet "Thông báo nhận HS"<br/>
+                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Mỗi lần tải trang, tool quét danh sách công việc rồi ghi hồ sơ mới vào Sheet. Cần <b>tải lại trang</b>.</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="set-keys-group" style="margin-bottom:0;">
+                            <button type="button" class="mplis-collapse-head" id="set-keys-toggle" aria-expanded="false" aria-controls="set-keys-body">
+                                <span class="mplis-section-label">Phím tắt</span>
+                                <span class="mplis-collapse-state" id="set-keys-state">4 phím</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-keys-body" style="font-size:11.5px; color:#cbd5e1; line-height:1.9;">
+                                <div><b style="color:#fff;">Alt + S</b> — Bật/tắt tab đang mở</div>
+                                <div><b style="color:#fff;">Alt + H</b> — Ẩn/hiện bảng điều khiển</div>
+                                <div><b style="color:#fff;">Alt + D</b> — Copy tên file giấy chứng nhận</div>
+                                <div><b style="color:#fff;">Alt + G</b> — Copy tên file giấy tờ kèm</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         `;
         document.body.appendChild(panel);
+
+        // Badge trạng thái trên thanh tiêu đề từng thẻ Cài đặt - đóng thẻ vẫn thấy đang bật gì.
+        function veBadge(id, chu, on) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = chu;
+            el.classList.toggle('on', !!on);
+        }
 
         const chkAutoConfirm = document.getElementById('chk-auto-confirm');
         if (chkAutoConfirm) {
@@ -352,6 +418,7 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                     notice.style.cssText = 'margin-top:8px; font-size:12px; color:#f59e0b; font-weight:600;';
                     settingsTab.insertBefore(notice, settingsTab.children[1]);
                 }
+                veBadge('set-safe-state', e.target.checked ? 'Tự đồng ý' : 'Hỏi tay', e.target.checked);
                 if (notice) notice.textContent = '⚠️ Đã lưu. Tải lại trang (F5) để áp dụng thay đổi.';
             };
         }
@@ -362,6 +429,10 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         if (chkPhapLyAutofill) {
             chkPhapLyAutofill.onchange = (e) => {
                 localStorage.setItem('mplis_phaply_autofill_enabled', e.target.checked ? 'true' : 'false');
+                const coNgay = !!(document.getElementById('cfg-phaply-ngay-vao-so') || {}).value;
+                veBadge('set-autofill-state',
+                    e.target.checked ? (coNgay ? 'Bật · ngày cố định' : 'Bật · hôm nay') : 'Tắt',
+                    e.target.checked);
             };
         }
 
@@ -386,6 +457,9 @@ import { toggleProcess, toggleReturn } from './toggle.js';
             const luuNgay = () => {
                 try { localStorage.setItem('mplis_phaply_ngay_vao_so', inpPhapLyNgay.value.trim()); } catch (e) { }
                 veTrangThai();
+                const bat = (document.getElementById('chk-phaply-autofill') || {}).checked;
+                veBadge('set-autofill-state',
+                    bat ? (inpPhapLyNgay.value.trim() ? 'Bật · ngày cố định' : 'Bật · hôm nay') : 'Tắt', bat);
             };
 
             inpPhapLyNgay.onchange = luuNgay;
@@ -404,10 +478,50 @@ import { toggleProcess, toggleReturn } from './toggle.js';
 
         // notify-capture.js chỉ chạy pollWorkList() 1 lần lúc tải trang - khác phaply-default, đổi
         // công tắc này KHÔNG áp dụng ngay, phải F5.
+        // Chọn hậu tố GT/PT cho tên giấy tờ kèm. filename-copy.js đọc localStorage mỗi lần bấm
+        // nên đổi ở đây áp dụng ngay, không cần F5.
+        const hauToGroup = document.getElementById('tenfile-hauto-group');
+        const hauToState = document.getElementById('tenfile-hauto-state');
+        if (hauToGroup && hauToState) {
+            const veHauTo = (hauTo) => {
+                hauToGroup.querySelectorAll('.mplis-hauto-btn').forEach(b => {
+                    const on = b.dataset.hauto === hauTo;
+                    b.setAttribute('aria-checked', on ? 'true' : 'false');
+                    b.classList.toggle('on', on);
+                });
+                veBadge('set-tenfile-state', hauTo, true);
+                hauToState.innerHTML = 'Giấy tờ kèm: <b style="color:#fff;">&lt;mã hồ sơ&gt;-'
+                    + hauTo + '.pdf</b> — không tích ô đồng bộ một cửa.<br/>'
+                    + 'Giấy chứng nhận: <b style="color:#fff;">&lt;mã hồ sơ&gt;-&lt;Số phát hành&gt;.pdf</b>'
+                    + ' — tích ô đồng bộ một cửa.<br/>'
+                    + 'Phím tắt: <b style="color:#fff;">Alt+D</b> giấy chứng nhận, '
+                    + '<b style="color:#fff;">Alt+G</b> giấy tờ kèm.';
+            };
+
+            hauToGroup.querySelectorAll('.mplis-hauto-btn').forEach(b => {
+                b.onclick = () => {
+                    const hauTo = b.dataset.hauto;
+                    try { localStorage.setItem('mplis_tenfile_hau_to', hauTo); } catch (e) { }
+                    veHauTo(hauTo);
+                };
+            });
+            veHauTo(hauToTenFile);
+        }
+
+        // Tự tích ô "đồng bộ về một cửa". filename-copy.js đọc localStorage mỗi vòng quét nên đổi
+        // là áp dụng ngay, không cần F5.
+        const chkTenFileDongBo = document.getElementById('chk-tenfile-dongbo');
+        if (chkTenFileDongBo) {
+            chkTenFileDongBo.onchange = (e) => {
+                localStorage.setItem('mplis_tenfile_tu_tich_dongbo', e.target.checked ? 'true' : 'false');
+            };
+        }
+
         const chkNotifyCapture = document.getElementById('chk-notify-capture');
         if (chkNotifyCapture) {
             chkNotifyCapture.onchange = (e) => {
                 localStorage.setItem('mplis_notify_capture_enabled', e.target.checked ? 'true' : 'false');
+                veBadge('set-notify-state', e.target.checked ? 'Bật' : 'Tắt', e.target.checked);
             };
         }
 
@@ -509,6 +623,11 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         bindCollapse('qt2-file-group', 'qt2-file-toggle', 'mplis_qt2_file_open');
         bindCollapse('fw-user-group', 'fw-user-toggle', 'mplis_fw_user_open');
         bindCollapse('kg-bypass-group', 'kg-bypass-toggle', 'mplis_kg_bypass_open');
+        bindCollapse('set-safe-group', 'set-safe-toggle', 'mplis_set_safe_open');
+        bindCollapse('set-autofill-group', 'set-autofill-toggle', 'mplis_set_autofill_open');
+        bindCollapse('set-tenfile-group', 'set-tenfile-toggle', 'mplis_set_tenfile_open');
+        bindCollapse('set-notify-group', 'set-notify-toggle', 'mplis_set_notify_open');
+        bindCollapse('set-keys-group', 'set-keys-toggle', 'mplis_set_keys_open');
 
         document.getElementById('chk-qt2-selectall').onchange = (e) => {
             const checked = e.target.checked;

@@ -135,6 +135,16 @@ function layKhoiBuoc(label) {
     return (cot && cot.parentElement) || label.closest('.row') || label.parentElement;
 }
 
+// Mỗi khối "CB chuyển" nằm trong 1 DÒNG HỒ SƠ của danh sách công việc, và dòng đó có mã hồ sơ
+// đầy đủ ("H15.50.05.12-260917-1436"). Đổi về dạng rút gọn ("17-1436") để so thẳng với
+// findCurrentMaHS() - hồ sơ nào đang mở thì lấy đúng khối của hồ sơ đó.
+const MA_HS_DAY_DU_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+){2,}-(\d{6})-(\d{3,})/i;
+
+function rutGonMaHS(text) {
+    const m = MA_HS_DAY_DU_RE.exec(text || '');
+    return m ? (m[1].slice(-2) + '-' + m[2]).toUpperCase() : '';
+}
+
 // Lấy mốc thời gian LỚN NHẤT xuất hiện trong chữ của bước (dd/mm/yyyy, có thể kèm HH:mm).
 function layMocThoiGian(text) {
     const re = /(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/g;
@@ -157,7 +167,7 @@ function layTatCaCbChuyen() {
             if (!name) return null;
             const khoi = layKhoiBuoc(label);
             const chuBuoc = ((khoi && khoi.textContent) || '').replace(/\s+/g, ' ').trim();
-            return { label, name, chuBuoc, moc: layMocThoiGian(chuBuoc) };
+            return { label, name, chuBuoc, maHS: rutGonMaHS(chuBuoc), moc: layMocThoiGian(chuBuoc) };
         })
         .filter(c => c && dangHien(c.label));
 }
@@ -169,6 +179,25 @@ function chonKhoiMoiNhat(list) {
     const coMoc = list.filter(c => c.moc > 0);
     if (!coMoc.length) return list[0];
     return coMoc.reduce((a, b) => (b.moc > a.moc ? b : a));
+}
+
+// Chọn khối "CB chuyển" của ĐÚNG hồ sơ đang mở. Danh sách công việc hiện nhiều hồ sơ cùng lúc,
+// mỗi hồ sơ 1 khối, nên lấy theo ngày mới nhất là trúng hồ sơ của người khác - đó là lý do tên
+// người ký từng bị điền nhầm. Không khớp được mã nào thì mới quay về lấy bước mới nhất.
+function chonKhoiTheoHoSo(list, maHSHienTai) {
+    if (maHSHienTai) {
+        const khop = list.filter(c => c.maHS && c.maHS === maHSHienTai);
+        if (khop.length === 1) return { chon: khop[0], cach: 'khớp mã hồ sơ ' + maHSHienTai };
+        if (khop.length > 1) {
+            return { chon: chonKhoiMoiNhat(khop), cach: 'khớp mã hồ sơ ' + maHSHienTai + ', lấy bước mới nhất' };
+        }
+    }
+    return {
+        chon: chonKhoiMoiNhat(list),
+        cach: maHSHienTai
+            ? '⚠️ KHÔNG khối nào mang mã hồ sơ ' + maHSHienTai + ', đành lấy bước mới nhất'
+            : '⚠️ không đọc được mã hồ sơ đang mở, đành lấy bước mới nhất'
+    };
 }
 
 // Mô tả vị trí 1 thẻ trong DOM để đọc được trong console: chuỗi tag#id.class leo lên 6 cấp.
@@ -193,7 +222,7 @@ function dumpCbChuyen(list, chon) {
         try { top = Math.round(c.label.getBoundingClientRect().top); } catch (e) { }
         const mocStr = c.moc ? new Date(c.moc).toLocaleString('vi-VN') : '(không đọc được ngày)';
         console.log('  [' + i + ']' + (c === chon ? ' <== đang lấy' : '') + ' ' + c.name
-            + ' | moc=' + mocStr + ' | top=' + top);
+            + ' | hồ sơ=' + (c.maHS || '?') + ' | moc=' + mocStr + ' | top=' + top);
         console.log('      viTri: ' + moTaViTri(c.label));
         console.log('      chuBuoc: ' + c.chuBuoc.slice(0, 300));
     });
@@ -202,11 +231,14 @@ function dumpCbChuyen(list, chon) {
 function layTenCbChuyen() {
     const list = layTatCaCbChuyen();
     if (!list.length) return '';
-    if (list.length === 1) return list[0].name;
 
-    const chon = chonKhoiMoiNhat(list);
-    console.log('[MPLIS PhapLy] Có ' + list.length + ' khối "CB chuyển" đang hiện ('
-        + list.map(c => c.name).join(' | ') + '), lấy bước mới nhất:', chon.name);
+    // In log cho MỌI trường hợp, kể cả khi chỉ có 1 khối. Trước đây 1 khối thì im lặng, nên lúc
+    // tool điền nhầm tên là không có gì để lần - không biết nó thấy khối nào, của hồ sơ nào.
+    const maHSHienTai = findCurrentMaHS();
+    const { chon, cach } = chonKhoiTheoHoSo(list, maHSHienTai);
+    console.log('[MPLIS PhapLy] Hồ sơ đang mở: ' + (maHSHienTai || '(không đọc được)')
+        + ' | ' + list.length + ' khối "CB chuyển" đang hiện ('
+        + list.map(c => c.name).join(' | ') + ') | lấy: ' + chon.name + ' (' + cach + ')');
     dumpCbChuyen(list, chon);
     return chon.name;
 }

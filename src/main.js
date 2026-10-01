@@ -11,6 +11,7 @@ import { toggleProcess, toggleReturn } from './toggle.js';
 import './receipt-copy.js';
 import './bien-dong-capture.js';
 import './phaply-default.js';
+import './filename-copy.js';
 import './notify-capture.js';
 import './spatial-link-bypass.js';
 
