@@ -260,7 +260,7 @@
         .mplis-tab-toggle:hover { color: var(--mplis-text); }
         .mplis-tab-toggle.expanded { color: var(--mplis-accent-2); }
 
-        .mplis-content { flex: 1; min-width: 0; min-height: 268px; overflow-y: auto; padding: 12px; transition: min-height 0.22s ease; }
+        .mplis-content { flex: 1; min-width: 0; min-height: 240px; overflow-y: auto; padding: 10px; transition: min-height 0.22s ease; }
         .mplis-content::-webkit-scrollbar, .mplis-tabs::-webkit-scrollbar { width: 6px; }
         .mplis-content::-webkit-scrollbar-thumb, .mplis-tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 
@@ -269,14 +269,14 @@
         @keyframes mplis-fade-in { from { opacity: 0; transform: translateY(3px);} to { opacity: 1; transform: translateY(0);} }
 
         .mplis-section-label { font-size: 10px; color: var(--mplis-text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 0.07em; margin-bottom: 6px; display: block; }
-        .mplis-card { background: var(--mplis-surface); border: 1px solid var(--mplis-border); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+        .mplis-card { background: var(--mplis-surface); border: 1px solid var(--mplis-border); border-radius: 10px; padding: 9px; margin-bottom: 8px; }
         .mplis-hint { font-size: 11.5px; color: var(--mplis-text-dim); line-height: 1.5; margin-bottom: 10px; }
 
         /* ---- Thẻ thu gọn/mở rộng ---- */
         /* Đóng lại vẫn phải biết tool đang chạy kiểu nào, nên trạng thái nằm luôn trên thanh tiêu đề
            (.mplis-collapse-state) thay vì giấu hết vào trong. */
         #mplis-auto-panel .mplis-collapse { padding: 0 !important; overflow: hidden; }
-        #mplis-auto-panel .mplis-collapse-head { display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important; min-height: 44px !important; padding: 11px 12px !important; background: transparent !important; border: none !important; border-radius: 12px !important; color: var(--mplis-text) !important; cursor: pointer !important; text-align: left !important; font-family: inherit !important; }
+        #mplis-auto-panel .mplis-collapse-head { display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important; min-height: 38px !important; padding: 8px 10px !important; background: transparent !important; border: none !important; border-radius: 12px !important; color: var(--mplis-text) !important; cursor: pointer !important; text-align: left !important; font-family: inherit !important; }
         #mplis-auto-panel .mplis-collapse-head:hover { background: var(--mplis-surface-hover) !important; }
         #mplis-auto-panel .mplis-collapse-head:focus-visible { outline: 2px solid var(--mplis-accent) !important; outline-offset: -2px !important; }
         #mplis-auto-panel .mplis-collapse-head .mplis-section-label { margin-bottom: 0 !important; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -285,8 +285,8 @@
         .mplis-collapse-state.on { color: var(--mplis-bg); background: var(--mplis-accent-2); border-color: transparent; }
         .mplis-collapse-caret { flex-shrink: 0; color: var(--mplis-text-dim); transition: transform 0.2s ease; }
         .mplis-collapse.open .mplis-collapse-caret { transform: rotate(180deg); }
-        .mplis-collapse-body { max-height: 0; opacity: 0; overflow: hidden; padding: 0 12px; transition: max-height 0.22s ease, opacity 0.16s ease, padding-bottom 0.22s ease; }
-        .mplis-collapse.open .mplis-collapse-body { max-height: 420px; overflow-y: auto; opacity: 1; padding-bottom: 12px; }
+        .mplis-collapse-body { max-height: 0; opacity: 0; overflow: hidden; padding: 0 10px; transition: max-height 0.22s ease, opacity 0.16s ease, padding-bottom 0.22s ease; }
+        .mplis-collapse.open .mplis-collapse-body { max-height: 420px; overflow-y: auto; opacity: 1; padding-bottom: 10px; }
         @media (prefers-reduced-motion: reduce) {
             .mplis-collapse-body, .mplis-collapse-caret { transition: none; }
         }
@@ -309,11 +309,13 @@
         @media print { #mplis-run-toast { display: none !important; } }
 
         .mplis-checkbox-group { display: flex !important; flex-direction: column !important; gap: 4px !important; }
-        .mplis-checkbox-group label { display: flex !important; align-items: center !important; gap: 9px !important; font-size: 12px !important; color: #e2e8f0 !important; cursor: pointer !important; padding: 7px 9px !important; background: var(--mplis-surface) !important; border-radius: 8px !important; border: 1px solid var(--mplis-border) !important; transition: background 0.15s; }
+        /* 6 quy trình xếp dọc chiếm gần 200px; xếp 2 cột còn 3 hàng, tab Xử lý ngắn lại hẳn. */
+        .mplis-checkbox-group.cols2 { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 4px !important; }
+        .mplis-checkbox-group label { display: flex !important; align-items: center !important; gap: 7px !important; min-height: 32px !important; font-size: 11.5px !important; color: #e2e8f0 !important; cursor: pointer !important; padding: 5px 8px !important; background: var(--mplis-surface) !important; border-radius: 8px !important; border: 1px solid var(--mplis-border) !important; transition: background 0.15s; }
         .mplis-checkbox-group label:hover { background: var(--mplis-surface-hover) !important; }
         .mplis-checkbox-group input, #mplis-auto-panel input[type="checkbox"] { accent-color: var(--mplis-accent); width: 14px; height: 14px; cursor: pointer; }
 
-        .mplis-btn-primary { width: 100% !important; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5) !important; border: none !important; border-radius: 9px !important; padding: 10px 14px !important; color: #ffffff !important; font-weight: 650 !important; font-size: 12.5px !important; cursor: pointer !important; letter-spacing: 0.01em; transition: all 0.15s ease !important; box-shadow: 0 3px 12px rgba(99,102,241,0.3); }
+        .mplis-btn-primary { width: 100% !important; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5) !important; border: none !important; border-radius: 9px !important; padding: 9px 14px !important; color: #ffffff !important; font-weight: 650 !important; font-size: 12.5px !important; cursor: pointer !important; letter-spacing: 0.01em; transition: all 0.15s ease !important; box-shadow: 0 3px 12px rgba(99,102,241,0.3); }
         .mplis-btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
         .mplis-btn-primary:active { transform: translateY(0); }
         .mplis-btn-primary.running { background: linear-gradient(135deg, var(--mplis-bad), #be123c) !important; box-shadow: 0 4px 14px rgba(244,63,94,0.35); }
@@ -324,10 +326,15 @@
         .mplis-hauto-btn:hover { background: var(--mplis-surface-hover) !important; color: var(--mplis-text) !important; }
         .mplis-hauto-btn.on { color: #fff !important; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5) !important; border-color: transparent !important; box-shadow: 0 3px 12px rgba(99,102,241,0.35) !important; }
 
+        /* Thanh kéo tốc độ: nền tối cho khớp panel, cao 4px, núm 14px đủ to để kéo. */
+        #mplis-auto-panel input[type="range"] { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 3px; background: rgba(255,255,255,0.14); outline: none; }
+        #mplis-auto-panel input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--mplis-accent-2); border: none; cursor: pointer; box-shadow: 0 1px 6px rgba(34,211,238,0.5); }
+        #mplis-auto-panel input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--mplis-accent-2); border: none; cursor: pointer; }
+
         .mplis-btn-ghost { background: var(--mplis-surface) !important; border: 1px solid var(--mplis-border) !important; color: var(--mplis-text) !important; border-radius: 9px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
         .mplis-btn-ghost:hover { background: var(--mplis-surface-hover) !important; }
 
-        .mplis-status-bar { margin-top: 10px !important; background: rgba(0,0,0,0.22) !important; border-radius: 9px !important; padding: 8px 10px !important; border: 1px solid var(--mplis-border) !important; }
+        .mplis-status-bar { margin-top: 8px !important; background: rgba(0,0,0,0.22) !important; border-radius: 9px !important; padding: 7px 9px !important; border: 1px solid var(--mplis-border) !important; }
         .mplis-status-row { display: flex !important; justify-content: space-between !important; align-items: center !important; font-size: 12px !important; }
         .mplis-status-lbl { display: flex !important; align-items: center !important; gap: 7px !important; color: #cbd5e1 !important; }
         .mplis-status-dot { width: 8px !important; height: 8px !important; border-radius: 50% !important; background-color: #64748b !important; flex-shrink: 0; }
@@ -1105,7 +1112,7 @@
                     shouldKeep = true;
                   } else {
                     shouldKeep = false;
-                    const matchSPH = fileName.match(/[A-Z]{2}\s*\d+/);
+                    const matchSPH = fileName.match(/[A-ZĐ]{1,2}\s*\d{5,}/);
                     if (matchSPH) {
                       const sphFile = matchSPH[0].replace(/\s+/g, "").toUpperCase();
                       shouldKeep = !!(topState.qt2SoPhatHanhList && topState.qt2SoPhatHanhList.includes(sphFile));
@@ -1541,7 +1548,7 @@
         console.error("[MPLIS Auto Scanner Error] ", e);
       }
     }
-    setInterval(scanAndExecute, 1200);
+    setInterval(scanAndExecute, 400);
     return {
       getTopState,
       saveConfig
@@ -2582,6 +2589,17 @@
       const commune = MY_COMMUNES.find((c) => dc === c.match);
       return commune ? commune.key : "khac";
     }
+    const LOAI_GIAY_KEY2 = "mplis_tenfile_loai_giay";
+    function getLoaiGiay(maHS, gcn) {
+      if (!maHS || !gcn) return "";
+      try {
+        const stored = JSON.parse(localStorage.getItem(LOAI_GIAY_KEY2) || "{}");
+        const cuaHoSo = stored[maHS] || {};
+        return cuaHoSo[gcn.replace(/\s+/g, "").toUpperCase()] || "";
+      } catch (e) {
+        return "";
+      }
+    }
     function getBienDongCode(maHS) {
       if (!maHS) return "";
       try {
@@ -3073,16 +3091,18 @@
           const datLUA = (dienTichCacLoai.LUC || 0) + (dienTichCacLoai.LUK || 0) + (dienTichCacLoai.BUN || 0) + (dienTichCacLoai.LUA || 0);
           const datHNK = dienTichCacLoai.HNK || 0;
           const datSKC = dienTichCacLoai.SKC || 0;
-          const exists = state.records.some((r) => r.gcn === gcn && r.thua === thua && r.to === to);
+          const loaiGiay = getLoaiGiay(maHS, gcn);
+          const tenTTHCDong = loaiGiay === "THU HỒI" ? "THU HỒI" : tenTTHCFull;
+          const exists = state.records.some((r) => r.maHS === maHS && r.gcn === gcn && r.thua === thua && r.to === to);
           if (exists) {
-            console.log('[Excel] GCN "' + gcn + '" Thửa ' + thua + " Tờ " + to + " đã có trong giỏ - bỏ qua, KHÔNG đẩy lại (kể cả nếu lần trước lỗi). Xóa dòng này ở tab Excel để thử đẩy lại.");
+            console.log("[Excel] Hồ sơ " + maHS + ' GCN "' + gcn + '" Thửa ' + thua + " Tờ " + to + " đã có trong giỏ - bỏ qua, KHÔNG đẩy lại (kể cả nếu lần trước lỗi). Xóa dòng này ở tab Excel để thử đẩy lại.");
             return;
           }
           {
             const newRecord = {
               maHS,
               loaiHS,
-              tenTTHCFull,
+              tenTTHCFull: tenTTHCDong,
               soBienNhan,
               nguoiNop,
               diaChi,
@@ -3476,6 +3496,12 @@
     const phapLyNgayVaoSo = (localStorage.getItem("mplis_phaply_ngay_vao_so") || "").trim();
     const hauToTenFile = ["GT", "PT"].includes((localStorage.getItem("mplis_tenfile_hau_to") || "").toUpperCase()) ? localStorage.getItem("mplis_tenfile_hau_to").toUpperCase() : "GT";
     const isTuTichDongBoChecked = localStorage.getItem("mplis_tenfile_tu_tich_dongbo") === "true" ? "checked" : "";
+    const MUC_TOC_DO = [
+      { key: "thuong", label: "Thường", delay: 500 },
+      { key: "nhanh", label: "Nhanh", delay: 250 },
+      { key: "toida", label: "Tối đa", delay: 120 }
+    ];
+    const tocDoHienTai = (MUC_TOC_DO.find((m) => m.delay === pCfg.delayAction) || MUC_TOC_DO[0]).key;
     const isBypassSpatialLinkChecked = localStorage.getItem("mplis_bypass_spatial_link_enabled") === "true" ? "checked" : "";
     function qt2FileHint(selectAll) {
       return selectAll ? 'Bấm "Chọn tất cả" trước cho tích hết bảng, rồi lọc Số phát hành gỡ tích file sai đơn.' : "Chỉ tích file khớp Số phát hành của đơn, cộng file gt/pt dùng chung.";
@@ -3534,13 +3560,14 @@
                     <!-- TAB 1: PROCESS -->
                     <div class="mplis-panel-body active" id="tab-process">
                         <span class="mplis-section-label">Chọn quy trình tự động</span>
-                        <div class="mplis-checkbox-group" style="margin-bottom:14px;">
-                            <label><input type="checkbox" name="mplis-workflow" value="QT0" ${isQT0}> QT0 · Cập nhật tệp đính kèm</label>
-                            <label><input type="checkbox" name="mplis-workflow" value="QT1" ${isQT1}> QT1 · Cập nhật dữ liệu pháp lý</label>
-                            <label><input type="checkbox" name="mplis-workflow" value="QT2" ${isQT2}> QT2 · Lưu kho hồ sơ quét</label>
-                            <label><input type="checkbox" name="mplis-workflow" value="QT3" ${isQT3}> QT3 · Ký số sổ địa chính</label>
-                            <label><input type="checkbox" name="mplis-workflow" value="QT4" ${isQT4}> QT4 · Kết ISO</label>
-                            <label><input type="checkbox" id="chk-qt5" ${pCfg.isQT5 ? "checked" : ""}> QT5 · Chuyển tiếp hồ sơ</label>
+                        <!-- Xếp 2 cột + nhãn ngắn (tên đầy đủ nằm ở title) cho tab Xử lý gọn lại. -->
+                        <div class="mplis-checkbox-group cols2" style="margin-bottom:10px;">
+                            <label title="QT0 · Cập nhật tệp đính kèm"><input type="checkbox" name="mplis-workflow" value="QT0" ${isQT0}> QT0 · Tệp đính kèm</label>
+                            <label title="QT1 · Cập nhật dữ liệu pháp lý"><input type="checkbox" name="mplis-workflow" value="QT1" ${isQT1}> QT1 · Dữ liệu pháp lý</label>
+                            <label title="QT2 · Lưu kho hồ sơ quét"><input type="checkbox" name="mplis-workflow" value="QT2" ${isQT2}> QT2 · Lưu kho quét</label>
+                            <label title="QT3 · Ký số sổ địa chính"><input type="checkbox" name="mplis-workflow" value="QT3" ${isQT3}> QT3 · Ký số sổ ĐC</label>
+                            <label title="QT4 · Kết ISO"><input type="checkbox" name="mplis-workflow" value="QT4" ${isQT4}> QT4 · Kết ISO</label>
+                            <label title="QT5 · Chuyển tiếp hồ sơ"><input type="checkbox" id="chk-qt5" ${pCfg.isQT5 ? "checked" : ""}> QT5 · Chuyển tiếp</label>
                         </div>
 
                         <div class="mplis-card mplis-collapse" id="qt2-file-group" style="display: ${isQT2 ? "block" : "none"};">
@@ -3580,6 +3607,24 @@
                                     <label><input type="checkbox" id="chk-bypass-kg" ${isBypassSpatialLinkChecked}> Tự bỏ qua cảnh báo "chưa liên kết không gian" khi Kết ISO</label>
                                 </div>
                                 <div class="mplis-hint" style="margin:8px 0 0;">Thay cho việc tự F12 vá request ThucHienKetISO bằng tay. <b>Mặc định TẮT</b> - chỉ bật khi biết chắc hồ sơ đã đúng, chỉ vướng lỗi liên kết giả/kỹ thuật. Áp dụng ngay, không cần tải lại trang.</div>
+                            </div>
+                        </div>
+
+                        <!-- Tốc độ để ngay tab Xử lý, cạnh nút chạy: chỉnh lúc đang làm, khỏi
+                             chui vào Cài đặt. Thẻ trong Cài đặt vẫn còn và đồng bộ 2 chiều. -->
+                        <!-- Tốc độ: 1 hàng nhãn + 3 nút mức, thanh kéo nằm dưới cùng hàng card. -->
+                        <div class="mplis-card" style="padding:8px 9px;">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span class="mplis-section-label" style="margin:0; flex-shrink:0;">Tốc độ</span>
+                                <div id="tocdo-group-main" role="radiogroup" aria-label="Mức tốc độ dựng sẵn" style="display:flex; gap:4px; margin-left:auto;">
+                                    ${MUC_TOC_DO.map((m) => `<button type="button" class="mplis-hauto-btn" data-tocdo="${m.key}" role="radio" aria-checked="${m.key === tocDoHienTai ? "true" : "false"}" style="min-height:28px; padding:4px 9px !important; font-size:11px !important;">${m.label}</button>`).join("")}
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px; margin-top:7px;">
+                                <input type="range" id="tocdo-slider" min="100" max="1000" step="50" value="${pCfg.delayAction || 500}"
+                                    aria-label="Thời gian nghỉ giữa 2 thao tác (mili giây)"
+                                    style="flex:1; min-width:0; cursor:pointer;">
+                                <span id="tocdo-value" style="flex-shrink:0; min-width:54px; text-align:right; font-size:11px; font-weight:700; color:var(--mplis-accent-2); font-variant-numeric:tabular-nums;"></span>
                             </div>
                         </div>
 
@@ -3774,6 +3819,20 @@
                             </div>
                         </div>
 
+                        <div class="mplis-card mplis-collapse" id="set-speed-group">
+                            <button type="button" class="mplis-collapse-head" id="set-speed-toggle" aria-expanded="false" aria-controls="set-speed-body">
+                                <span class="mplis-section-label">Tốc độ chạy</span>
+                                <span class="mplis-collapse-state on" id="set-speed-state">${MUC_TOC_DO.find((m) => m.key === tocDoHienTai).label}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-speed-body">
+                                <div id="tocdo-group" role="radiogroup" aria-label="Tốc độ chạy quy trình" style="display:flex; gap:6px;">
+                                    ${MUC_TOC_DO.map((m) => `<button type="button" class="mplis-hauto-btn" data-tocdo="${m.key}" role="radio" aria-checked="${m.key === tocDoHienTai ? "true" : "false"}" style="flex:1; min-height:34px;">${m.label}</button>`).join("")}
+                                </div>
+                                <div id="tocdo-state" style="margin-top:8px; font-size:11.5px; color:var(--mplis-text-dim); line-height:1.6;"></div>
+                            </div>
+                        </div>
+
                         <div class="mplis-card mplis-collapse" id="set-notify-group">
                             <button type="button" class="mplis-collapse-head" id="set-notify-toggle" aria-expanded="false" aria-controls="set-notify-body">
                                 <span class="mplis-section-label">Thông báo hồ sơ mới</span>
@@ -3911,6 +3970,47 @@
         localStorage.setItem("mplis_tenfile_tu_tich_dongbo", e.target.checked ? "true" : "false");
       };
     }
+    const tocDoSlider = document.getElementById("tocdo-slider");
+    const tocDoValue = document.getElementById("tocdo-value");
+    const tocDoState = document.getElementById("tocdo-state");
+    const nhomTocDo = ["tocdo-group", "tocdo-group-main"].map((id) => document.getElementById(id)).filter(Boolean);
+    function tenMucTocDo(delay) {
+      const khop = MUC_TOC_DO.find((m) => m.delay === delay);
+      if (khop) return khop.label;
+      if (delay <= 200) return "Tuỳ chỉnh · rất nhanh";
+      if (delay >= 700) return "Tuỳ chỉnh · chậm";
+      return "Tuỳ chỉnh";
+    }
+    function veTocDo(delay) {
+      const muc = MUC_TOC_DO.find((m) => m.delay === delay);
+      nhomTocDo.forEach((g) => g.querySelectorAll(".mplis-hauto-btn").forEach((b) => {
+        const on = !!muc && b.dataset.tocdo === muc.key;
+        b.setAttribute("aria-checked", on ? "true" : "false");
+        b.classList.toggle("on", on);
+      }));
+      if (tocDoSlider && Number(tocDoSlider.value) !== delay) tocDoSlider.value = delay;
+      if (tocDoValue) {
+        tocDoValue.textContent = delay + "ms";
+        tocDoValue.title = tenMucTocDo(delay);
+      }
+      veBadge("set-speed-state", tenMucTocDo(delay), true);
+      if (tocDoState) {
+        tocDoState.innerHTML = 'Nghỉ giữa 2 thao tác: <b style="color:#fff;">' + delay + 'ms</b> · vòng quét 400ms. Kéo thanh ở tab Xử lý để chỉnh từng 50ms.<br/>Số càng nhỏ chạy càng sát; mạng hoặc cổng chậm mà để dưới <b style="color:#fff;">200ms</b> thì dễ bấm lúc trang chưa dựng xong, auto gặp hộp thoại lạ rồi tự dừng.';
+      }
+    }
+    function datTocDo(delay) {
+      const d = Math.min(1e3, Math.max(100, Number(delay) || 500));
+      ProcessModule.saveConfig({ delayOpen: d, delayAction: d, delayNext: d });
+      veTocDo(d);
+    }
+    nhomTocDo.forEach((g) => g.querySelectorAll(".mplis-hauto-btn").forEach((b) => {
+      b.onclick = () => {
+        const muc = MUC_TOC_DO.find((m) => m.key === b.dataset.tocdo) || MUC_TOC_DO[0];
+        datTocDo(muc.delay);
+      };
+    }));
+    if (tocDoSlider) tocDoSlider.oninput = () => datTocDo(tocDoSlider.value);
+    if (nhomTocDo.length || tocDoSlider) veTocDo(pCfg.delayAction || 500);
     const chkNotifyCapture = document.getElementById("chk-notify-capture");
     if (chkNotifyCapture) {
       chkNotifyCapture.onchange = (e) => {
@@ -4006,6 +4106,7 @@
     bindCollapse("set-safe-group", "set-safe-toggle", "mplis_set_safe_open");
     bindCollapse("set-autofill-group", "set-autofill-toggle", "mplis_set_autofill_open");
     bindCollapse("set-tenfile-group", "set-tenfile-toggle", "mplis_set_tenfile_open");
+    bindCollapse("set-speed-group", "set-speed-toggle", "mplis_set_speed_open");
     bindCollapse("set-notify-group", "set-notify-toggle", "mplis_set_notify_open");
     bindCollapse("set-keys-group", "set-keys-toggle", "mplis_set_keys_open");
     document.getElementById("chk-qt2-selectall").onchange = (e) => {
@@ -4265,7 +4366,7 @@
     const cot = label.closest(".col-md-3, .col-md-4, .col-md-6");
     return cot && cot.parentElement || label.closest(".row") || label.parentElement;
   }
-  var MA_HS_DAY_DU_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+){2,}-(\d{6})-(\d{3,})/i;
+  var MA_HS_DAY_DU_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+)+-(\d{6})-(\d{3,})/i;
   function rutGonMaHS(text) {
     const m = MA_HS_DAY_DU_RE.exec(text || "");
     return m ? (m[1].slice(-2) + "-" + m[2]).toUpperCase() : "";
@@ -4472,10 +4573,12 @@
   var SCAN_INTERVAL_MS2 = 1e3;
   var BTN_CLASS = "mplis-btn-copy-tenfile";
   var BTN_MARK = "data-mplis-tenfile";
-  var MA_HS_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+){2,}-\d{6}-\d{3,}/i;
+  var MA_HS_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+)+-\d{6}-\d{3,}/i;
   var DUOI = ".pdf";
-  var SPH_RE = /\b([A-Z]{2})\s*(\d{6,})\b/;
-  var GIAY_IN_MOI_RE = /giấy in mới/i;
+  var SPH_RE = /\b([A-ZĐ]{1,2})\s*(\d{5,})\b/;
+  var GIAY_RE = /giấy\s+(in mới|thu hồi)/i;
+  var GIAY_THU_HOI_RE = /thu hồi/i;
+  var LOAI_GIAY_KEY = "mplis_tenfile_loai_giay";
   var HAU_TO_KEY = "mplis_tenfile_hau_to";
   var HAU_TO_HOP_LE = ["GT", "PT"];
   var BANG_DINH_KEM_SELECTOR = "#tbGiayToDinhKem, #tbDanhSachGiayToDinhKem";
@@ -4521,13 +4624,35 @@
     return Array.from(document.querySelectorAll("tr")).map((tr) => {
       const cells = Array.from(tr.querySelectorAll("td"));
       if (!cells.length) return null;
-      if (!GIAY_IN_MOI_RE.test(cells[0].textContent || "")) return null;
+      const loaiText = cells[0].textContent || "";
+      if (!GIAY_RE.test(loaiText)) return null;
+      const loai = GIAY_THU_HOI_RE.test(loaiText) ? "THU HỒI" : "IN MỚI";
       for (const td of cells) {
         const m = SPH_RE.exec((td.textContent || "").trim().toUpperCase());
-        if (m) return { tr, cells, sph: m[1] + " " + m[2] };
+        if (m) return { tr, cells, loai, sph: m[1] + " " + m[2] };
       }
       return null;
     }).filter((r) => r && dangHien2(r.tr));
+  }
+  function nhoLoaiGiay(maHS, dong) {
+    if (!maHS || !dong.length) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(LOAI_GIAY_KEY) || "{}");
+      const cuaHoSo = stored[maHS] || {};
+      let doi = false;
+      for (const d of dong) {
+        const khoa = d.sph.replace(/\s+/g, "").toUpperCase();
+        if (cuaHoSo[khoa] !== d.loai) {
+          cuaHoSo[khoa] = d.loai;
+          doi = true;
+        }
+      }
+      if (!doi) return;
+      stored[maHS] = cuaHoSo;
+      localStorage.setItem(LOAI_GIAY_KEY, JSON.stringify(stored));
+      console.log("[MPLIS TenFile] Ghi nhớ loại giấy của hồ sơ " + maHS + ": " + dong.map((d) => d.sph + "=" + d.loai).join(", "));
+    } catch (e) {
+    }
   }
   function baoNhanh(text, mau) {
     let el = document.getElementById("mplis-tenfile-toast");
@@ -4825,7 +4950,7 @@
   }
   var COT_MOT_CUA_RE = /một cửa/i;
   var COT_TEN_RE = /tên giấy tờ/i;
-  var TEN_GCN_RE = /-[A-Z]{2}\s*\d{6,}\.PDF$/;
+  var TEN_GCN_RE = /-[A-ZĐ]{1,2}\s*\d{5,}\.PDF$/;
   var TEN_KEM_RE = /-(GT|PT)\.PDF$/;
   function layChiSoCot(hang, re) {
     if (!hang) return -1;
@@ -4909,7 +5034,11 @@
   }
   function ganNut() {
     const dong = layDongGiayInMoi();
-    if (dong.length) nhoSph(layMaHoSoDayDu(), dong.map((d) => d.sph));
+    if (dong.length) {
+      const maHS = layMaHoSoDayDu();
+      nhoSph(maHS, dong.map((d) => d.sph));
+      nhoLoaiGiay(maHS, dong);
+    }
     for (const d of dong) {
       if (d.tr.querySelector("." + BTN_CLASS)) continue;
       const btn = document.createElement("button");
@@ -4917,7 +5046,7 @@
       btn.className = BTN_CLASS;
       btn.setAttribute(BTN_MARK, d.sph);
       btn.textContent = "Copy tên file";
-      btn.title = 'Copy "<mã hồ sơ>-' + d.sph + DUOI + '" để đổi tên file quét';
+      btn.title = 'Copy "<mã hồ sơ>-' + d.sph + DUOI + '" (giấy ' + d.loai.toLowerCase() + ") để đổi tên file quét";
       btn.style.cssText = 'margin-left:6px; padding:3px 8px; font:600 11px "Segoe UI", sans-serif; color:#fff; background:#4f46e5; border:none; border-radius:5px; cursor:pointer;';
       btn.onclick = (e) => {
         e.preventDefault();

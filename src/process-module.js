@@ -702,7 +702,9 @@ import { createModuleRuntime } from './module-runtime.js';
                                         shouldKeep = true;
                                     } else {
                                         shouldKeep = false;
-                                        const matchSPH = fileName.match(/[A-Z]{2}\s*\d+/);
+                                        // 1-2 chữ cái: giấy cũ chỉ 1 chữ ("V 547970"). Bắt cứng 2
+                                        // chữ thì file giấy cũ không khớp đơn nào, bị gỡ tích hết.
+                                        const matchSPH = fileName.match(/[A-ZĐ]{1,2}\s*\d{5,}/);
                                         if (matchSPH) {
                                             const sphFile = matchSPH[0].replace(/\s+/g, '').toUpperCase();
                                             shouldKeep = !!(topState.qt2SoPhatHanhList && topState.qt2SoPhatHanhList.includes(sphFile));
@@ -1151,7 +1153,10 @@ import { createModuleRuntime } from './module-runtime.js';
 
 
 
-        setInterval(scanAndExecute, 1200);
+        // Quét 400ms thay vì 1200ms. Nhịp hành động vẫn do khóa lastActionTime + delay* quyết
+        // định, nên quét dày KHÔNG làm tool bấm sớm hơn - chỉ bỏ phần chết: trước đây delay 500ms
+        // xong vẫn phải chờ tới nhịp 1200ms kế tiếp, mỗi bước phí trung bình ~700ms.
+        setInterval(scanAndExecute, 400);
 
         return {
             getTopState, saveConfig

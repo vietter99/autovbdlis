@@ -77,7 +77,20 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from
             return commune ? commune.key : 'khac';
         }
 
-        function getBienDongCode(maHS) {
+        // Loại giấy (IN MỚI / THU HỒI) do filename-copy.js ghi lại khi quét bảng giấy chứng nhận ở
+    // màn hình Cập nhật pháp lý. Cây GCN không nói giấy nào thu hồi, nên phải tra qua kho này.
+    const LOAI_GIAY_KEY = 'mplis_tenfile_loai_giay';
+
+    function getLoaiGiay(maHS, gcn) {
+        if (!maHS || !gcn) return '';
+        try {
+            const stored = JSON.parse(localStorage.getItem(LOAI_GIAY_KEY) || '{}');
+            const cuaHoSo = stored[maHS] || {};
+            return cuaHoSo[gcn.replace(/\s+/g, '').toUpperCase()] || '';
+        } catch (e) { return ''; }
+    }
+
+    function getBienDongCode(maHS) {
             if (!maHS) return '';
             try {
                 const stored = JSON.parse(localStorage.getItem('mplis_bien_dong_codes') || '{}');
@@ -611,16 +624,27 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from
                     const datHNK = dienTichCacLoai.HNK || 0;
                     const datSKC = dienTichCacLoai.SKC || 0;
 
-                    const exists = state.records.some(r => r.gcn === gcn && r.thua === thua && r.to === to);
+                    // Khóa trùng phải gồm cả MÃ HỒ SƠ. Trước đây chỉ so gcn + thửa + tờ, nên:
+                    //   - Thửa đã từng vào giỏ ở hồ sơ trước (VD cấp đổi lại chính thửa đó) thì hồ sơ
+                    //     mới bị coi là trùng, KHÔNG bao giờ đẩy lên Sheet.
+                    //   - Giấy chưa có số phát hành đều mang gcn "CHƯA RÕ", nên 2 hồ sơ khác nhau cùng
+                    //     thửa/tờ cũng đụng nhau.
+                    // Đó là lý do "có lúc" hồ sơ không lên Sheet mà không báo lỗi gì.
+                    // Giấy thu hồi: giữ nguyên mã hồ sơ và Số phát hành, chỉ đổi cột loại thành
+                    // "THU HỒI" để bên Sheet nhìn là biết dòng này là giấy bị thu hồi.
+                    const loaiGiay = getLoaiGiay(maHS, gcn);
+                    const tenTTHCDong = loaiGiay === 'THU HỒI' ? 'THU HỒI' : tenTTHCFull;
+
+                    const exists = state.records.some(r => r.maHS === maHS && r.gcn === gcn && r.thua === thua && r.to === to);
                     if (exists) {
                         // Đã có trong giỏ (kể cả khi lần đẩy trước đó thất bại) -> sẽ KHÔNG bao giờ thử
                         // đẩy lại record này nữa cho tới khi bị xóa khỏi giỏ (nút XÓA ở tab Excel).
-                        console.log('[Excel] GCN "' + gcn + '" Thửa ' + thua + ' Tờ ' + to + ' đã có trong giỏ - bỏ qua, KHÔNG đẩy lại (kể cả nếu lần trước lỗi). Xóa dòng này ở tab Excel để thử đẩy lại.');
+                        console.log('[Excel] Hồ sơ ' + maHS + ' GCN "' + gcn + '" Thửa ' + thua + ' Tờ ' + to + ' đã có trong giỏ - bỏ qua, KHÔNG đẩy lại (kể cả nếu lần trước lỗi). Xóa dòng này ở tab Excel để thử đẩy lại.');
                         return;
                     }
                     {
                         const newRecord = {
-                            maHS, loaiHS, tenTTHCFull, soBienNhan, nguoiNop, diaChi, gcn, thua, to, dt,
+                            maHS, loaiHS, tenTTHCFull: tenTTHCDong, soBienNhan, nguoiNop, diaChi, gcn, thua, to, dt,
                             dtO: datO, dtCLN: datCLN, dtTSN: datTSN,
                             dtLUA: datLUA, dtHNK: datHNK, dtSKC: datSKC
                         };

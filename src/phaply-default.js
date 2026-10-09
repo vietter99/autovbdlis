@@ -138,7 +138,10 @@ function layKhoiBuoc(label) {
 // Mỗi khối "CB chuyển" nằm trong 1 DÒNG HỒ SƠ của danh sách công việc, và dòng đó có mã hồ sơ
 // đầy đủ ("H15.50.05.12-260917-1436"). Đổi về dạng rút gọn ("17-1436") để so thẳng với
 // findCurrentMaHS() - hồ sơ nào đang mở thì lấy đúng khối của hồ sơ đó.
-const MA_HS_DAY_DU_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+){2,}-(\d{6})-(\d{3,})/i;
+// Số nhóm cách nhau bằng dấu chấm KHÔNG cố định: có mã 4 nhóm "H15.50.05.12-260917-1436",
+// có mã 2 nhóm "H15.50-260625-0680". Đòi từ 2 dấu chấm trở lên là mã ngắn không khớp được, rơi
+// về nhánh "lấy bước mới nhất" rồi điền tên Người ký của hồ sơ khác.
+const MA_HS_DAY_DU_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+)+-(\d{6})-(\d{3,})/i;
 
 function rutGonMaHS(text) {
     const m = MA_HS_DAY_DU_RE.exec(text || '');

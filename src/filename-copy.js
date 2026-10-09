@@ -26,11 +26,21 @@ const BTN_CLASS = 'mplis-btn-copy-tenfile';
 const BTN_MARK = 'data-mplis-tenfile';
 
 // "H15.50.05.12-260917-0681" - nhiều nhóm cách nhau bằng dấu chấm, rồi -6 số -4 số.
-const MA_HS_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+){2,}-\d{6}-\d{3,}/i;
+// Mã hồ sơ có số nhóm chấm khác nhau: "H15.50.05.12-260917-1436" và "H15.50-260625-0680" đều
+// hợp lệ, nên chỉ đòi CÓ dấu chấm, không đòi số lượng.
+const MA_HS_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+)+-\d{6}-\d{3,}/i;
 const DUOI = '.pdf';
-// "AA 09122325" - 2 chữ cái rồi dãy số, khoảng trắng ở giữa có hoặc không.
-const SPH_RE = /\b([A-Z]{2})\s*(\d{6,})\b/;
-const GIAY_IN_MOI_RE = /giấy in mới/i;
+// Số phát hành: 1-2 chữ cái rồi dãy số, khoảng trắng ở giữa có hoặc không.
+// Giấy đời mới 2 chữ cái ("AA 09122325"), giấy cũ chỉ 1 chữ cái ("V 547970"). Bắt cứng 2 chữ cái
+// là bỏ sót sạch giấy cũ: không ra nút, không nhận dòng, không tích ô gửi về một cửa.
+const SPH_RE = /\b([A-ZĐ]{1,2})\s*(\d{5,})\b/;
+// Bảng giấy chứng nhận có cả dòng "Giấy in mới" lẫn "Giấy thu hồi". Cả 2 đều cần tạo dòng file
+// đính kèm và tích ô gửi về một cửa, tên file giống nhau (<mã hồ sơ>-<Số phát hành>.pdf) - khác
+// nhau ở chỗ ghi lên Sheet: giấy thu hồi ghi loại "THU HỒI".
+const GIAY_RE = /giấy\s+(in mới|thu hồi)/i;
+const GIAY_THU_HOI_RE = /thu hồi/i;
+// Loại giấy theo từng Số phát hành, để excel-module biết dòng nào là thu hồi lúc đẩy lên Sheet.
+const LOAI_GIAY_KEY = 'mplis_tenfile_loai_giay';
 
 // Hậu tố cho tên giấy tờ kèm. Đọc lại mỗi lần bấm nên đổi trong Cài đặt là áp dụng ngay.
 const HAU_TO_KEY = 'mplis_tenfile_hau_to';
@@ -83,17 +93,42 @@ function layDongGiayInMoi() {
         .map(tr => {
             const cells = Array.from(tr.querySelectorAll('td'));
             if (!cells.length) return null;
-            if (!GIAY_IN_MOI_RE.test(cells[0].textContent || '')) return null;
+            const loaiText = cells[0].textContent || '';
+            if (!GIAY_RE.test(loaiText)) return null;
+            const loai = GIAY_THU_HOI_RE.test(loaiText) ? 'THU HỒI' : 'IN MỚI';
 
             // Số phát hành: ô đầu tiên trong dòng khớp dạng "AA 09122325". Không bám cứng cột 3
             // vì cổng hay thêm/bớt cột.
             for (const td of cells) {
                 const m = SPH_RE.exec((td.textContent || '').trim().toUpperCase());
-                if (m) return { tr, cells, sph: m[1] + ' ' + m[2] };
+                if (m) return { tr, cells, loai, sph: m[1] + ' ' + m[2] };
             }
             return null;
         })
         .filter(r => r && dangHien(r.tr));
+}
+
+// Nhớ loại giấy theo Số phát hành (trong 1 hồ sơ) để lúc đẩy lên Sheet biết dòng nào thu hồi.
+// excel-module.js đọc chung khoá này; 2 file không import lẫn nhau, chỉ khớp tên khoá.
+function nhoLoaiGiay(maHS, dong) {
+    if (!maHS || !dong.length) return;
+    try {
+        const stored = JSON.parse(localStorage.getItem(LOAI_GIAY_KEY) || '{}');
+        const cuaHoSo = stored[maHS] || {};
+        let doi = false;
+        for (const d of dong) {
+            const khoa = d.sph.replace(/\s+/g, '').toUpperCase();
+            if (cuaHoSo[khoa] !== d.loai) {
+                cuaHoSo[khoa] = d.loai;
+                doi = true;
+            }
+        }
+        if (!doi) return;
+        stored[maHS] = cuaHoSo;
+        localStorage.setItem(LOAI_GIAY_KEY, JSON.stringify(stored));
+        console.log('[MPLIS TenFile] Ghi nhớ loại giấy của hồ sơ ' + maHS + ': '
+            + dong.map(d => d.sph + '=' + d.loai).join(', '));
+    } catch (e) { }
 }
 
 function baoNhanh(text, mau) {
@@ -449,8 +484,8 @@ function ganThanhNut() {
 // Không tìm được cột đó thì KHÔNG đụng gì, chỉ ghi log - tích nhầm ô là hồ sơ đồng bộ lệch.
 const COT_MOT_CUA_RE = /một cửa/i;
 const COT_TEN_RE = /tên giấy tờ/i;
-// "...-AA 09122314.pdf": hậu tố là Số phát hành -> dòng giấy chứng nhận.
-const TEN_GCN_RE = /-[A-Z]{2}\s*\d{6,}\.PDF$/;
+// "...-AA 09122314.pdf" hoặc "...-V 547970.pdf": hậu tố là Số phát hành -> dòng giấy chứng nhận.
+const TEN_GCN_RE = /-[A-ZĐ]{1,2}\s*\d{5,}\.PDF$/;
 // "...-GT.pdf" / "...-PT.pdf" -> dòng giấy tờ kèm.
 const TEN_KEM_RE = /-(GT|PT)\.PDF$/;
 
@@ -570,7 +605,11 @@ function tuTichDongBo() {
 
 function ganNut() {
     const dong = layDongGiayInMoi();
-    if (dong.length) nhoSph(layMaHoSoDayDu(), dong.map(d => d.sph));
+    if (dong.length) {
+        const maHS = layMaHoSoDayDu();
+        nhoSph(maHS, dong.map(d => d.sph));
+        nhoLoaiGiay(maHS, dong);
+    }
     for (const d of dong) {
         if (d.tr.querySelector('.' + BTN_CLASS)) continue;
 
@@ -579,7 +618,8 @@ function ganNut() {
         btn.className = BTN_CLASS;
         btn.setAttribute(BTN_MARK, d.sph);
         btn.textContent = 'Copy tên file';
-        btn.title = 'Copy "<mã hồ sơ>-' + d.sph + DUOI + '" để đổi tên file quét';
+        btn.title = 'Copy "<mã hồ sơ>-' + d.sph + DUOI + '" (giấy ' + d.loai.toLowerCase()
+        + ') để đổi tên file quét';
         btn.style.cssText = 'margin-left:6px; padding:3px 8px; font:600 11px "Segoe UI", sans-serif;'
             + ' color:#fff; background:#4f46e5; border:none; border-radius:5px; cursor:pointer;';
         btn.onclick = (e) => {

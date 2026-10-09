@@ -48,7 +48,7 @@
         .mplis-tab-toggle:hover { color: var(--mplis-text); }
         .mplis-tab-toggle.expanded { color: var(--mplis-accent-2); }
 
-        .mplis-content { flex: 1; min-width: 0; min-height: 268px; overflow-y: auto; padding: 12px; transition: min-height 0.22s ease; }
+        .mplis-content { flex: 1; min-width: 0; min-height: 240px; overflow-y: auto; padding: 10px; transition: min-height 0.22s ease; }
         .mplis-content::-webkit-scrollbar, .mplis-tabs::-webkit-scrollbar { width: 6px; }
         .mplis-content::-webkit-scrollbar-thumb, .mplis-tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 
@@ -57,14 +57,14 @@
         @keyframes mplis-fade-in { from { opacity: 0; transform: translateY(3px);} to { opacity: 1; transform: translateY(0);} }
 
         .mplis-section-label { font-size: 10px; color: var(--mplis-text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 0.07em; margin-bottom: 6px; display: block; }
-        .mplis-card { background: var(--mplis-surface); border: 1px solid var(--mplis-border); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+        .mplis-card { background: var(--mplis-surface); border: 1px solid var(--mplis-border); border-radius: 10px; padding: 9px; margin-bottom: 8px; }
         .mplis-hint { font-size: 11.5px; color: var(--mplis-text-dim); line-height: 1.5; margin-bottom: 10px; }
 
         /* ---- Thẻ thu gọn/mở rộng ---- */
         /* Đóng lại vẫn phải biết tool đang chạy kiểu nào, nên trạng thái nằm luôn trên thanh tiêu đề
            (.mplis-collapse-state) thay vì giấu hết vào trong. */
         #mplis-auto-panel .mplis-collapse { padding: 0 !important; overflow: hidden; }
-        #mplis-auto-panel .mplis-collapse-head { display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important; min-height: 44px !important; padding: 11px 12px !important; background: transparent !important; border: none !important; border-radius: 12px !important; color: var(--mplis-text) !important; cursor: pointer !important; text-align: left !important; font-family: inherit !important; }
+        #mplis-auto-panel .mplis-collapse-head { display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important; min-height: 38px !important; padding: 8px 10px !important; background: transparent !important; border: none !important; border-radius: 12px !important; color: var(--mplis-text) !important; cursor: pointer !important; text-align: left !important; font-family: inherit !important; }
         #mplis-auto-panel .mplis-collapse-head:hover { background: var(--mplis-surface-hover) !important; }
         #mplis-auto-panel .mplis-collapse-head:focus-visible { outline: 2px solid var(--mplis-accent) !important; outline-offset: -2px !important; }
         #mplis-auto-panel .mplis-collapse-head .mplis-section-label { margin-bottom: 0 !important; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -73,8 +73,8 @@
         .mplis-collapse-state.on { color: var(--mplis-bg); background: var(--mplis-accent-2); border-color: transparent; }
         .mplis-collapse-caret { flex-shrink: 0; color: var(--mplis-text-dim); transition: transform 0.2s ease; }
         .mplis-collapse.open .mplis-collapse-caret { transform: rotate(180deg); }
-        .mplis-collapse-body { max-height: 0; opacity: 0; overflow: hidden; padding: 0 12px; transition: max-height 0.22s ease, opacity 0.16s ease, padding-bottom 0.22s ease; }
-        .mplis-collapse.open .mplis-collapse-body { max-height: 420px; overflow-y: auto; opacity: 1; padding-bottom: 12px; }
+        .mplis-collapse-body { max-height: 0; opacity: 0; overflow: hidden; padding: 0 10px; transition: max-height 0.22s ease, opacity 0.16s ease, padding-bottom 0.22s ease; }
+        .mplis-collapse.open .mplis-collapse-body { max-height: 420px; overflow-y: auto; opacity: 1; padding-bottom: 10px; }
         @media (prefers-reduced-motion: reduce) {
             .mplis-collapse-body, .mplis-collapse-caret { transition: none; }
         }
@@ -97,11 +97,13 @@
         @media print { #mplis-run-toast { display: none !important; } }
 
         .mplis-checkbox-group { display: flex !important; flex-direction: column !important; gap: 4px !important; }
-        .mplis-checkbox-group label { display: flex !important; align-items: center !important; gap: 9px !important; font-size: 12px !important; color: #e2e8f0 !important; cursor: pointer !important; padding: 7px 9px !important; background: var(--mplis-surface) !important; border-radius: 8px !important; border: 1px solid var(--mplis-border) !important; transition: background 0.15s; }
+        /* 6 quy trình xếp dọc chiếm gần 200px; xếp 2 cột còn 3 hàng, tab Xử lý ngắn lại hẳn. */
+        .mplis-checkbox-group.cols2 { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 4px !important; }
+        .mplis-checkbox-group label { display: flex !important; align-items: center !important; gap: 7px !important; min-height: 32px !important; font-size: 11.5px !important; color: #e2e8f0 !important; cursor: pointer !important; padding: 5px 8px !important; background: var(--mplis-surface) !important; border-radius: 8px !important; border: 1px solid var(--mplis-border) !important; transition: background 0.15s; }
         .mplis-checkbox-group label:hover { background: var(--mplis-surface-hover) !important; }
         .mplis-checkbox-group input, #mplis-auto-panel input[type="checkbox"] { accent-color: var(--mplis-accent); width: 14px; height: 14px; cursor: pointer; }
 
-        .mplis-btn-primary { width: 100% !important; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5) !important; border: none !important; border-radius: 9px !important; padding: 10px 14px !important; color: #ffffff !important; font-weight: 650 !important; font-size: 12.5px !important; cursor: pointer !important; letter-spacing: 0.01em; transition: all 0.15s ease !important; box-shadow: 0 3px 12px rgba(99,102,241,0.3); }
+        .mplis-btn-primary { width: 100% !important; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5) !important; border: none !important; border-radius: 9px !important; padding: 9px 14px !important; color: #ffffff !important; font-weight: 650 !important; font-size: 12.5px !important; cursor: pointer !important; letter-spacing: 0.01em; transition: all 0.15s ease !important; box-shadow: 0 3px 12px rgba(99,102,241,0.3); }
         .mplis-btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
         .mplis-btn-primary:active { transform: translateY(0); }
         .mplis-btn-primary.running { background: linear-gradient(135deg, var(--mplis-bad), #be123c) !important; box-shadow: 0 4px 14px rgba(244,63,94,0.35); }
@@ -112,10 +114,15 @@
         .mplis-hauto-btn:hover { background: var(--mplis-surface-hover) !important; color: var(--mplis-text) !important; }
         .mplis-hauto-btn.on { color: #fff !important; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5) !important; border-color: transparent !important; box-shadow: 0 3px 12px rgba(99,102,241,0.35) !important; }
 
+        /* Thanh kéo tốc độ: nền tối cho khớp panel, cao 4px, núm 14px đủ to để kéo. */
+        #mplis-auto-panel input[type="range"] { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 3px; background: rgba(255,255,255,0.14); outline: none; }
+        #mplis-auto-panel input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--mplis-accent-2); border: none; cursor: pointer; box-shadow: 0 1px 6px rgba(34,211,238,0.5); }
+        #mplis-auto-panel input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--mplis-accent-2); border: none; cursor: pointer; }
+
         .mplis-btn-ghost { background: var(--mplis-surface) !important; border: 1px solid var(--mplis-border) !important; color: var(--mplis-text) !important; border-radius: 9px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
         .mplis-btn-ghost:hover { background: var(--mplis-surface-hover) !important; }
 
-        .mplis-status-bar { margin-top: 10px !important; background: rgba(0,0,0,0.22) !important; border-radius: 9px !important; padding: 8px 10px !important; border: 1px solid var(--mplis-border) !important; }
+        .mplis-status-bar { margin-top: 8px !important; background: rgba(0,0,0,0.22) !important; border-radius: 9px !important; padding: 7px 9px !important; border: 1px solid var(--mplis-border) !important; }
         .mplis-status-row { display: flex !important; justify-content: space-between !important; align-items: center !important; font-size: 12px !important; }
         .mplis-status-lbl { display: flex !important; align-items: center !important; gap: 7px !important; color: #cbd5e1 !important; }
         .mplis-status-dot { width: 8px !important; height: 8px !important; border-radius: 50% !important; background-color: #64748b !important; flex-shrink: 0; }

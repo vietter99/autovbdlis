@@ -51,6 +51,15 @@ import { toggleProcess, toggleReturn } from './toggle.js';
             ? localStorage.getItem('mplis_tenfile_hau_to').toUpperCase() : 'GT';
         // Tự tích ô đồng bộ một cửa - mặc định TẮT (ghi lên form thật của cổng).
         const isTuTichDongBoChecked = localStorage.getItem('mplis_tenfile_tu_tich_dongbo') === 'true' ? 'checked' : '';
+
+        // Tốc độ chạy quy trình: 3 mức, đổi bộ delayOpen/delayAction/delayNext của ProcessModule.
+        // Mức hiện tại suy ra từ delayAction đang lưu, khỏi thêm khoá localStorage riêng.
+        const MUC_TOC_DO = [
+            { key: 'thuong', label: 'Thường', delay: 500 },
+            { key: 'nhanh', label: 'Nhanh', delay: 250 },
+            { key: 'toida', label: 'Tối đa', delay: 120 }
+        ];
+        const tocDoHienTai = (MUC_TOC_DO.find(m => m.delay === pCfg.delayAction) || MUC_TOC_DO[0]).key;
         // Đọc chung 1 khoá localStorage với spatial-link-bypass.js - mặc định TẮT (khác các ô
         // trên) vì đây là bypass cảnh báo nghiệp vụ, không phải tiện ích an toàn.
         const isBypassSpatialLinkChecked = localStorage.getItem('mplis_bypass_spatial_link_enabled') === 'true' ? 'checked' : '';
@@ -122,13 +131,14 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                     <!-- TAB 1: PROCESS -->
                     <div class="mplis-panel-body active" id="tab-process">
                         <span class="mplis-section-label">Chọn quy trình tự động</span>
-                        <div class="mplis-checkbox-group" style="margin-bottom:14px;">
-                            <label><input type="checkbox" name="mplis-workflow" value="QT0" ${isQT0}> QT0 · Cập nhật tệp đính kèm</label>
-                            <label><input type="checkbox" name="mplis-workflow" value="QT1" ${isQT1}> QT1 · Cập nhật dữ liệu pháp lý</label>
-                            <label><input type="checkbox" name="mplis-workflow" value="QT2" ${isQT2}> QT2 · Lưu kho hồ sơ quét</label>
-                            <label><input type="checkbox" name="mplis-workflow" value="QT3" ${isQT3}> QT3 · Ký số sổ địa chính</label>
-                            <label><input type="checkbox" name="mplis-workflow" value="QT4" ${isQT4}> QT4 · Kết ISO</label>
-                            <label><input type="checkbox" id="chk-qt5" ${pCfg.isQT5 ? 'checked' : ''}> QT5 · Chuyển tiếp hồ sơ</label>
+                        <!-- Xếp 2 cột + nhãn ngắn (tên đầy đủ nằm ở title) cho tab Xử lý gọn lại. -->
+                        <div class="mplis-checkbox-group cols2" style="margin-bottom:10px;">
+                            <label title="QT0 · Cập nhật tệp đính kèm"><input type="checkbox" name="mplis-workflow" value="QT0" ${isQT0}> QT0 · Tệp đính kèm</label>
+                            <label title="QT1 · Cập nhật dữ liệu pháp lý"><input type="checkbox" name="mplis-workflow" value="QT1" ${isQT1}> QT1 · Dữ liệu pháp lý</label>
+                            <label title="QT2 · Lưu kho hồ sơ quét"><input type="checkbox" name="mplis-workflow" value="QT2" ${isQT2}> QT2 · Lưu kho quét</label>
+                            <label title="QT3 · Ký số sổ địa chính"><input type="checkbox" name="mplis-workflow" value="QT3" ${isQT3}> QT3 · Ký số sổ ĐC</label>
+                            <label title="QT4 · Kết ISO"><input type="checkbox" name="mplis-workflow" value="QT4" ${isQT4}> QT4 · Kết ISO</label>
+                            <label title="QT5 · Chuyển tiếp hồ sơ"><input type="checkbox" id="chk-qt5" ${pCfg.isQT5 ? 'checked' : ''}> QT5 · Chuyển tiếp</label>
                         </div>
 
                         <div class="mplis-card mplis-collapse" id="qt2-file-group" style="display: ${isQT2 ? 'block' : 'none'};">
@@ -168,6 +178,24 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                                     <label><input type="checkbox" id="chk-bypass-kg" ${isBypassSpatialLinkChecked}> Tự bỏ qua cảnh báo "chưa liên kết không gian" khi Kết ISO</label>
                                 </div>
                                 <div class="mplis-hint" style="margin:8px 0 0;">Thay cho việc tự F12 vá request ThucHienKetISO bằng tay. <b>Mặc định TẮT</b> - chỉ bật khi biết chắc hồ sơ đã đúng, chỉ vướng lỗi liên kết giả/kỹ thuật. Áp dụng ngay, không cần tải lại trang.</div>
+                            </div>
+                        </div>
+
+                        <!-- Tốc độ để ngay tab Xử lý, cạnh nút chạy: chỉnh lúc đang làm, khỏi
+                             chui vào Cài đặt. Thẻ trong Cài đặt vẫn còn và đồng bộ 2 chiều. -->
+                        <!-- Tốc độ: 1 hàng nhãn + 3 nút mức, thanh kéo nằm dưới cùng hàng card. -->
+                        <div class="mplis-card" style="padding:8px 9px;">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span class="mplis-section-label" style="margin:0; flex-shrink:0;">Tốc độ</span>
+                                <div id="tocdo-group-main" role="radiogroup" aria-label="Mức tốc độ dựng sẵn" style="display:flex; gap:4px; margin-left:auto;">
+                                    ${MUC_TOC_DO.map(m => `<button type="button" class="mplis-hauto-btn" data-tocdo="${m.key}" role="radio" aria-checked="${m.key === tocDoHienTai ? 'true' : 'false'}" style="min-height:28px; padding:4px 9px !important; font-size:11px !important;">${m.label}</button>`).join('')}
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px; margin-top:7px;">
+                                <input type="range" id="tocdo-slider" min="100" max="1000" step="50" value="${pCfg.delayAction || 500}"
+                                    aria-label="Thời gian nghỉ giữa 2 thao tác (mili giây)"
+                                    style="flex:1; min-width:0; cursor:pointer;">
+                                <span id="tocdo-value" style="flex-shrink:0; min-width:54px; text-align:right; font-size:11px; font-weight:700; color:var(--mplis-accent-2); font-variant-numeric:tabular-nums;"></span>
                             </div>
                         </div>
 
@@ -362,6 +390,20 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                             </div>
                         </div>
 
+                        <div class="mplis-card mplis-collapse" id="set-speed-group">
+                            <button type="button" class="mplis-collapse-head" id="set-speed-toggle" aria-expanded="false" aria-controls="set-speed-body">
+                                <span class="mplis-section-label">Tốc độ chạy</span>
+                                <span class="mplis-collapse-state on" id="set-speed-state">${MUC_TOC_DO.find(m => m.key === tocDoHienTai).label}</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-speed-body">
+                                <div id="tocdo-group" role="radiogroup" aria-label="Tốc độ chạy quy trình" style="display:flex; gap:6px;">
+                                    ${MUC_TOC_DO.map(m => `<button type="button" class="mplis-hauto-btn" data-tocdo="${m.key}" role="radio" aria-checked="${m.key === tocDoHienTai ? 'true' : 'false'}" style="flex:1; min-height:34px;">${m.label}</button>`).join('')}
+                                </div>
+                                <div id="tocdo-state" style="margin-top:8px; font-size:11.5px; color:var(--mplis-text-dim); line-height:1.6;"></div>
+                            </div>
+                        </div>
+
                         <div class="mplis-card mplis-collapse" id="set-notify-group">
                             <button type="button" class="mplis-collapse-head" id="set-notify-toggle" aria-expanded="false" aria-controls="set-notify-body">
                                 <span class="mplis-section-label">Thông báo hồ sơ mới</span>
@@ -517,6 +559,59 @@ import { toggleProcess, toggleReturn } from './toggle.js';
             };
         }
 
+        // Tốc độ chạy: ghi thẳng vào config của ProcessModule, áp dụng ngay vòng quét kế tiếp.
+        // Tốc độ chỉnh được ở 2 nơi (tab Xử lý và Cài đặt) + thanh kéo mịn. Tất cả ghi vào cùng
+        // config của ProcessModule, nên đổi ở đâu cũng vẽ lại cả 2 chỗ.
+        const tocDoSlider = document.getElementById('tocdo-slider');
+        const tocDoValue = document.getElementById('tocdo-value');
+        const tocDoState = document.getElementById('tocdo-state');
+        const nhomTocDo = ['tocdo-group', 'tocdo-group-main']
+            .map(id => document.getElementById(id)).filter(Boolean);
+
+        function tenMucTocDo(delay) {
+            const khop = MUC_TOC_DO.find(m => m.delay === delay);
+            if (khop) return khop.label;
+            if (delay <= 200) return 'Tuỳ chỉnh · rất nhanh';
+            if (delay >= 700) return 'Tuỳ chỉnh · chậm';
+            return 'Tuỳ chỉnh';
+        }
+
+        function veTocDo(delay) {
+            const muc = MUC_TOC_DO.find(m => m.delay === delay);
+            nhomTocDo.forEach(g => g.querySelectorAll('.mplis-hauto-btn').forEach(b => {
+                const on = !!muc && b.dataset.tocdo === muc.key;
+                b.setAttribute('aria-checked', on ? 'true' : 'false');
+                b.classList.toggle('on', on);
+            }));
+            if (tocDoSlider && Number(tocDoSlider.value) !== delay) tocDoSlider.value = delay;
+            if (tocDoValue) {
+                tocDoValue.textContent = delay + 'ms';
+                tocDoValue.title = tenMucTocDo(delay);
+            }
+            veBadge('set-speed-state', tenMucTocDo(delay), true);
+            if (tocDoState) {
+                tocDoState.innerHTML = 'Nghỉ giữa 2 thao tác: <b style="color:#fff;">' + delay + 'ms</b>'
+                    + ' · vòng quét 400ms. Kéo thanh ở tab Xử lý để chỉnh từng 50ms.<br/>'
+                    + 'Số càng nhỏ chạy càng sát; mạng hoặc cổng chậm mà để dưới <b style="color:#fff;">200ms</b>'
+                    + ' thì dễ bấm lúc trang chưa dựng xong, auto gặp hộp thoại lạ rồi tự dừng.';
+            }
+        }
+
+        function datTocDo(delay) {
+            const d = Math.min(1000, Math.max(100, Number(delay) || 500));
+            ProcessModule.saveConfig({ delayOpen: d, delayAction: d, delayNext: d });
+            veTocDo(d);
+        }
+
+        nhomTocDo.forEach(g => g.querySelectorAll('.mplis-hauto-btn').forEach(b => {
+            b.onclick = () => {
+                const muc = MUC_TOC_DO.find(m => m.key === b.dataset.tocdo) || MUC_TOC_DO[0];
+                datTocDo(muc.delay);
+            };
+        }));
+        if (tocDoSlider) tocDoSlider.oninput = () => datTocDo(tocDoSlider.value);
+        if (nhomTocDo.length || tocDoSlider) veTocDo(pCfg.delayAction || 500);
+
         const chkNotifyCapture = document.getElementById('chk-notify-capture');
         if (chkNotifyCapture) {
             chkNotifyCapture.onchange = (e) => {
@@ -626,6 +721,7 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         bindCollapse('set-safe-group', 'set-safe-toggle', 'mplis_set_safe_open');
         bindCollapse('set-autofill-group', 'set-autofill-toggle', 'mplis_set_autofill_open');
         bindCollapse('set-tenfile-group', 'set-tenfile-toggle', 'mplis_set_tenfile_open');
+        bindCollapse('set-speed-group', 'set-speed-toggle', 'mplis_set_speed_open');
         bindCollapse('set-notify-group', 'set-notify-toggle', 'mplis_set_notify_open');
         bindCollapse('set-keys-group', 'set-keys-toggle', 'mplis_set_keys_open');
 
