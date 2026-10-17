@@ -5,6 +5,7 @@ import { ExcelModule } from './excel-module.js';
 import { AlertModule } from './alert-module.js';
 import { isAutoConfirmEnabled, escapeHtml } from './utils.js';
 import { toggleProcess, toggleReturn } from './toggle.js';
+import { getLogJson, clearLog, getLogCount } from './mplis-logger.js';
 
     // Icon dạng SVG inline (bộ Lucide, nét 2px, viewBox 24) thay cho emoji: emoji phụ thuộc font
     // của từng máy nên mỗi trình duyệt/Windows hiển thị một kiểu, lại không đổi màu theo trạng thái
@@ -63,6 +64,8 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         // Đọc chung 1 khoá localStorage với spatial-link-bypass.js - mặc định TẮT (khác các ô
         // trên) vì đây là bypass cảnh báo nghiệp vụ, không phải tiện ích an toàn.
         const isBypassSpatialLinkChecked = localStorage.getItem('mplis_bypass_spatial_link_enabled') === 'true' ? 'checked' : '';
+        // Đọc chung 1 khoá localStorage với dakyso-bypass.js - mặc định TẮT.
+        const isBypassDaKySoChecked = localStorage.getItem('mplis_bypass_dakyso_enabled') === 'true' ? 'checked' : '';
 
         // Câu mô tả dưới ô "Chọn hết file" - đổi theo trạng thái để nhìn là biết tool sắp làm gì,
         // khỏi phải nhớ ý nghĩa của ô tích.
@@ -148,10 +151,16 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                             <div class="mplis-collapse-body" id="qt2-file-body">
-                                <div class="mplis-checkbox-group">
-                                    <label><input type="checkbox" id="chk-qt2-selectall" ${pCfg.qt2SelectAllFiles ? 'checked' : ''}> Chọn hết file trong bảng</label>
+                                <div class="mplis-bypass-row" style="margin-bottom:4px;">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Chọn hết file trong bảng</strong>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-qt2-selectall" ${pCfg.qt2SelectAllFiles ? 'checked' : ''}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
                                 </div>
-                                <div class="mplis-hint" style="margin:8px 0 0;" id="qt2-file-hint">${qt2FileHint(pCfg.qt2SelectAllFiles)}</div>
+                                <div class="mplis-hint" style="margin:4px 0 0;" id="qt2-file-hint">${qt2FileHint(pCfg.qt2SelectAllFiles)}</div>
                             </div>
                         </div>
 
@@ -167,17 +176,33 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                             </div>
                         </div>
 
-                        <div class="mplis-card mplis-collapse" id="kg-bypass-group" style="display: ${isQT4 ? 'block' : 'none'};">
-                            <button type="button" class="mplis-collapse-head" id="kg-bypass-toggle" aria-expanded="false" aria-controls="kg-bypass-body">
-                                <span class="mplis-section-label">QT4 · Bỏ qua cảnh báo liên kết không gian</span>
-                                <span class="mplis-collapse-state ${isBypassSpatialLinkChecked ? 'on' : ''}" id="kg-bypass-state">${isBypassSpatialLinkChecked ? 'Bật' : 'Tắt'}</span>
+                        <div class="mplis-card mplis-collapse" id="bypass-card" style="display: ${(isQT2 || isQT4) ? 'block' : 'none'};">
+                            <button type="button" class="mplis-collapse-head" id="bypass-card-toggle" aria-expanded="false" aria-controls="bypass-card-body">
+                                <span class="mplis-section-label">Bypass cảnh báo</span>
+                                <span class="mplis-collapse-state" id="bypass-card-state">Tất cả tắt</span>
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
-                            <div class="mplis-collapse-body" id="kg-bypass-body">
-                                <div class="mplis-checkbox-group">
-                                    <label><input type="checkbox" id="chk-bypass-kg" ${isBypassSpatialLinkChecked}> Tự bỏ qua cảnh báo "chưa liên kết không gian" khi Kết ISO</label>
+                            <div class="mplis-collapse-body" id="bypass-card-body">
+                                <div class="mplis-bypass-row" id="bypass-row-dakyso" style="display: ${isQT2 ? 'flex' : 'none'};">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>QT2 · Ký số GCN</strong>
+                                        <span>Bỏ qua lỗi "chưa ký số" khi lưu kho</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw" title="Tự bỏ qua kiểm tra ký số Giấy chứng nhận khi lưu kho hồ sơ quét">
+                                        <input type="checkbox" id="chk-bypass-dakyso" ${isBypassDaKySoChecked}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
                                 </div>
-                                <div class="mplis-hint" style="margin:8px 0 0;">Thay cho việc tự F12 vá request ThucHienKetISO bằng tay. <b>Mặc định TẮT</b> - chỉ bật khi biết chắc hồ sơ đã đúng, chỉ vướng lỗi liên kết giả/kỹ thuật. Áp dụng ngay, không cần tải lại trang.</div>
+                                <div class="mplis-bypass-row" id="bypass-row-kg" style="display: ${isQT4 ? 'flex' : 'none'};">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>QT4 · Liên kết không gian</strong>
+                                        <span>Bỏ qua cảnh báo khi Kết ISO</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw" title="Tự bỏ qua cảnh báo chưa liên kết không gian khi Kết ISO">
+                                        <input type="checkbox" id="chk-bypass-kg" ${isBypassSpatialLinkChecked}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -332,13 +357,16 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                             <div class="mplis-collapse-body" id="set-safe-body">
-                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
-                                    <input type="checkbox" id="chk-auto-confirm" ${isAutoConfirmChecked} style="margin-top:2px;">
-                                    <span>
-                                        Tự động chấp nhận mọi hộp thoại confirm()/alert() của trang<br/>
-                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Tắt nếu muốn tự tay xác nhận từng hộp quan trọng (ký số, kết ISO). Cần <b>tải lại trang</b>.</span>
-                                    </span>
-                                </label>
+                                <div class="mplis-bypass-row">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Tự đồng ý hộp thoại</strong>
+                                        <span>Tắt nếu muốn tự xác nhận (ký số, kết ISO). Cần <b>tải lại trang</b>.</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-auto-confirm" ${isAutoConfirmChecked}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -349,13 +377,16 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                             <div class="mplis-collapse-body" id="set-autofill-body">
-                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
-                                    <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked} style="margin-top:2px;">
-                                    <span>
-                                        Tự điền màn hình Cập nhật pháp lý<br/>
-                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", Loại GCN năm 2024, Người ký theo CB chuyển, Ngày vào sổ theo ô dưới. Sửa tay đè lên được.</span>
-                                    </span>
-                                </label>
+                                <div class="mplis-bypass-row" style="margin-bottom:10px;">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Tự điền pháp lý</strong>
+                                        <span>Tích "Chính thức", Loại GCN, Người ký, Ngày vào sổ. Sửa tay đè lên được.</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
 
                                 <div style="display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
                                     <label for="cfg-phaply-ngay-vao-so" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Ngày vào sổ:</label>
@@ -380,13 +411,16 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                                 </div>
                                 <div id="tenfile-hauto-state" style="margin-top:8px; font-size:11.5px; color:var(--mplis-text-dim); line-height:1.6;"></div>
 
-                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0; margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
-                                    <input type="checkbox" id="chk-tenfile-dongbo" ${isTuTichDongBoChecked} style="margin-top:2px;">
-                                    <span>
-                                        Tự tích ô "đồng bộ về một cửa"<br/>
-                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Dòng file tên theo Số phát hành thì tích, dòng GT/PT thì bỏ tích. <b>Mặc định TẮT</b> vì ghi lên form thật. Dòng có nhiều hơn 1 ô tích thì tool không đụng, chỉ ghi log.</span>
-                                    </span>
-                                </label>
+                                <div class="mplis-bypass-row" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Tự tích đồng bộ một cửa</strong>
+                                        <span>Dòng SPH thì tích, dòng GT/PT thì bỏ tích. <b>Mặc định TẮT</b> vì ghi form thật.</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-tenfile-dongbo" ${isTuTichDongBoChecked}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -411,17 +445,20 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                             <div class="mplis-collapse-body" id="set-notify-body">
-                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
-                                    <input type="checkbox" id="chk-notify-capture" ${isNotifyCaptureChecked} style="margin-top:2px;">
-                                    <span>
-                                        Tự đẩy hồ sơ mới nhận lên Sheet "Thông báo nhận HS"<br/>
-                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Mỗi lần tải trang, tool quét danh sách công việc rồi ghi hồ sơ mới vào Sheet. Cần <b>tải lại trang</b>.</span>
-                                    </span>
-                                </label>
+                                <div class="mplis-bypass-row">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Thông báo hồ sơ mới</strong>
+                                        <span>Mỗi lần tải trang, ghi hồ sơ mới vào Sheet. Cần <b>tải lại trang</b>.</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-notify-capture" ${isNotifyCaptureChecked}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="mplis-card mplis-collapse" id="set-keys-group" style="margin-bottom:0;">
+                        <div class="mplis-card mplis-collapse" id="set-keys-group">
                             <button type="button" class="mplis-collapse-head" id="set-keys-toggle" aria-expanded="false" aria-controls="set-keys-body">
                                 <span class="mplis-section-label">Phím tắt</span>
                                 <span class="mplis-collapse-state" id="set-keys-state">4 phím</span>
@@ -432,6 +469,22 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                                 <div><b style="color:#fff;">Alt + H</b> — Ẩn/hiện bảng điều khiển</div>
                                 <div><b style="color:#fff;">Alt + D</b> — Copy tên file giấy chứng nhận</div>
                                 <div><b style="color:#fff;">Alt + G</b> — Copy tên file giấy tờ kèm</div>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="set-log-group" style="margin-bottom:0;">
+                            <button type="button" class="mplis-collapse-head" id="set-log-toggle" aria-expanded="false" aria-controls="set-log-body">
+                                <span class="mplis-section-label">Nhật ký</span>
+                                <span class="mplis-collapse-state" id="set-log-state">0 mục</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-log-body">
+                                <div style="font-size:11.5px; color:var(--mplis-text-dim); margin-bottom:8px; line-height:1.6;">Ghi lại fetch, response, lỗi JS. Copy paste cho Claude để phân tích và nâng cấp.</div>
+                                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                                    <button type="button" id="btn-log-copy" class="mplis-btn-ghost" style="flex:1;">Copy log</button>
+                                    <button type="button" id="btn-log-clear" class="mplis-btn-ghost" style="padding:7px 12px;">Xóa</button>
+                                </div>
+                                <div id="log-preview" style="font-size:10.5px; color:var(--mplis-text-dim); font-family:monospace; max-height:90px; overflow-y:auto; line-height:1.6; word-break:break-all; background:rgba(0,0,0,0.2); border-radius:6px; padding:6px 8px;"></div>
                             </div>
                         </div>
                     </div>
@@ -620,20 +673,31 @@ import { toggleProcess, toggleReturn } from './toggle.js';
             };
         }
 
-        // spatial-link-bypass.js đọc localStorage mỗi request ThucHienKetISO chứ không đọc 1 lần
-        // lúc tải trang, nên đổi công tắc này áp dụng ngay - không cần F5 (giống chk-phaply-autofill).
+        // Bypass toggles: cả 2 đọc localStorage mỗi request nên đổi áp dụng ngay, không cần F5.
+        function veBypassCardState() {
+            const kg = (document.getElementById('chk-bypass-kg') || {}).checked;
+            const dakyso = (document.getElementById('chk-bypass-dakyso') || {}).checked;
+            const count = (kg ? 1 : 0) + (dakyso ? 1 : 0);
+            veBadge('bypass-card-state', count === 0 ? 'Tất cả tắt' : count === 1 ? '1 bypass bật' : '2 bypass bật', count > 0);
+        }
+
         const chkBypassSpatialLink = document.getElementById('chk-bypass-kg');
         if (chkBypassSpatialLink) {
             chkBypassSpatialLink.onchange = (e) => {
-                const checked = e.target.checked;
-                localStorage.setItem('mplis_bypass_spatial_link_enabled', checked ? 'true' : 'false');
-                const stateEl = document.getElementById('kg-bypass-state');
-                if (stateEl) {
-                    stateEl.textContent = checked ? 'Bật' : 'Tắt';
-                    stateEl.classList.toggle('on', checked);
-                }
+                localStorage.setItem('mplis_bypass_spatial_link_enabled', e.target.checked ? 'true' : 'false');
+                veBypassCardState();
             };
         }
+
+        const chkBypassDaKySo = document.getElementById('chk-bypass-dakyso');
+        if (chkBypassDaKySo) {
+            chkBypassDaKySo.onchange = (e) => {
+                localStorage.setItem('mplis_bypass_dakyso_enabled', e.target.checked ? 'true' : 'false');
+                veBypassCardState();
+            };
+        }
+
+        veBypassCardState();
 
         if (localStorage.getItem('mplis_auto_minimized') === 'true') panel.classList.add('minimized');
 
@@ -715,15 +779,61 @@ import { toggleProcess, toggleReturn } from './toggle.js';
         };
 
         // Nhớ trạng thái đóng/mở qua F5, giống cách nút 3 chấm nhớ mplis_extra_tabs_visible
+        bindCollapse('bypass-card', 'bypass-card-toggle', 'mplis_bypass_card_open');
         bindCollapse('qt2-file-group', 'qt2-file-toggle', 'mplis_qt2_file_open');
         bindCollapse('fw-user-group', 'fw-user-toggle', 'mplis_fw_user_open');
-        bindCollapse('kg-bypass-group', 'kg-bypass-toggle', 'mplis_kg_bypass_open');
         bindCollapse('set-safe-group', 'set-safe-toggle', 'mplis_set_safe_open');
         bindCollapse('set-autofill-group', 'set-autofill-toggle', 'mplis_set_autofill_open');
         bindCollapse('set-tenfile-group', 'set-tenfile-toggle', 'mplis_set_tenfile_open');
         bindCollapse('set-speed-group', 'set-speed-toggle', 'mplis_set_speed_open');
         bindCollapse('set-notify-group', 'set-notify-toggle', 'mplis_set_notify_open');
         bindCollapse('set-keys-group', 'set-keys-toggle', 'mplis_set_keys_open');
+        bindCollapse('set-log-group', 'set-log-toggle', 'mplis_set_log_open');
+
+        function veLogState() {
+            const n = getLogCount();
+            const el = document.getElementById('set-log-state');
+            if (el) { el.textContent = n + ' mục'; el.classList.toggle('on', n > 0); }
+            const preview = document.getElementById('log-preview');
+            if (preview) {
+                if (n === 0) {
+                    preview.textContent = 'Chưa có dữ liệu. Thao tác trên trang để ghi log.';
+                } else {
+                    try {
+                        const all = JSON.parse(getLogJson());
+                        preview.textContent = all.slice(-8).map(e => {
+                            const time = new Date(e.t).toLocaleTimeString('vi-VN');
+                            if (e.type === 'fetch') return `[${time}] ${e.method} ${e.ep} → ${e.status}`;
+                            if (e.type === 'jsError') return `[${time}] ERR ${e.msg}`;
+                            if (e.type === 'rejection') return `[${time}] REJECT ${e.msg?.slice(0, 60)}`;
+                            return `[${time}] ${e.type} ${e.action || ''}`;
+                        }).join('\n');
+                    } catch {}
+                }
+            }
+        }
+
+        document.getElementById('btn-log-copy').onclick = () => {
+            try {
+                GM_setClipboard(getLogJson());
+                const btn = document.getElementById('btn-log-copy');
+                if (btn) { btn.textContent = 'Đã copy!'; setTimeout(() => { btn.textContent = 'Copy log'; }, 1800); }
+            } catch (e) { alert('Copy thất bại: ' + e.message); }
+        };
+        document.getElementById('btn-log-clear').onclick = () => {
+            clearLog();
+            veLogState();
+        };
+
+        // Cập nhật preview khi mở log card
+        document.getElementById('set-log-toggle')?.addEventListener('click', () => {
+            setTimeout(veLogState, 50);
+        });
+        // Cập nhật số mục mỗi 5s khi đang mở tab settings
+        setInterval(() => {
+            const settingsTab = document.getElementById('tab-settings');
+            if (settingsTab && settingsTab.classList.contains('active')) veLogState();
+        }, 5000);
 
         document.getElementById('chk-qt2-selectall').onchange = (e) => {
             const checked = e.target.checked;
@@ -741,9 +851,14 @@ import { toggleProcess, toggleReturn } from './toggle.js';
                 // Ô "Chọn hết file" chỉ có nghĩa khi QT2 đang chạy - ẩn đi cho đỡ rối khi tắt QT2
                 const qt2Group = document.getElementById('qt2-file-group');
                 if (qt2Group) qt2Group.style.display = checked.includes('QT2') ? 'block' : 'none';
-                // Bypass liên kết không gian chỉ có nghĩa khi QT4 đang chạy - ẩn đi cho đỡ rối khi tắt QT4
-                const kgGroup = document.getElementById('kg-bypass-group');
-                if (kgGroup) kgGroup.style.display = checked.includes('QT4') ? 'block' : 'none';
+                // Bypass card: hiện khi QT2 hoặc QT4 bật; mỗi row hiện/ẩn theo QT tương ứng
+                const hasQT2 = checked.includes('QT2'), hasQT4 = checked.includes('QT4');
+                const bypassCard = document.getElementById('bypass-card');
+                if (bypassCard) bypassCard.style.display = (hasQT2 || hasQT4) ? 'block' : 'none';
+                const rowDakyso = document.getElementById('bypass-row-dakyso');
+                if (rowDakyso) rowDakyso.style.display = hasQT2 ? 'flex' : 'none';
+                const rowKg = document.getElementById('bypass-row-kg');
+                if (rowKg) rowKg.style.display = hasQT4 ? 'flex' : 'none';
             };
         });
 

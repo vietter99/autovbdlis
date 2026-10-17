@@ -1,6 +1,7 @@
 /* jshint esversion: 11 */
 /* globals GM_xmlhttpRequest */
 import { topWin } from './utils.js';
+import { gmxhr } from './mplis-logger.js';
 
 // Theo dõi "công việc cần xử lý" qua API nội bộ GetXuLyCongViec - chính là API đứng sau trang
 // Xử Lý Công Việc của cổng, CHÍNH XÁC HƠN GetNotify (popup thông báo hay bị thiếu/trễ/sai).
@@ -99,7 +100,7 @@ function pushWork(item) {
         tenTTHC: item.quytrinh ? (item.quytrinh.SchemaName || '') : ''
     };
     _workPending.add(item.soBienNhan);
-    GM_xmlhttpRequest({
+    gmxhr({
         method: 'POST',
         url,
         data: JSON.stringify(record),
@@ -147,7 +148,7 @@ function formatTrangThaiChiTiet(item) {
 function pushTrangThai(maHS, trangThai) {
     const url = getWorkSheetUrl();
     if (!url || typeof GM_xmlhttpRequest === 'undefined') return;
-    GM_xmlhttpRequest({
+    gmxhr({
         method: 'POST',
         url,
         data: JSON.stringify({ bucket: 'thongbao_trangthai', maHS, trangThai }),

@@ -212,13 +212,14 @@
   // src/panel-style.js
   var panelStyle = `
         :root {
-            --mplis-bg: #0b0f19;
-            --mplis-bg-soft: #11172a;
-            --mplis-surface: rgba(255,255,255,0.04);
-            --mplis-surface-hover: rgba(255,255,255,0.08);
-            --mplis-border: rgba(148,163,184,0.14);
+            --mplis-bg: #070b16;
+            --mplis-bg-soft: #0d1225;
+            --mplis-surface: rgba(255,255,255,0.045);
+            --mplis-surface-hover: rgba(255,255,255,0.085);
+            --mplis-border: rgba(148,163,184,0.16);
+            --mplis-border-strong: rgba(148,163,184,0.28);
             --mplis-text: #eef2f8;
-            --mplis-text-dim: #8b95ad;
+            --mplis-text-dim: #8494b0;
             --mplis-accent: #6366f1;
             --mplis-accent-2: #22d3ee;
             --mplis-good: #22c55e;
@@ -228,19 +229,19 @@
 
         /* Bề ngang cố định 460px sẽ tràn/che nội dung trên màn hẹp hoặc khi trình duyệt zoom to,
            nên kẹp lại theo bề ngang cửa sổ (chừa 32px cho lề 2 bên). */
-        #mplis-auto-panel { position: fixed !important; bottom: 24px !important; right: 24px !important; width: min(392px, calc(100vw - 32px)) !important; max-height: 82vh !important; background: linear-gradient(180deg, var(--mplis-bg-soft), var(--mplis-bg)) !important; border: 1px solid var(--mplis-border) !important; border-radius: 16px !important; box-shadow: 0 24px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06) !important; color: var(--mplis-text) !important; font-family: 'Segoe UI', 'Inter', sans-serif !important; z-index: 999999999 !important; user-select: none !important; box-sizing: border-box !important; transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important; display: flex; flex-direction: column; overflow: hidden; transform-origin: bottom right; }
+        #mplis-auto-panel { position: fixed !important; bottom: 24px !important; right: 24px !important; width: min(392px, calc(100vw - 32px)) !important; max-height: 82vh !important; background: linear-gradient(160deg, #0e1428 0%, #070b16 60%) !important; border: 1px solid rgba(99,102,241,0.22) !important; border-radius: 18px !important; box-shadow: 0 28px 70px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.07) !important; color: var(--mplis-text) !important; font-family: 'Segoe UI', 'Inter', sans-serif !important; z-index: 999999999 !important; user-select: none !important; box-sizing: border-box !important; transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important; display: flex; flex-direction: column; overflow: hidden; transform-origin: bottom right; }
         #mplis-auto-panel * { box-sizing: border-box; }
-        #mplis-auto-panel.minimized { width: 58px !important; height: 58px !important; border-radius: 50% !important; background: linear-gradient(135deg, var(--mplis-accent), var(--mplis-accent-2)) !important; border: none !important; box-shadow: 0 10px 26px rgba(99,102,241,0.55) !important; cursor: pointer; transform: scale(0.92); }
-        #mplis-auto-panel.minimized:hover { transform: scale(1); box-shadow: 0 14px 30px rgba(99,102,241,0.65) !important; }
+        #mplis-auto-panel.minimized { width: 58px !important; height: 58px !important; border-radius: 50% !important; background: linear-gradient(135deg, var(--mplis-accent), var(--mplis-accent-2)) !important; border: none !important; box-shadow: 0 10px 28px rgba(99,102,241,0.6), 0 0 0 2px rgba(99,102,241,0.2) !important; cursor: pointer; transform: scale(0.92); }
+        #mplis-auto-panel.minimized:hover { transform: scale(1); box-shadow: 0 14px 34px rgba(99,102,241,0.7), 0 0 0 2px rgba(99,102,241,0.3) !important; }
         #mplis-auto-panel.minimized .mplis-panel-header,
         #mplis-auto-panel.minimized .mplis-shell { display: none !important; }
 
         /* ---- Header ---- */
-        #mplis-auto-panel .mplis-panel-header { display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 10px 12px !important; border-bottom: 1px solid var(--mplis-border) !important; flex-shrink: 0; }
-        #mplis-auto-panel .mplis-panel-title { font-weight: 650 !important; font-size: 13px !important; letter-spacing: -0.01em; color: var(--mplis-text) !important; display: flex !important; align-items: center !important; gap: 9px !important; }
-        #mplis-auto-panel .mplis-panel-title .mplis-logo { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, var(--mplis-accent), var(--mplis-accent-2)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 3px 10px rgba(99,102,241,0.35); }
+        #mplis-auto-panel .mplis-panel-header { display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 10px 13px !important; border-bottom: 1px solid rgba(99,102,241,0.18) !important; flex-shrink: 0; background: rgba(99,102,241,0.05); }
+        #mplis-auto-panel .mplis-panel-title { font-weight: 700 !important; font-size: 13px !important; letter-spacing: -0.02em; color: var(--mplis-text) !important; display: flex !important; align-items: center !important; gap: 9px !important; }
+        #mplis-auto-panel .mplis-panel-title .mplis-logo { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, var(--mplis-accent), var(--mplis-accent-2)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 3px 12px rgba(99,102,241,0.45), inset 0 1px 0 rgba(255,255,255,0.2); }
         #mplis-auto-panel .mplis-btn-minimize { background: transparent !important; border: 1px solid transparent !important; border-radius: 8px !important; color: var(--mplis-text-dim) !important; cursor: pointer !important; width: 28px !important; height: 28px !important; display: flex !important; align-items: center !important; justify-content: center !important; transition: all 0.15s !important; padding: 0; margin: 0; }
-        #mplis-auto-panel .mplis-btn-minimize:hover { color: var(--mplis-text) !important; background: var(--mplis-surface-hover) !important; }
+        #mplis-auto-panel .mplis-btn-minimize:hover { color: var(--mplis-text) !important; background: rgba(255,255,255,0.1) !important; border-color: var(--mplis-border) !important; }
         #mplis-auto-panel .mplis-minimized-trigger { display: none !important; width: 100% !important; height: 100% !important; align-items: center !important; justify-content: center !important; color: #fff !important; background: transparent !important; border: none !important; outline: none !important; padding: 0 !important; margin: 0 !important; cursor: pointer !important; }
         #mplis-auto-panel.minimized .mplis-minimized-trigger { display: flex !important; animation: mplis-float 3s ease-in-out infinite; }
         @keyframes mplis-float { 0% { transform: translateY(0); } 50% { transform: translateY(-3px); } 100% { transform: translateY(0); } }
@@ -248,44 +249,46 @@
         /* ---- Shell: nav rail (trái) + nội dung (phải) ---- */
         .mplis-shell { display: flex; flex: 1; min-height: 0; }
 
-        .mplis-tabs { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 48px; flex-shrink: 0; padding: 10px 0; background: rgba(0,0,0,0.18); border-right: 1px solid var(--mplis-border); overflow-y: auto; overflow-x: visible; }
-        .mplis-tab { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 10px; color: var(--mplis-text-dim); cursor: pointer; transition: all 0.15s ease; position: relative; flex-shrink: 0; }
+        .mplis-tabs { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 48px; flex-shrink: 0; padding: 10px 0; background: rgba(0,0,0,0.25); border-right: 1px solid rgba(99,102,241,0.14); overflow-y: auto; overflow-x: visible; }
+        .mplis-tab { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 10px; color: var(--mplis-text-dim); cursor: pointer; transition: all 0.18s ease; position: relative; flex-shrink: 0; }
         /* Icon tab dùng SVG (không dùng emoji) - khóa cùng 1 cỡ để nhịp thị giác đều nhau. */
         .mplis-tab svg, .mplis-tab-toggle svg { width: 18px; height: 18px; display: block; }
-        .mplis-tab:hover { color: var(--mplis-text); background: var(--mplis-surface); }
-        .mplis-tab.active { color: #fff; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5); box-shadow: 0 4px 14px rgba(99,102,241,0.45); }
-        .mplis-tab[title]:hover::after { content: attr(title); position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 10px; background: #1e293b; color: #f1f5f9; font-size: 12px; font-weight: 600; padding: 5px 9px; border-radius: 6px; white-space: nowrap; box-shadow: 0 6px 16px rgba(0,0,0,0.4); pointer-events: none; z-index: 10; }
+        .mplis-tab:hover { color: var(--mplis-text); background: rgba(99,102,241,0.12); }
+        .mplis-tab.active { color: #fff; background: linear-gradient(135deg, var(--mplis-accent), #4338ca); box-shadow: 0 4px 16px rgba(99,102,241,0.5), inset 0 1px 0 rgba(255,255,255,0.15); }
+        .mplis-tab[title]:hover::after { content: attr(title); position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 10px; background: #1a2035; color: #f1f5f9; font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 7px; white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.07); pointer-events: none; z-index: 10; border: 1px solid var(--mplis-border); }
 
-        .mplis-tab-toggle { width: 38px; height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-top: 1px dashed var(--mplis-border); margin-top: 6px; color: var(--mplis-text-dim); cursor: pointer; transition: color 0.15s ease; }
+        .mplis-tab-toggle { width: 38px; height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-top: 1px dashed rgba(148,163,184,0.2); margin-top: 6px; color: var(--mplis-text-dim); cursor: pointer; transition: color 0.15s ease; }
         .mplis-tab-toggle:hover { color: var(--mplis-text); }
         .mplis-tab-toggle.expanded { color: var(--mplis-accent-2); }
 
         .mplis-content { flex: 1; min-width: 0; min-height: 240px; overflow-y: auto; padding: 10px; transition: min-height 0.22s ease; }
-        .mplis-content::-webkit-scrollbar, .mplis-tabs::-webkit-scrollbar { width: 6px; }
-        .mplis-content::-webkit-scrollbar-thumb, .mplis-tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+        .mplis-content::-webkit-scrollbar, .mplis-tabs::-webkit-scrollbar { width: 4px; }
+        .mplis-content::-webkit-scrollbar-thumb, .mplis-tabs::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 4px; }
+        .mplis-content::-webkit-scrollbar-thumb:hover, .mplis-tabs::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.5); }
 
         .mplis-panel-body { display: none; }
         .mplis-panel-body.active { display: block; animation: mplis-fade-in 0.2s ease; }
-        @keyframes mplis-fade-in { from { opacity: 0; transform: translateY(3px);} to { opacity: 1; transform: translateY(0);} }
+        @keyframes mplis-fade-in { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: translateY(0);} }
 
-        .mplis-section-label { font-size: 10px; color: var(--mplis-text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 0.07em; margin-bottom: 6px; display: block; }
-        .mplis-card { background: var(--mplis-surface); border: 1px solid var(--mplis-border); border-radius: 10px; padding: 9px; margin-bottom: 8px; }
+        .mplis-section-label { font-size: 10px; color: var(--mplis-text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 6px; display: block; }
+        .mplis-card { background: linear-gradient(145deg, rgba(255,255,255,0.048), rgba(255,255,255,0.022)); border: 1px solid var(--mplis-border); border-radius: 11px; padding: 9px; margin-bottom: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.05); transition: box-shadow 0.18s ease, border-color 0.18s ease; }
+        .mplis-card:hover { border-color: rgba(148,163,184,0.26); box-shadow: 0 4px 16px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.07); }
         .mplis-hint { font-size: 11.5px; color: var(--mplis-text-dim); line-height: 1.5; margin-bottom: 10px; }
 
         /* ---- Thẻ thu gọn/mở rộng ---- */
         /* Đóng lại vẫn phải biết tool đang chạy kiểu nào, nên trạng thái nằm luôn trên thanh tiêu đề
            (.mplis-collapse-state) thay vì giấu hết vào trong. */
         #mplis-auto-panel .mplis-collapse { padding: 0 !important; overflow: hidden; }
-        #mplis-auto-panel .mplis-collapse-head { display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important; min-height: 38px !important; padding: 8px 10px !important; background: transparent !important; border: none !important; border-radius: 12px !important; color: var(--mplis-text) !important; cursor: pointer !important; text-align: left !important; font-family: inherit !important; }
-        #mplis-auto-panel .mplis-collapse-head:hover { background: var(--mplis-surface-hover) !important; }
+        #mplis-auto-panel .mplis-collapse-head { display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important; min-height: 38px !important; padding: 8px 10px !important; background: transparent !important; border: none !important; border-radius: 10px !important; color: var(--mplis-text) !important; cursor: pointer !important; text-align: left !important; font-family: inherit !important; transition: background 0.15s ease !important; }
+        #mplis-auto-panel .mplis-collapse-head:hover { background: rgba(99,102,241,0.1) !important; }
         #mplis-auto-panel .mplis-collapse-head:focus-visible { outline: 2px solid var(--mplis-accent) !important; outline-offset: -2px !important; }
         #mplis-auto-panel .mplis-collapse-head .mplis-section-label { margin-bottom: 0 !important; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         /* Tên tài khoản chuyển tiếp có thể dài hơn chỗ trống - cắt bằng "..." để thanh tiêu đề không vỡ. */
-        .mplis-collapse-state { margin-left: auto; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; color: var(--mplis-text-dim); background: var(--mplis-surface); border: 1px solid var(--mplis-border); border-radius: 20px; padding: 3px 9px; }
-        .mplis-collapse-state.on { color: var(--mplis-bg); background: var(--mplis-accent-2); border-color: transparent; }
-        .mplis-collapse-caret { flex-shrink: 0; color: var(--mplis-text-dim); transition: transform 0.2s ease; }
+        .mplis-collapse-state { margin-left: auto; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; color: var(--mplis-text-dim); background: rgba(255,255,255,0.06); border: 1px solid var(--mplis-border); border-radius: 20px; padding: 3px 9px; }
+        .mplis-collapse-state.on { color: #021018; background: var(--mplis-accent-2); border-color: transparent; box-shadow: 0 2px 8px rgba(34,211,238,0.35); }
+        .mplis-collapse-caret { flex-shrink: 0; color: var(--mplis-text-dim); transition: transform 0.22s cubic-bezier(0.4,0,0.2,1); }
         .mplis-collapse.open .mplis-collapse-caret { transform: rotate(180deg); }
-        .mplis-collapse-body { max-height: 0; opacity: 0; overflow: hidden; padding: 0 10px; transition: max-height 0.22s ease, opacity 0.16s ease, padding-bottom 0.22s ease; }
+        .mplis-collapse-body { max-height: 0; opacity: 0; overflow: hidden; padding: 0 10px; transition: max-height 0.24s ease, opacity 0.18s ease, padding-bottom 0.24s ease; }
         .mplis-collapse.open .mplis-collapse-body { max-height: 420px; overflow-y: auto; opacity: 1; padding-bottom: 10px; }
         @media (prefers-reduced-motion: reduce) {
             .mplis-collapse-body, .mplis-collapse-caret { transition: none; }
@@ -293,9 +296,9 @@
 
         /* ---- Bảng nổi báo tiến độ (chỉ hiện khi panel thu nhỏ + auto đang chạy) ---- */
         /* Đặt ngay trên icon tia sét (icon cao 58px + 24px lề dưới + 10px khoảng hở). */
-        #mplis-run-toast { position: fixed !important; bottom: 92px !important; right: 24px !important; width: min(300px, calc(100vw - 32px)); padding: 11px 13px; background: linear-gradient(180deg, var(--mplis-bg-soft), var(--mplis-bg)); border: 1px solid var(--mplis-border); border-radius: 14px; box-shadow: 0 14px 34px rgba(0,0,0,0.5); color: var(--mplis-text); font-family: 'Segoe UI', 'Inter', sans-serif; z-index: 999999998; cursor: pointer; opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; }
+        #mplis-run-toast { position: fixed !important; bottom: 92px !important; right: 24px !important; width: min(300px, calc(100vw - 32px)); padding: 11px 13px; background: linear-gradient(160deg, #0e1428, #070b16); border: 1px solid rgba(99,102,241,0.22); border-radius: 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06); color: var(--mplis-text); font-family: 'Segoe UI', 'Inter', sans-serif; z-index: 999999998; cursor: pointer; opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; }
         #mplis-run-toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        #mplis-run-toast:hover { border-color: var(--mplis-accent); }
+        #mplis-run-toast:hover { border-color: rgba(99,102,241,0.5); }
         #mplis-run-toast .mplis-toast-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         #mplis-run-toast .mplis-toast-step { font-size: 12px; font-weight: 700; color: var(--mplis-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #mplis-run-toast .mplis-toast-count { margin-left: auto; flex-shrink: 0; font-size: 11px; font-weight: 700; color: var(--mplis-accent-2); font-variant-numeric: tabular-nums; }
@@ -311,46 +314,58 @@
         .mplis-checkbox-group { display: flex !important; flex-direction: column !important; gap: 4px !important; }
         /* 6 quy trình xếp dọc chiếm gần 200px; xếp 2 cột còn 3 hàng, tab Xử lý ngắn lại hẳn. */
         .mplis-checkbox-group.cols2 { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 4px !important; }
-        .mplis-checkbox-group label { display: flex !important; align-items: center !important; gap: 7px !important; min-height: 32px !important; font-size: 11.5px !important; color: #e2e8f0 !important; cursor: pointer !important; padding: 5px 8px !important; background: var(--mplis-surface) !important; border-radius: 8px !important; border: 1px solid var(--mplis-border) !important; transition: background 0.15s; }
-        .mplis-checkbox-group label:hover { background: var(--mplis-surface-hover) !important; }
+        .mplis-checkbox-group label { display: flex !important; align-items: center !important; gap: 7px !important; min-height: 32px !important; font-size: 11.5px !important; color: #dde4f0 !important; cursor: pointer !important; padding: 5px 9px !important; background: rgba(255,255,255,0.04) !important; border-radius: 8px !important; border: 1px solid var(--mplis-border) !important; transition: background 0.15s, border-color 0.15s; }
+        .mplis-checkbox-group label:hover { background: rgba(99,102,241,0.1) !important; border-color: rgba(99,102,241,0.3) !important; }
         .mplis-checkbox-group input, #mplis-auto-panel input[type="checkbox"] { accent-color: var(--mplis-accent); width: 14px; height: 14px; cursor: pointer; }
 
-        .mplis-btn-primary { width: 100% !important; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5) !important; border: none !important; border-radius: 9px !important; padding: 9px 14px !important; color: #ffffff !important; font-weight: 650 !important; font-size: 12.5px !important; cursor: pointer !important; letter-spacing: 0.01em; transition: all 0.15s ease !important; box-shadow: 0 3px 12px rgba(99,102,241,0.3); }
-        .mplis-btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
-        .mplis-btn-primary:active { transform: translateY(0); }
-        .mplis-btn-primary.running { background: linear-gradient(135deg, var(--mplis-bad), #be123c) !important; box-shadow: 0 4px 14px rgba(244,63,94,0.35); }
-        .mplis-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; filter: none; }
+        .mplis-btn-primary { width: 100% !important; background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%) !important; border: none !important; border-radius: 10px !important; padding: 9px 14px !important; color: #ffffff !important; font-weight: 700 !important; font-size: 12.5px !important; cursor: pointer !important; letter-spacing: 0.01em; transition: all 0.18s ease !important; box-shadow: 0 4px 15px rgba(99,102,241,0.38), inset 0 1px 0 rgba(255,255,255,0.15); }
+        .mplis-btn-primary:hover { filter: brightness(1.12); transform: translateY(-1.5px); box-shadow: 0 7px 22px rgba(99,102,241,0.5), inset 0 1px 0 rgba(255,255,255,0.2) !important; }
+        .mplis-btn-primary:active { transform: translateY(0); filter: brightness(0.97); box-shadow: 0 2px 8px rgba(99,102,241,0.3) !important; }
+        .mplis-btn-primary.running { background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%) !important; box-shadow: 0 4px 15px rgba(244,63,94,0.4), inset 0 1px 0 rgba(255,255,255,0.15) !important; }
+        .mplis-btn-primary.running:hover { box-shadow: 0 7px 22px rgba(244,63,94,0.55), inset 0 1px 0 rgba(255,255,255,0.2) !important; }
+        .mplis-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; filter: none; box-shadow: none !important; }
 
         /* Chọn hậu tố GT/PT - 2 nút kiểu segmented, nút đang chọn đổi màu + đậm để nhìn là biết. */
-        .mplis-hauto-btn { padding: 7px 10px !important; font: 650 12.5px 'Segoe UI', sans-serif !important; color: var(--mplis-text-dim) !important; background: var(--mplis-surface) !important; border: 1px solid var(--mplis-border) !important; border-radius: 8px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
-        .mplis-hauto-btn:hover { background: var(--mplis-surface-hover) !important; color: var(--mplis-text) !important; }
-        .mplis-hauto-btn.on { color: #fff !important; background: linear-gradient(135deg, var(--mplis-accent), #4f46e5) !important; border-color: transparent !important; box-shadow: 0 3px 12px rgba(99,102,241,0.35) !important; }
+        .mplis-hauto-btn { padding: 7px 10px !important; font: 650 12.5px 'Segoe UI', sans-serif !important; color: var(--mplis-text-dim) !important; background: rgba(255,255,255,0.05) !important; border: 1px solid var(--mplis-border) !important; border-radius: 8px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
+        .mplis-hauto-btn:hover { background: rgba(99,102,241,0.12) !important; color: var(--mplis-text) !important; border-color: rgba(99,102,241,0.3) !important; }
+        .mplis-hauto-btn.on { color: #fff !important; background: linear-gradient(135deg, #6366f1, #4338ca) !important; border-color: transparent !important; box-shadow: 0 3px 12px rgba(99,102,241,0.4), inset 0 1px 0 rgba(255,255,255,0.15) !important; }
 
         /* Thanh kéo tốc độ: nền tối cho khớp panel, cao 4px, núm 14px đủ to để kéo. */
-        #mplis-auto-panel input[type="range"] { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 3px; background: rgba(255,255,255,0.14); outline: none; }
-        #mplis-auto-panel input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--mplis-accent-2); border: none; cursor: pointer; box-shadow: 0 1px 6px rgba(34,211,238,0.5); }
-        #mplis-auto-panel input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--mplis-accent-2); border: none; cursor: pointer; }
+        #mplis-auto-panel input[type="range"] { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 3px; background: rgba(255,255,255,0.12); outline: none; }
+        #mplis-auto-panel input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: var(--mplis-accent-2); border: 2px solid #070b16; cursor: pointer; box-shadow: 0 0 0 2px rgba(34,211,238,0.3), 0 2px 8px rgba(34,211,238,0.4); }
+        #mplis-auto-panel input[type="range"]::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--mplis-accent-2); border: 2px solid #070b16; cursor: pointer; }
 
-        .mplis-btn-ghost { background: var(--mplis-surface) !important; border: 1px solid var(--mplis-border) !important; color: var(--mplis-text) !important; border-radius: 9px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
-        .mplis-btn-ghost:hover { background: var(--mplis-surface-hover) !important; }
+        .mplis-btn-ghost { background: rgba(255,255,255,0.05) !important; border: 1px solid var(--mplis-border) !important; color: var(--mplis-text) !important; border-radius: 9px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
+        .mplis-btn-ghost:hover { background: rgba(255,255,255,0.09) !important; border-color: var(--mplis-border-strong) !important; }
 
-        .mplis-status-bar { margin-top: 8px !important; background: rgba(0,0,0,0.22) !important; border-radius: 9px !important; padding: 7px 9px !important; border: 1px solid var(--mplis-border) !important; }
+        .mplis-status-bar { margin-top: 8px !important; background: rgba(0,0,0,0.3) !important; border-radius: 10px !important; padding: 7px 10px !important; border: 1px solid rgba(148,163,184,0.12) !important; box-shadow: inset 0 1px 0 rgba(0,0,0,0.3); }
         .mplis-status-row { display: flex !important; justify-content: space-between !important; align-items: center !important; font-size: 12px !important; }
-        .mplis-status-lbl { display: flex !important; align-items: center !important; gap: 7px !important; color: #cbd5e1 !important; }
-        .mplis-status-dot { width: 8px !important; height: 8px !important; border-radius: 50% !important; background-color: #64748b !important; flex-shrink: 0; }
-        .mplis-status-dot.active { background-color: var(--mplis-good) !important; box-shadow: 0 0 8px rgba(34,197,94,0.7) !important; animation: mplis-pulse 1.5s infinite !important; }
-        .mplis-status-dot.waiting { background-color: var(--mplis-warn) !important; box-shadow: 0 0 8px rgba(245,158,11,0.7) !important; }
-        @keyframes mplis-pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        .mplis-status-lbl { display: flex !important; align-items: center !important; gap: 7px !important; color: #c8d3e8 !important; }
+        .mplis-status-dot { width: 8px !important; height: 8px !important; border-radius: 50% !important; background-color: #4a5568 !important; flex-shrink: 0; }
+        .mplis-status-dot.active { background-color: var(--mplis-good) !important; box-shadow: 0 0 0 2px rgba(34,197,94,0.2), 0 0 10px rgba(34,197,94,0.6) !important; animation: mplis-pulse 1.5s infinite !important; }
+        .mplis-status-dot.waiting { background-color: var(--mplis-warn) !important; box-shadow: 0 0 0 2px rgba(245,158,11,0.2), 0 0 10px rgba(245,158,11,0.6) !important; }
+        @keyframes mplis-pulse { 0% { opacity: 0.55; } 50% { opacity: 1; } 100% { opacity: 0.55; } }
 
-        .mplis-log { margin-top: 8px !important; font-family: 'Consolas', monospace !important; font-size: 12px !important; color: var(--mplis-text-dim) !important; border-top: 1px solid var(--mplis-border) !important; padding-top: 8px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+        .mplis-log { margin-top: 8px !important; font-family: 'Consolas', 'Cascadia Code', monospace !important; font-size: 11.5px !important; color: var(--mplis-text-dim) !important; border-top: 1px solid rgba(148,163,184,0.1) !important; padding-top: 7px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
 
-        .mplis-highlight-target { outline: 3px solid var(--mplis-good) !important; box-shadow: 0 0 15px rgba(34,197,94,0.8) !important; border-radius: 4px !important; }
-        .tab-return-color .mplis-highlight-target { outline-color: var(--mplis-warn) !important; box-shadow: 0 0 15px rgba(245,158,11,0.8) !important; }
-        .tab-return-color .mplis-btn-primary { background: linear-gradient(135deg, #eab308, #ca8a04) !important; color: #1e293b !important; box-shadow: 0 4px 14px rgba(234,179,8,0.35); }
+        .mplis-highlight-target { outline: 2px solid var(--mplis-good) !important; box-shadow: 0 0 0 4px rgba(34,197,94,0.15), 0 0 18px rgba(34,197,94,0.6) !important; border-radius: 4px !important; }
+        .tab-return-color .mplis-highlight-target { outline-color: var(--mplis-warn) !important; box-shadow: 0 0 0 4px rgba(245,158,11,0.15), 0 0 18px rgba(245,158,11,0.6) !important; }
+        .tab-return-color .mplis-btn-primary { background: linear-gradient(135deg, #f59e0b, #b45309) !important; color: #0a0c10 !important; box-shadow: 0 4px 15px rgba(245,158,11,0.38), inset 0 1px 0 rgba(255,255,255,0.2) !important; }
         .tab-return-color .mplis-btn-primary.running { background: linear-gradient(135deg, var(--mplis-bad), #be123c) !important; color: #fff !important; }
 
-        .mplis-filter-tab.active { background: rgba(99,102,241,0.35) !important; color: #fff !important; }
-        .mplis-excel-filter.active { background: rgba(99,102,241,0.35) !important; color: #fff !important; }
+        .mplis-filter-tab.active { background: rgba(99,102,241,0.28) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(99,102,241,0.4); }
+        .mplis-excel-filter.active { background: rgba(99,102,241,0.28) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(99,102,241,0.4); }
+
+        /* Input text, textarea, select trong panel — styled nhất quán */
+        #mplis-auto-panel input[type="text"],
+        #mplis-auto-panel input[type="number"],
+        #mplis-auto-panel input[type="date"],
+        #mplis-auto-panel textarea,
+        #mplis-auto-panel select { background: rgba(0,0,0,0.35) !important; border: 1px solid var(--mplis-border) !important; border-radius: 8px !important; color: #f0f4fc !important; transition: border-color 0.15s, box-shadow 0.15s !important; }
+        #mplis-auto-panel input[type="text"]:hover,
+        #mplis-auto-panel input[type="number"]:hover,
+        #mplis-auto-panel textarea:hover { border-color: var(--mplis-border-strong) !important; }
+        #mplis-auto-panel input:focus, #mplis-auto-panel textarea:focus, #mplis-auto-panel select:focus { border-color: var(--mplis-accent-2) !important; box-shadow: 0 0 0 3px rgba(34,211,238,0.14) !important; outline: none !important; }
 
         /* Viền focus khi dùng bàn phím (Tab) - trước đây không có, gõ Tab không biết đang ở nút nào.
            Dùng :focus-visible nên chuột bấm vẫn KHÔNG hiện viền, không ảnh hưởng thao tác thường ngày. */
@@ -359,13 +374,28 @@
         #mplis-auto-panel textarea:focus-visible,
         #mplis-auto-panel select:focus-visible,
         #mplis-auto-panel [tabindex]:focus-visible { outline: 2px solid var(--mplis-accent-2) !important; outline-offset: 2px !important; border-radius: 8px; }
-        /* Ô nhập liệu: thêm viền sáng cả khi focus bằng chuột để biết đang gõ vào ô nào. */
-        #mplis-auto-panel input:focus, #mplis-auto-panel textarea:focus { border-color: var(--mplis-accent-2) !important; }
 
         /* Người dùng bật "giảm chuyển động" của hệ điều hành thì tắt hiệu ứng, tránh gây khó chịu. */
         @media (prefers-reduced-motion: reduce) {
             #mplis-auto-panel, #mplis-auto-panel * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
         }
+
+        /* Toggle switch dạng pill — thay cho checkbox trong bypass card, gọn hơn nhiều */
+        .mplis-toggle-sw { position: relative; display: inline-block; width: 34px; height: 18px; flex-shrink: 0; cursor: pointer; }
+        .mplis-toggle-sw input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .mplis-toggle-sw .mplis-toggle-track { position: absolute; inset: 0; border-radius: 9px; background: rgba(255,255,255,0.1); border: 1px solid var(--mplis-border); transition: background 0.22s, border-color 0.22s, box-shadow 0.22s; }
+        .mplis-toggle-sw .mplis-toggle-track::before { content: ''; position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #4a5568; top: 2px; left: 2px; transition: transform 0.22s cubic-bezier(0.34,1.5,0.64,1), background 0.2s; }
+        .mplis-toggle-sw input:checked + .mplis-toggle-track { background: var(--mplis-accent-2); border-color: transparent; box-shadow: 0 0 10px rgba(34,211,238,0.35); }
+        .mplis-toggle-sw input:checked + .mplis-toggle-track::before { transform: translateX(16px); background: #021018; }
+        .mplis-toggle-sw:hover .mplis-toggle-track { border-color: rgba(34,211,238,0.45); }
+        .mplis-toggle-sw input:focus-visible + .mplis-toggle-track { outline: 2px solid var(--mplis-accent-2); outline-offset: 2px; border-radius: 9px; }
+
+        /* Hàng bypass: nhãn trái + toggle phải */
+        .mplis-bypass-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; }
+        .mplis-bypass-row + .mplis-bypass-row { border-top: 1px solid rgba(148,163,184,0.12); }
+        .mplis-bypass-row-label { min-width: 0; }
+        .mplis-bypass-row-label strong { display: block; font-size: 12px; color: #dde4f0; font-weight: 600; line-height: 1.3; }
+        .mplis-bypass-row-label span { font-size: 11px; color: var(--mplis-text-dim); line-height: 1.3; }
 
         @media print { #mplis-auto-panel { display: none !important; } }
     `;
@@ -538,9 +568,9 @@
       try {
         const topState = getTopState();
         if (!topState || !topState.isRunning) return;
-        const now = Date.now();
+        const now2 = Date.now();
         const lockDuration = topState.currentLockDuration || 1200;
-        if (topState.lastActionTime && now - topState.lastActionTime < lockDuration) return;
+        if (topState.lastActionTime && now2 - topState.lastActionTime < lockDuration) return;
         if (isSystemLoading()) {
           updateStatus("Hệ thống đang xử lý...", "waiting");
           return;
@@ -565,7 +595,7 @@
               }
               const agreeBtn = jconfirmBox.querySelector(".jconfirm-buttons .btn-orange, .jconfirm-buttons button:first-child");
               if (agreeBtn && !agreeBtn.hasAttribute("data-mplis-clicked")) {
-                setLastActionTime(now, topState.config.delayNext);
+                setLastActionTime(now2, topState.config.delayNext);
                 if (isQT4Confirm) writeLog("Phát hiện hộp thoại kết ISO. Bấm 'Đồng ý'...");
                 else if (isQT5Confirm) writeLog("Phát hiện hộp thoại chuyển tiếp. Bấm 'Đồng ý'...");
                 else writeLog("Phát hiện hộp thoại xác nhận cập nhật pháp lý. Bấm 'Đồng ý'...");
@@ -599,7 +629,7 @@
                   const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
                   if (jq) jq(okBtn).click();
                   else clickElement(okBtn);
-                  setLastActionTime(now, 500);
+                  setLastActionTime(now2, 500);
                   return;
                 }
               }
@@ -638,7 +668,7 @@
         if (visibleConfirmBtns.length > 0) {
           const confirmBtn = visibleConfirmBtns[visibleConfirmBtns.length - 1];
           if (!confirmBtn.hasAttribute("data-mplis-clicked")) {
-            setLastActionTime(now, topState.config.delayNext);
+            setLastActionTime(now2, topState.config.delayNext);
             writeLog("Phát hiện popup xác nhận. Tự động bấm 'Đồng ý'...");
             confirmBtn.setAttribute("data-mplis-clicked", "true");
             setTimeout(() => {
@@ -673,7 +703,7 @@
                 btnUpdateAttactFile.setAttribute("data-mplis-clicked", "true");
                 clickElement(btnUpdateAttactFile);
                 topState.qt0Phase = 1;
-                setLastActionTime(now, 1e3);
+                setLastActionTime(now2, 1e3);
                 return;
               }
             } else if (topState.qt0Phase === 1) {
@@ -699,7 +729,7 @@
                     btnDongModal.setAttribute("data-mplis-clicked", "true");
                     clickElement(btnDongModal);
                     topState.qt0Phase = 2;
-                    setLastActionTime(now, 1e3);
+                    setLastActionTime(now2, 1e3);
                     return;
                   }
                 }
@@ -729,7 +759,7 @@
                 btnXuly.setAttribute("data-mplis-clicked", "true");
                 clickElement(btnXuly);
                 topState.qt0Phase = 0;
-                setLastActionTime(now, topState.config.delayAction);
+                setLastActionTime(now2, topState.config.delayAction);
                 return;
               }
             } else {
@@ -763,7 +793,7 @@
                 writeLog(`Tìm thấy người nhận '${topState.config.forwardUser}'. Đang chọn...`);
                 checkBtn.setAttribute("data-mplis-clicked", "true");
                 clickElement(checkBtn);
-                setLastActionTime(now, topState.config.delayAction);
+                setLastActionTime(now2, topState.config.delayAction);
                 return;
               }
               const modal = fwdTable.closest(".modal, .k-window, .ui-dialog") || document.body;
@@ -783,7 +813,7 @@
                     } catch (e) {
                     }
                   }, 5e3);
-                  setLastActionTime(now, topState.config.delayNext);
+                  setLastActionTime(now2, topState.config.delayNext);
                   return;
                 } else {
                   updateStatus("Đợi hoàn tất chuyển tiếp...", "waiting");
@@ -796,7 +826,7 @@
                 writeLog(`Không thấy '${topState.config.forwardUser}', tải lại danh sách...`);
                 reloadBtn.setAttribute("data-mplis-clicked", "true");
                 clickElement(reloadBtn);
-                setLastActionTime(now, 2e3);
+                setLastActionTime(now2, 2e3);
                 return;
               } else if (reloadBtn && reloadBtn.hasAttribute("data-mplis-clicked")) {
                 writeLog(`⚠️ Không thấy người nhận '${topState.config.forwardUser}'. DỪNG AUTO.`);
@@ -829,7 +859,7 @@
           });
           if (isUpdateBtnVisible) {
             topState.isWaitingForQT3Modal = false;
-          } else if (now - topState.lastActionTime > 15e3) {
+          } else if (now2 - topState.lastActionTime > 15e3) {
             topState.isWaitingForQT3Modal = false;
             writeLog("Mạng chậm, huỷ chờ bảng chi tiết để quét lại...");
           } else {
@@ -903,7 +933,7 @@
             const updateBtn = visibleUpdateBtns[visibleUpdateBtns.length - 1];
             if (!updateBtn.hasAttribute("data-mplis-clicked")) {
               updateBtn.setAttribute("data-mplis-clicked", "true");
-              setLastActionTime(now, topState.config.delayAction);
+              setLastActionTime(now2, topState.config.delayAction);
               writeLog("Bấm 'Cập nhật' sổ địa chính...");
               clickElement(updateBtn);
               updateStatus("Chờ cập nhật...", "waiting");
@@ -919,7 +949,7 @@
               });
               if (visibleCloseBtns.length > 0) {
                 const closeBtn = visibleCloseBtns[visibleCloseBtns.length - 1];
-                setLastActionTime(now, topState.config.delayNext);
+                setLastActionTime(now2, topState.config.delayNext);
                 writeLog("Cập nhật xong. Đóng bảng chi tiết (X)...");
                 clickElement(closeBtn);
                 incrementSuccess();
@@ -967,7 +997,7 @@
             if (!topState.processedParcelIndexes) topState.processedParcelIndexes = /* @__PURE__ */ new Set();
             const idx = parseInt(selectedRow.getAttribute("data-mplis-index"));
             if (!isNaN(idx)) topState.processedParcelIndexes.add(idx);
-            setLastActionTime(now, topState.config.delayOpen);
+            setLastActionTime(now2, topState.config.delayOpen);
             topState.isWaitingForQT3Modal = true;
             topState.qt3ModalContext = true;
             writeLog("Đã chọn thửa, bấm 'Xem sổ địa chính'...");
@@ -1018,7 +1048,7 @@
                 if (lbl) clickElement(lbl);
               }
             }
-            setLastActionTime(now, 800);
+            setLastActionTime(now2, 800);
             writeLog("Đang click chọn dòng thửa đất...");
             updateStatus("Chọn thửa...", "waiting");
             return;
@@ -1038,7 +1068,7 @@
               const closeAll = visibleCloseAll[visibleCloseAll.length - 1];
               if (!closeAll.hasAttribute("data-mplis-clicked")) {
                 closeAll.setAttribute("data-mplis-clicked", "true");
-                setLastActionTime(now, topState.config.delayNext);
+                setLastActionTime(now2, topState.config.delayNext);
                 writeLog("Đã xử lý hết các thửa đất. Đang đóng màn hình QT3...");
                 clickElement(closeAll);
                 updateStatus("Hoàn tất QT3...", "waiting");
@@ -1051,8 +1081,8 @@
           }
         }
         if (isInsideQT2) {
-          if (!topState._qt2DebugLast || now - topState._qt2DebugLast > 5e3) {
-            topState._qt2DebugLast = now;
+          if (!topState._qt2DebugLast || now2 - topState._qt2DebugLast > 5e3) {
+            topState._qt2DebugLast = now2;
             const _chk = document.querySelector("#chkSelectAll");
             const _btnChon = document.querySelector("#btnChonFileHoSoQuet");
             const _btnOpen = document.querySelector("#btnOpenFormChonFileHoSoQuet");
@@ -1088,7 +1118,7 @@
               const jqAll = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
               if (jqAll) jqAll(chkSelectAll).click();
               else chkSelectAll.click();
-              setLastActionTime(now, 600);
+              setLastActionTime(now2, 600);
               return;
             }
             if (!chkSelectAll.hasAttribute("data-mplis-clicked")) {
@@ -1129,7 +1159,7 @@
                   writeLog("Bỏ chọn file không thuộc đơn này: " + fileName);
                 }
               }
-              setLastActionTime(now, 1200);
+              setLastActionTime(now2, 1200);
               return;
             } else {
               let chonBtn = btnChonFile;
@@ -1153,7 +1183,7 @@
               if (chonBtn) {
                 writeLog("Bấm 'Chọn tập tin'...");
                 clickElement(chonBtn);
-                setLastActionTime(now, topState.config.delayOpen);
+                setLastActionTime(now2, topState.config.delayOpen);
                 topState.qt2Phase = 1;
                 chkSelectAll.removeAttribute("data-mplis-clicked");
                 chkSelectAll.removeAttribute("data-mplis-selectall");
@@ -1187,7 +1217,7 @@
                 btnOpenFormChonFile.setAttribute("data-mplis-clicked", "true");
                 clickElement(btnOpenFormChonFile);
                 topState.qt2Phase = 0;
-                setLastActionTime(now, topState.config.delayOpen);
+                setLastActionTime(now2, topState.config.delayOpen);
                 return;
               }
             } else if (topState.qt2Phase === 1) {
@@ -1216,7 +1246,7 @@
                   if (oldBtnLuu) oldBtnLuu.removeAttribute("data-mplis-clicked");
                   topState.qt2Phase = 2;
                   topState.qt2EditingSph = assignedSph;
-                  setLastActionTime(now, 500);
+                  setLastActionTime(now2, 500);
                   return;
                 }
               } else {
@@ -1239,7 +1269,7 @@
                   if (jq) jq(selLoaiGiayTo).val("1").trigger("change");
                   selLoaiGiayTo.dispatchEvent(new Event("change", { bubbles: true }));
                   writeLog("Đã đổi Loại giấy tờ thành 'Giấy chứng nhận'");
-                  setLastActionTime(now, 500);
+                  setLastActionTime(now2, 500);
                   return;
                 }
               }
@@ -1260,7 +1290,7 @@
                     if (jq) jq(selMoTa).val(targetOpt.value).trigger("change");
                     selMoTa.dispatchEvent(new Event("change", { bubbles: true }));
                     writeLog(`Đã gán Giấy chứng nhận: ${topState.qt2EditingSph}`);
-                    setLastActionTime(now, 200);
+                    setLastActionTime(now2, 200);
                     return;
                   }
                 }
@@ -1274,7 +1304,7 @@
                   topState.qt2SphIndex = (topState.qt2SphIndex || 0) + 1;
                 }
                 topState.qt2Phase = 1;
-                setLastActionTime(now, topState.config.delayAction);
+                setLastActionTime(now2, topState.config.delayAction);
                 return;
               } else {
                 updateStatus("Đợi nút Lưu file...", "waiting");
@@ -1303,7 +1333,7 @@
                     if (!topState.processedDonIndexes) topState.processedDonIndexes = /* @__PURE__ */ new Set();
                     topState.processedDonIndexes.add(topState.currentDonIndex);
                   }
-                  setLastActionTime(now, topState.config.delayAction);
+                  setLastActionTime(now2, topState.config.delayAction);
                   return;
                 } else {
                   updateStatus("Đang đóng bảng...", "waiting");
@@ -1349,7 +1379,7 @@
                 }
               } catch (e) {
               }
-              setLastActionTime(now, 1500);
+              setLastActionTime(now2, 1500);
               return;
             } else {
               const btnAdd = document.querySelector("#btnAddHoSoQuet") || document.querySelector("#btnAddFileHoSoQuet");
@@ -1391,7 +1421,7 @@
                     writeLog("Đã ghi nhớ các số phát hành: " + topState.qt2SoPhatHanhList.join(", "));
                   }
                   clickElement(btnAdd);
-                  setLastActionTime(now, topState.config.delayOpen);
+                  setLastActionTime(now2, topState.config.delayOpen);
                   return;
                 } else {
                   updateStatus("Chờ mở form...", "waiting");
@@ -1423,7 +1453,7 @@
               const closeAll = btnCloseAll[btnCloseAll.length - 1];
               if (!closeAll.hasAttribute("data-mplis-clicked")) {
                 closeAll.setAttribute("data-mplis-clicked", "true");
-                setLastActionTime(now, topState.config.delayNext);
+                setLastActionTime(now2, topState.config.delayNext);
                 writeLog("Đã xử lý hết Đơn đăng ký. Đang đóng màn hình QT2...");
                 clickElement(closeAll);
                 updateStatus("Hoàn tất QT2...", "waiting");
@@ -1449,7 +1479,7 @@
           const isInsideFwd = visibleExecBtns[0].closest("#frmChuyenTiepHoSo_tbUsers, .modal-chuyentiep");
           if (!isInsideFwd) {
             const execBtn = visibleExecBtns[0];
-            setLastActionTime(now, topState.config.delayAction);
+            setLastActionTime(now2, topState.config.delayAction);
             writeLog("Tìm thấy nút 'Thực hiện'. Đang click...");
             topState.qt1ConfirmStreak = 0;
             clickElement(execBtn);
@@ -1478,7 +1508,7 @@
                   writeLog("Các QT đã xong, đang bấm nút 'Chuyển tiếp'...");
                   btnChuyenTiep.setAttribute("data-mplis-clicked", "true");
                   clickElement(btnChuyenTiep);
-                  setLastActionTime(now, topState.config.delayOpen);
+                  setLastActionTime(now2, topState.config.delayOpen);
                   return;
                 } else if (fwdTable && (() => {
                   try {
@@ -1502,7 +1532,7 @@
               try {
                 const rect = targetRowData.button.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0) {
-                  setLastActionTime(now, topState.config.delayOpen);
+                  setLastActionTime(now2, topState.config.delayOpen);
                   if (targetRowData.taskName.toLowerCase().includes("địa chính")) {
                     topState.processedParcelIndexes = /* @__PURE__ */ new Set();
                   }
@@ -1535,7 +1565,7 @@
           });
           if (visibleMainBtns.length > 0) {
             const mainBtn = visibleMainBtns[0];
-            setLastActionTime(now, topState.config.delayOpen);
+            setLastActionTime(now2, topState.config.delayOpen);
             topState.processedParcelIndexes = /* @__PURE__ */ new Set();
             writeLog("Tìm thấy nút 'Xử lý hồ sơ' ở trang chính. Đang click...");
             clickElement(mainBtn);
@@ -1569,9 +1599,9 @@
       try {
         const topState = getTopState();
         if (!topState || !topState.isRunning) return;
-        const now = Date.now();
+        const now2 = Date.now();
         const lockDuration = topState.currentLockDuration || 1200;
-        if (topState.lastActionTime && now - topState.lastActionTime < lockDuration) return;
+        if (topState.lastActionTime && now2 - topState.lastActionTime < lockDuration) return;
         if (isSystemLoading()) {
           updateStatus("Hệ thống đang xử lý...", "waiting");
           return;
@@ -1584,7 +1614,7 @@
             if (jcMessage.toLowerCase().includes("thật sự muốn trả hồ sơ")) {
               const agreeBtn = jconfirmBox.querySelector(".jconfirm-buttons .btn-orange, .jconfirm-buttons button:first-child");
               if (agreeBtn) {
-                setLastActionTime(now, topState.config.delayNext);
+                setLastActionTime(now2, topState.config.delayNext);
                 writeLog("Phát hiện hộp thoại trả hồ sơ. Bấm 'Đồng ý'...");
                 clickElement(agreeBtn);
                 incrementSuccess();
@@ -1603,7 +1633,7 @@
           }
         })()) {
           if (!btnLuuTraHoSo.hasAttribute("data-mplis-clicked")) {
-            setLastActionTime(now, topState.config.delayAction);
+            setLastActionTime(now2, topState.config.delayAction);
             btnLuuTraHoSo.setAttribute("data-mplis-clicked", "true");
             writeLog("Bấm 'Thực hiện' lưu trả hồ sơ...");
             clickElement(btnLuuTraHoSo);
@@ -1638,14 +1668,14 @@
               })()) {
                 if (!closeBtn.hasAttribute("data-mplis-clicked")) {
                   closeBtn.setAttribute("data-mplis-clicked", "true");
-                  setLastActionTime(now, topState.config.delayNext);
+                  setLastActionTime(now2, topState.config.delayNext);
                   writeLog("Đã xử lý xong tác vụ. Đóng bảng...");
                   clickElement(closeBtn);
                   return;
                 }
               }
             } else if (!btn.hasAttribute("data-mplis-clicked")) {
-              setLastActionTime(now, topState.config.delayAction);
+              setLastActionTime(now2, topState.config.delayAction);
               btn.setAttribute("data-mplis-clicked", "true");
               writeLog("Bấm 'Xử lý tác vụ' cho 'Trả hồ sơ'...");
               clickElement(btn);
@@ -1710,7 +1740,7 @@
               }
             } catch (e) {
             }
-            setLastActionTime(now, 800);
+            setLastActionTime(now2, 800);
             writeLog("Đã chọn hồ sơ (5/6/9). Chờ bấm Xử lý hồ sơ...");
             updateStatus("Chọn hồ sơ...", "waiting");
             return;
@@ -1726,7 +1756,7 @@
                 return false;
               }
             })()) {
-              setLastActionTime(now, topState.config.delayOpen);
+              setLastActionTime(now2, topState.config.delayOpen);
               writeLog("Bấm 'Xử lý hồ sơ'...");
               clickElement(btnXuly);
               targetRow.setAttribute("data-mplis-processed", "true");
@@ -2533,6 +2563,152 @@
     return { init };
   }();
 
+  // src/mplis-logger.js
+  var MAX = 100;
+  var _buf = [];
+  function now() {
+    return Date.now();
+  }
+  function push(entry) {
+    _buf.push(entry);
+    if (_buf.length > MAX) _buf.shift();
+  }
+  function epTag(url) {
+    try {
+      const path = new URL(url).pathname;
+      const parts = path.split("/").filter(Boolean);
+      return parts.slice(-2).join("/").slice(0, 70);
+    } catch {
+      return String(url).slice(-70);
+    }
+  }
+  function clearLog() {
+    _buf.length = 0;
+  }
+  function getLogCount() {
+    return _buf.length;
+  }
+  function getLogJson() {
+    return JSON.stringify(_buf, null, 2);
+  }
+  function installFetchLogger() {
+    const win = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+    if (!win.fetch || win.fetch.__mplisLogged) return;
+    const orig = win.fetch;
+    win.fetch = async function mplisLoggedFetch(input, init) {
+      const url = typeof input === "string" ? input : input?.url ?? "";
+      const method = (init?.method || "GET").toUpperCase();
+      const entry = { t: now(), type: "fetch", ep: epTag(url), method };
+      const body = init?.body;
+      if (body && typeof body.entries === "function") {
+        const keys = [];
+        try {
+          for (const [k] of body.entries()) keys.push(k);
+        } catch {
+        }
+        entry.reqKeys = keys;
+      } else if (typeof body === "string") {
+        entry.req = body.slice(0, 300);
+      }
+      let res;
+      try {
+        res = await orig.call(this, input, init);
+      } catch (err) {
+        entry.err = String(err);
+        push(entry);
+        throw err;
+      }
+      entry.status = res.status;
+      try {
+        const txt = await res.clone().text();
+        try {
+          entry.res = JSON.parse(txt);
+        } catch {
+          entry.res = txt.slice(0, 500);
+        }
+      } catch {
+      }
+      push(entry);
+      return res;
+    };
+    win.fetch.__mplisLogged = true;
+  }
+  function installErrorLogger() {
+    window.addEventListener("error", (e) => {
+      push({
+        t: now(),
+        type: "jsError",
+        msg: e.message,
+        at: `${(e.filename || "").split("/").pop()}:${e.lineno}`
+      });
+    });
+    window.addEventListener("unhandledrejection", (e) => {
+      push({ t: now(), type: "rejection", msg: String(e.reason) });
+    });
+  }
+  function gmxhr(opts) {
+    const entry = { t: now(), type: "gmxhr", ep: epTag(opts.url || ""), method: (opts.method || "GET").toUpperCase() };
+    if (opts.data) {
+      try {
+        entry.req = JSON.parse(opts.data);
+      } catch {
+        entry.req = String(opts.data).slice(0, 300);
+      }
+    }
+    const origOnload = opts.onload;
+    const origOnerror = opts.onerror;
+    GM_xmlhttpRequest({
+      ...opts,
+      onload(res) {
+        entry.status = res.status;
+        try {
+          entry.res = JSON.parse(res.responseText);
+        } catch {
+          entry.res = (res.responseText || "").slice(0, 500);
+        }
+        push(entry);
+        if (origOnload) origOnload(res);
+      },
+      onerror(err) {
+        entry.err = String(err);
+        push(entry);
+        if (origOnerror) origOnerror(err);
+      }
+    });
+  }
+  function installXhrLogger() {
+    if (XMLHttpRequest.prototype.__mplisLogged) return;
+    const origOpen = XMLHttpRequest.prototype.open;
+    const origSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function(method, url) {
+      this._mplisMethod = String(method || "GET").toUpperCase();
+      this._mplisUrl = String(url || "");
+      return origOpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function(body) {
+      const entry = { t: now(), type: "xhr", ep: epTag(this._mplisUrl || ""), method: this._mplisMethod || "GET" };
+      if (body && typeof body === "string") entry.req = body.slice(0, 300);
+      this.addEventListener("load", function() {
+        entry.status = this.status;
+        try {
+          entry.res = JSON.parse(this.responseText);
+        } catch {
+          entry.res = (this.responseText || "").slice(0, 500);
+        }
+        push(entry);
+      });
+      this.addEventListener("error", function() {
+        entry.err = "network error";
+        push(entry);
+      });
+      return origSend.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.__mplisLogged = true;
+  }
+  installErrorLogger();
+  installFetchLogger();
+  installXhrLogger();
+
   // src/excel-module.js
   var ExcelModule = function() {
     const BIEN_DONG_CODE_MAP = {
@@ -2577,10 +2753,10 @@
       if (!m) return "";
       const day = parseInt(m[1], 10);
       if (!day || day < 1 || day > 31) return "";
-      const now = /* @__PURE__ */ new Date();
+      const now2 = /* @__PURE__ */ new Date();
       const dd = String(day).padStart(2, "0");
-      const mm = String(now.getMonth() + 1).padStart(2, "0");
-      return `${dd}/${mm}/${now.getFullYear()}`;
+      const mm = String(now2.getMonth() + 1).padStart(2, "0");
+      return `${dd}/${mm}/${now2.getFullYear()}`;
     }
     function getBucket(r) {
       if (r.loaiHS === "TC" || r.loaiHS === "XTC") return "thechap";
@@ -2675,7 +2851,7 @@
         nts: r.dtTSN || "",
         hnk: r.dtHNK || ""
       };
-      GM_xmlhttpRequest({
+      gmxhr({
         method: "POST",
         url,
         data: JSON.stringify(payload),
@@ -3238,7 +3414,7 @@
       const trs = document.querySelectorAll('tr[role="row"]');
       state.allDossiers = [];
       let countWarning = 0;
-      const now = /* @__PURE__ */ new Date();
+      const now2 = /* @__PURE__ */ new Date();
       state.alertThresholdMinutes = parseFloat(document.getElementById("cfg-alert-minutes").value) || 1440;
       const msPerMinute = 60 * 1e3;
       trs.forEach((tr) => {
@@ -3315,7 +3491,7 @@
           } else if (henTraStr && !isKetIso && isCuaToi) {
             const henTra = parseDateVn(henTraStr);
             if (henTra) {
-              const diffMs = henTra - now;
+              const diffMs = henTra - now2;
               const diffMinutes = diffMs / msPerMinute;
               if (diffMinutes <= state.alertThresholdMinutes) {
                 countWarning++;
@@ -3503,6 +3679,7 @@
     ];
     const tocDoHienTai = (MUC_TOC_DO.find((m) => m.delay === pCfg.delayAction) || MUC_TOC_DO[0]).key;
     const isBypassSpatialLinkChecked = localStorage.getItem("mplis_bypass_spatial_link_enabled") === "true" ? "checked" : "";
+    const isBypassDaKySoChecked = localStorage.getItem("mplis_bypass_dakyso_enabled") === "true" ? "checked" : "";
     function qt2FileHint(selectAll) {
       return selectAll ? 'Bấm "Chọn tất cả" trước cho tích hết bảng, rồi lọc Số phát hành gỡ tích file sai đơn.' : "Chỉ tích file khớp Số phát hành của đơn, cộng file gt/pt dùng chung.";
     }
@@ -3577,10 +3754,16 @@
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                             <div class="mplis-collapse-body" id="qt2-file-body">
-                                <div class="mplis-checkbox-group">
-                                    <label><input type="checkbox" id="chk-qt2-selectall" ${pCfg.qt2SelectAllFiles ? "checked" : ""}> Chọn hết file trong bảng</label>
+                                <div class="mplis-bypass-row" style="margin-bottom:4px;">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Chọn hết file trong bảng</strong>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-qt2-selectall" ${pCfg.qt2SelectAllFiles ? "checked" : ""}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
                                 </div>
-                                <div class="mplis-hint" style="margin:8px 0 0;" id="qt2-file-hint">${qt2FileHint(pCfg.qt2SelectAllFiles)}</div>
+                                <div class="mplis-hint" style="margin:4px 0 0;" id="qt2-file-hint">${qt2FileHint(pCfg.qt2SelectAllFiles)}</div>
                             </div>
                         </div>
 
@@ -3596,17 +3779,33 @@
                             </div>
                         </div>
 
-                        <div class="mplis-card mplis-collapse" id="kg-bypass-group" style="display: ${isQT4 ? "block" : "none"};">
-                            <button type="button" class="mplis-collapse-head" id="kg-bypass-toggle" aria-expanded="false" aria-controls="kg-bypass-body">
-                                <span class="mplis-section-label">QT4 · Bỏ qua cảnh báo liên kết không gian</span>
-                                <span class="mplis-collapse-state ${isBypassSpatialLinkChecked ? "on" : ""}" id="kg-bypass-state">${isBypassSpatialLinkChecked ? "Bật" : "Tắt"}</span>
+                        <div class="mplis-card mplis-collapse" id="bypass-card" style="display: ${isQT2 || isQT4 ? "block" : "none"};">
+                            <button type="button" class="mplis-collapse-head" id="bypass-card-toggle" aria-expanded="false" aria-controls="bypass-card-body">
+                                <span class="mplis-section-label">Bypass cảnh báo</span>
+                                <span class="mplis-collapse-state" id="bypass-card-state">Tất cả tắt</span>
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
-                            <div class="mplis-collapse-body" id="kg-bypass-body">
-                                <div class="mplis-checkbox-group">
-                                    <label><input type="checkbox" id="chk-bypass-kg" ${isBypassSpatialLinkChecked}> Tự bỏ qua cảnh báo "chưa liên kết không gian" khi Kết ISO</label>
+                            <div class="mplis-collapse-body" id="bypass-card-body">
+                                <div class="mplis-bypass-row" id="bypass-row-dakyso" style="display: ${isQT2 ? "flex" : "none"};">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>QT2 · Ký số GCN</strong>
+                                        <span>Bỏ qua lỗi "chưa ký số" khi lưu kho</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw" title="Tự bỏ qua kiểm tra ký số Giấy chứng nhận khi lưu kho hồ sơ quét">
+                                        <input type="checkbox" id="chk-bypass-dakyso" ${isBypassDaKySoChecked}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
                                 </div>
-                                <div class="mplis-hint" style="margin:8px 0 0;">Thay cho việc tự F12 vá request ThucHienKetISO bằng tay. <b>Mặc định TẮT</b> - chỉ bật khi biết chắc hồ sơ đã đúng, chỉ vướng lỗi liên kết giả/kỹ thuật. Áp dụng ngay, không cần tải lại trang.</div>
+                                <div class="mplis-bypass-row" id="bypass-row-kg" style="display: ${isQT4 ? "flex" : "none"};">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>QT4 · Liên kết không gian</strong>
+                                        <span>Bỏ qua cảnh báo khi Kết ISO</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw" title="Tự bỏ qua cảnh báo chưa liên kết không gian khi Kết ISO">
+                                        <input type="checkbox" id="chk-bypass-kg" ${isBypassSpatialLinkChecked}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -3761,13 +3960,16 @@
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                             <div class="mplis-collapse-body" id="set-safe-body">
-                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
-                                    <input type="checkbox" id="chk-auto-confirm" ${isAutoConfirmChecked} style="margin-top:2px;">
-                                    <span>
-                                        Tự động chấp nhận mọi hộp thoại confirm()/alert() của trang<br/>
-                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Tắt nếu muốn tự tay xác nhận từng hộp quan trọng (ký số, kết ISO). Cần <b>tải lại trang</b>.</span>
-                                    </span>
-                                </label>
+                                <div class="mplis-bypass-row">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Tự đồng ý hộp thoại</strong>
+                                        <span>Tắt nếu muốn tự xác nhận (ký số, kết ISO). Cần <b>tải lại trang</b>.</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-auto-confirm" ${isAutoConfirmChecked}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -3778,13 +3980,16 @@
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                             <div class="mplis-collapse-body" id="set-autofill-body">
-                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
-                                    <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked} style="margin-top:2px;">
-                                    <span>
-                                        Tự điền màn hình Cập nhật pháp lý<br/>
-                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Tích "Chính thức có pháp lý", Loại GCN năm 2024, Người ký theo CB chuyển, Ngày vào sổ theo ô dưới. Sửa tay đè lên được.</span>
-                                    </span>
-                                </label>
+                                <div class="mplis-bypass-row" style="margin-bottom:10px;">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Tự điền pháp lý</strong>
+                                        <span>Tích "Chính thức", Loại GCN, Người ký, Ngày vào sổ. Sửa tay đè lên được.</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-phaply-autofill" ${isPhapLyAutofillChecked}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
 
                                 <div style="display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
                                     <label for="cfg-phaply-ngay-vao-so" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Ngày vào sổ:</label>
@@ -3809,13 +4014,16 @@
                                 </div>
                                 <div id="tenfile-hauto-state" style="margin-top:8px; font-size:11.5px; color:var(--mplis-text-dim); line-height:1.6;"></div>
 
-                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0; margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
-                                    <input type="checkbox" id="chk-tenfile-dongbo" ${isTuTichDongBoChecked} style="margin-top:2px;">
-                                    <span>
-                                        Tự tích ô "đồng bộ về một cửa"<br/>
-                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Dòng file tên theo Số phát hành thì tích, dòng GT/PT thì bỏ tích. <b>Mặc định TẮT</b> vì ghi lên form thật. Dòng có nhiều hơn 1 ô tích thì tool không đụng, chỉ ghi log.</span>
-                                    </span>
-                                </label>
+                                <div class="mplis-bypass-row" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Tự tích đồng bộ một cửa</strong>
+                                        <span>Dòng SPH thì tích, dòng GT/PT thì bỏ tích. <b>Mặc định TẮT</b> vì ghi form thật.</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-tenfile-dongbo" ${isTuTichDongBoChecked}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -3840,17 +4048,20 @@
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                             <div class="mplis-collapse-body" id="set-notify-body">
-                                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:#e2e8f0;">
-                                    <input type="checkbox" id="chk-notify-capture" ${isNotifyCaptureChecked} style="margin-top:2px;">
-                                    <span>
-                                        Tự đẩy hồ sơ mới nhận lên Sheet "Thông báo nhận HS"<br/>
-                                        <span style="color:var(--mplis-text-dim); font-size:12px;">Mỗi lần tải trang, tool quét danh sách công việc rồi ghi hồ sơ mới vào Sheet. Cần <b>tải lại trang</b>.</span>
-                                    </span>
-                                </label>
+                                <div class="mplis-bypass-row">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Thông báo hồ sơ mới</strong>
+                                        <span>Mỗi lần tải trang, ghi hồ sơ mới vào Sheet. Cần <b>tải lại trang</b>.</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-notify-capture" ${isNotifyCaptureChecked}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="mplis-card mplis-collapse" id="set-keys-group" style="margin-bottom:0;">
+                        <div class="mplis-card mplis-collapse" id="set-keys-group">
                             <button type="button" class="mplis-collapse-head" id="set-keys-toggle" aria-expanded="false" aria-controls="set-keys-body">
                                 <span class="mplis-section-label">Phím tắt</span>
                                 <span class="mplis-collapse-state" id="set-keys-state">4 phím</span>
@@ -3861,6 +4072,22 @@
                                 <div><b style="color:#fff;">Alt + H</b> — Ẩn/hiện bảng điều khiển</div>
                                 <div><b style="color:#fff;">Alt + D</b> — Copy tên file giấy chứng nhận</div>
                                 <div><b style="color:#fff;">Alt + G</b> — Copy tên file giấy tờ kèm</div>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="set-log-group" style="margin-bottom:0;">
+                            <button type="button" class="mplis-collapse-head" id="set-log-toggle" aria-expanded="false" aria-controls="set-log-body">
+                                <span class="mplis-section-label">Nhật ký</span>
+                                <span class="mplis-collapse-state" id="set-log-state">0 mục</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="set-log-body">
+                                <div style="font-size:11.5px; color:var(--mplis-text-dim); margin-bottom:8px; line-height:1.6;">Ghi lại fetch, response, lỗi JS. Copy paste cho Claude để phân tích và nâng cấp.</div>
+                                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                                    <button type="button" id="btn-log-copy" class="mplis-btn-ghost" style="flex:1;">Copy log</button>
+                                    <button type="button" id="btn-log-clear" class="mplis-btn-ghost" style="padding:7px 12px;">Xóa</button>
+                                </div>
+                                <div id="log-preview" style="font-size:10.5px; color:var(--mplis-text-dim); font-family:monospace; max-height:90px; overflow-y:auto; line-height:1.6; word-break:break-all; background:rgba(0,0,0,0.2); border-radius:6px; padding:6px 8px;"></div>
                             </div>
                         </div>
                     </div>
@@ -4018,18 +4245,27 @@
         veBadge("set-notify-state", e.target.checked ? "Bật" : "Tắt", e.target.checked);
       };
     }
+    function veBypassCardState() {
+      const kg = (document.getElementById("chk-bypass-kg") || {}).checked;
+      const dakyso = (document.getElementById("chk-bypass-dakyso") || {}).checked;
+      const count = (kg ? 1 : 0) + (dakyso ? 1 : 0);
+      veBadge("bypass-card-state", count === 0 ? "Tất cả tắt" : count === 1 ? "1 bypass bật" : "2 bypass bật", count > 0);
+    }
     const chkBypassSpatialLink = document.getElementById("chk-bypass-kg");
     if (chkBypassSpatialLink) {
       chkBypassSpatialLink.onchange = (e) => {
-        const checked = e.target.checked;
-        localStorage.setItem("mplis_bypass_spatial_link_enabled", checked ? "true" : "false");
-        const stateEl = document.getElementById("kg-bypass-state");
-        if (stateEl) {
-          stateEl.textContent = checked ? "Bật" : "Tắt";
-          stateEl.classList.toggle("on", checked);
-        }
+        localStorage.setItem("mplis_bypass_spatial_link_enabled", e.target.checked ? "true" : "false");
+        veBypassCardState();
       };
     }
+    const chkBypassDaKySo = document.getElementById("chk-bypass-dakyso");
+    if (chkBypassDaKySo) {
+      chkBypassDaKySo.onchange = (e) => {
+        localStorage.setItem("mplis_bypass_dakyso_enabled", e.target.checked ? "true" : "false");
+        veBypassCardState();
+      };
+    }
+    veBypassCardState();
     if (localStorage.getItem("mplis_auto_minimized") === "true") panel.classList.add("minimized");
     document.getElementById("mplis-btn-minimize").onclick = () => {
       panel.classList.add("minimized");
@@ -4100,15 +4336,67 @@
       stateEl.classList.toggle("on", !!user);
       ProcessModule.saveConfig({ forwardUser: user });
     };
+    bindCollapse("bypass-card", "bypass-card-toggle", "mplis_bypass_card_open");
     bindCollapse("qt2-file-group", "qt2-file-toggle", "mplis_qt2_file_open");
     bindCollapse("fw-user-group", "fw-user-toggle", "mplis_fw_user_open");
-    bindCollapse("kg-bypass-group", "kg-bypass-toggle", "mplis_kg_bypass_open");
     bindCollapse("set-safe-group", "set-safe-toggle", "mplis_set_safe_open");
     bindCollapse("set-autofill-group", "set-autofill-toggle", "mplis_set_autofill_open");
     bindCollapse("set-tenfile-group", "set-tenfile-toggle", "mplis_set_tenfile_open");
     bindCollapse("set-speed-group", "set-speed-toggle", "mplis_set_speed_open");
     bindCollapse("set-notify-group", "set-notify-toggle", "mplis_set_notify_open");
     bindCollapse("set-keys-group", "set-keys-toggle", "mplis_set_keys_open");
+    bindCollapse("set-log-group", "set-log-toggle", "mplis_set_log_open");
+    function veLogState() {
+      const n = getLogCount();
+      const el = document.getElementById("set-log-state");
+      if (el) {
+        el.textContent = n + " mục";
+        el.classList.toggle("on", n > 0);
+      }
+      const preview = document.getElementById("log-preview");
+      if (preview) {
+        if (n === 0) {
+          preview.textContent = "Chưa có dữ liệu. Thao tác trên trang để ghi log.";
+        } else {
+          try {
+            const all = JSON.parse(getLogJson());
+            preview.textContent = all.slice(-8).map((e) => {
+              const time = new Date(e.t).toLocaleTimeString("vi-VN");
+              if (e.type === "fetch") return `[${time}] ${e.method} ${e.ep} → ${e.status}`;
+              if (e.type === "jsError") return `[${time}] ERR ${e.msg}`;
+              if (e.type === "rejection") return `[${time}] REJECT ${e.msg?.slice(0, 60)}`;
+              return `[${time}] ${e.type} ${e.action || ""}`;
+            }).join("\n");
+          } catch {
+          }
+        }
+      }
+    }
+    document.getElementById("btn-log-copy").onclick = () => {
+      try {
+        GM_setClipboard(getLogJson());
+        const btn = document.getElementById("btn-log-copy");
+        if (btn) {
+          btn.textContent = "Đã copy!";
+          setTimeout(() => {
+            btn.textContent = "Copy log";
+          }, 1800);
+        }
+      } catch (e) {
+        alert("Copy thất bại: " + e.message);
+      }
+    };
+    document.getElementById("btn-log-clear").onclick = () => {
+      clearLog();
+      veLogState();
+    };
+    document.getElementById("set-log-toggle")?.addEventListener("click", () => {
+      setTimeout(veLogState, 50);
+    });
+    setInterval(() => {
+      const settingsTab = document.getElementById("tab-settings");
+      if (settingsTab && settingsTab.classList.contains("active")) veLogState();
+    }, 5e3);
     document.getElementById("chk-qt2-selectall").onchange = (e) => {
       const checked = e.target.checked;
       document.getElementById("qt2-file-hint").textContent = qt2FileHint(checked);
@@ -4123,8 +4411,13 @@
         ProcessModule.saveConfig({ activeWorkflows: checked });
         const qt2Group = document.getElementById("qt2-file-group");
         if (qt2Group) qt2Group.style.display = checked.includes("QT2") ? "block" : "none";
-        const kgGroup = document.getElementById("kg-bypass-group");
-        if (kgGroup) kgGroup.style.display = checked.includes("QT4") ? "block" : "none";
+        const hasQT2 = checked.includes("QT2"), hasQT4 = checked.includes("QT4");
+        const bypassCard = document.getElementById("bypass-card");
+        if (bypassCard) bypassCard.style.display = hasQT2 || hasQT4 ? "block" : "none";
+        const rowDakyso = document.getElementById("bypass-row-dakyso");
+        if (rowDakyso) rowDakyso.style.display = hasQT2 ? "flex" : "none";
+        const rowKg = document.getElementById("bypass-row-kg");
+        if (rowKg) rowKg.style.display = hasQT4 ? "flex" : "none";
       };
     });
     document.getElementById("btn-toggle-process").onclick = toggleProcess;
@@ -5188,7 +5481,7 @@
       tenTTHC: item.quytrinh ? item.quytrinh.SchemaName || "" : ""
     };
     _workPending.add(item.soBienNhan);
-    GM_xmlhttpRequest({
+    gmxhr({
       method: "POST",
       url,
       data: JSON.stringify(record),
@@ -5228,7 +5521,7 @@
   function pushTrangThai(maHS, trangThai) {
     const url = getWorkSheetUrl();
     if (!url || typeof GM_xmlhttpRequest === "undefined") return;
-    GM_xmlhttpRequest({
+    gmxhr({
       method: "POST",
       url,
       data: JSON.stringify({ bucket: "thongbao_trangthai", maHS, trangThai }),
@@ -5429,6 +5722,136 @@
   }
   installAjaxPatch();
   installFetchPatch();
+
+  // src/dakyso-bypass.js
+  var ENABLED_KEY4 = "mplis_bypass_dakyso_enabled";
+  var ENDPOINT2 = "UpdateHoSoQuetExistFile";
+  function isBypassEnabled() {
+    try {
+      return localStorage.getItem(ENABLED_KEY4) === "true";
+    } catch (e) {
+      return false;
+    }
+  }
+  function patchInfoJson(jsonStr) {
+    try {
+      const obj = JSON.parse(jsonStr);
+      if (obj.laGiayChungNhan === true && obj.daKySo === false) {
+        obj.daKySo = true;
+        return { str: JSON.stringify(obj), changed: true };
+      }
+    } catch (e) {
+    }
+    return { str: jsonStr, changed: false };
+  }
+  function patchFormData(fd) {
+    const win = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+    let anyChanged = false;
+    const entries = [];
+    try {
+      for (const pair of fd.entries()) {
+        entries.push(pair);
+      }
+    } catch (e) {
+      return null;
+    }
+    if (!entries.some(([k]) => /^infoHoSoQuet_\d+$/.test(k))) return null;
+    const newFd = new win.FormData();
+    for (const [key, value] of entries) {
+      if (/^infoHoSoQuet_\d+$/.test(key) && typeof value === "string") {
+        const { str, changed } = patchInfoJson(value);
+        if (changed) anyChanged = true;
+        newFd.append(key, str);
+      } else {
+        newFd.append(key, value);
+      }
+    }
+    return anyChanged ? newFd : null;
+  }
+  function extractBoundary(headers) {
+    let ct = "";
+    try {
+      if (headers && typeof headers.get === "function") {
+        ct = headers.get("content-type") || "";
+      } else if (headers && typeof headers === "object") {
+        ct = headers["content-type"] || headers["Content-Type"] || "";
+      }
+    } catch (e) {
+    }
+    const m = ct.match(/boundary=([^\s;]+)/);
+    return m ? m[1] : null;
+  }
+  function patchMultipartString(bodyStr, boundary) {
+    const delim = "--" + boundary;
+    const parts = bodyStr.split(delim);
+    let anyChanged = false;
+    const patched = parts.map((part) => {
+      if (!/name="infoHoSoQuet_\d+"/.test(part)) return part;
+      const sepIdx = part.indexOf("\r\n\r\n");
+      if (sepIdx === -1) return part;
+      const head = part.slice(0, sepIdx + 4);
+      const tail = part.slice(sepIdx + 4);
+      const jsonEnd = tail.lastIndexOf("\r\n");
+      const jsonStr = jsonEnd !== -1 ? tail.slice(0, jsonEnd) : tail;
+      const suffix = jsonEnd !== -1 ? tail.slice(jsonEnd) : "";
+      const { str, changed } = patchInfoJson(jsonStr);
+      if (changed) anyChanged = true;
+      return head + str + suffix;
+    });
+    return anyChanged ? patched.join(delim) : null;
+  }
+  function installFetchPatch2() {
+    const win = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+    if (typeof win.fetch !== "function") return;
+    if (win.fetch.__mplisKySoPatched) return;
+    const FD = win.FormData;
+    const orig = win.fetch;
+    win.fetch = function(input, init) {
+      try {
+        const url = typeof input === "string" ? input : input && input.url || "";
+        if (isBypassEnabled() && url.indexOf(ENDPOINT2) !== -1 && init) {
+          if (FD && init.body instanceof FD) {
+            const newFd = patchFormData(init.body);
+            if (newFd) {
+              init = Object.assign({}, init, { body: newFd });
+              console.log("[MPLIS] Đã vá daKySo=true vào " + ENDPOINT2 + " (FormData).");
+            }
+          } else if (typeof init.body === "string") {
+            const boundary = extractBoundary(init.headers);
+            if (boundary) {
+              const patchedStr = patchMultipartString(init.body, boundary);
+              if (patchedStr) {
+                init = Object.assign({}, init, { body: patchedStr });
+                console.log("[MPLIS] Đã vá daKySo=true vào " + ENDPOINT2 + " (string body).");
+              }
+            }
+          }
+        }
+      } catch (e) {
+      }
+      return orig.call(this, input, init);
+    };
+    win.fetch.__mplisKySoPatched = true;
+  }
+  function installAjaxPatch2() {
+    const win = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+    const jq = win.$;
+    if (!jq || !jq.ajaxPrefilter) return;
+    const FD = win.FormData;
+    jq.ajaxPrefilter((options) => {
+      if (!isBypassEnabled()) return;
+      if (typeof options.url !== "string" || options.url.indexOf(ENDPOINT2) === -1) return;
+      if (FD && options.data instanceof FD) {
+        const newFd = patchFormData(options.data);
+        if (newFd) {
+          options.data = newFd;
+          console.log("[MPLIS] Đã vá daKySo=true vào " + ENDPOINT2 + " ($.ajax FormData).");
+        }
+      }
+    });
+  }
+  installFetchPatch2();
+  installAjaxPatch2();
 
   // src/main.js
   if (window === window.top) {

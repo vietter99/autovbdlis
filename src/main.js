@@ -14,6 +14,7 @@ import './phaply-default.js';
 import './filename-copy.js';
 import './notify-capture.js';
 import './spatial-link-bypass.js';
+import './dakyso-bypass.js';
 
     if (window === window.top) {
         const checkBody = setInterval(() => {

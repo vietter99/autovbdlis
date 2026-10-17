@@ -1,4 +1,5 @@
 import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from './utils.js';
+import { gmxhr } from './mplis-logger.js';
 
     const ExcelModule = (function () {
         // Mã loại biến động (bắt lúc QT1 bởi bien-dong-capture.js) -> tên gọi đầy đủ.
@@ -167,7 +168,7 @@ import { escapeHtml, fallbackCopyTextToClipboard, findCurrentMaHS, topWin } from
                 hnk: r.dtHNK || ''
             };
 
-            GM_xmlhttpRequest({
+            gmxhr({
                 method: 'POST',
                 url: url,
                 data: JSON.stringify(payload),
