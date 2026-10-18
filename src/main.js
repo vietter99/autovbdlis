@@ -17,6 +17,10 @@ import './spatial-link-bypass.js';
 import './dakyso-bypass.js';
 
     if (window === window.top) {
+        // Giữ tab "active" - Chrome không throttle setInterval khi chạy ngầm
+        if ('locks' in navigator) {
+            navigator.locks.request('mplis-keepalive', { mode: 'shared' }, () => new Promise(() => {}));
+        }
         const checkBody = setInterval(() => {
             if (document.body) { clearInterval(checkBody); injectPanel(); initRunToast(); }
         }, 300);

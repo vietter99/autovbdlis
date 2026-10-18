@@ -3,12 +3,24 @@
 
 const MAX = 100;
 const _buf = [];
+const LOG_ENABLED_KEY = 'mplis_log_enabled';
 
 function now() { return Date.now(); }
 
+export function isLogEnabled() {
+    try { return localStorage.getItem(LOG_ENABLED_KEY) !== 'false'; } catch { return true; }
+}
+
+export function setLogEnabled(on) {
+    try { localStorage.setItem(LOG_ENABLED_KEY, on ? 'true' : 'false'); } catch {}
+}
+
 function push(entry) {
-    _buf.push(entry);
-    if (_buf.length > MAX) _buf.shift();
+    if (isLogEnabled()) {
+        _buf.push(entry);
+        if (_buf.length > MAX) _buf.shift();
+    }
+    window.dispatchEvent(new CustomEvent('mplis:api', { detail: entry }));
 }
 
 function epTag(url) {

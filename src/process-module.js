@@ -9,6 +9,7 @@ import { createModuleRuntime } from './module-runtime.js';
             // true = tích thêm cả file mà bộ lọc không nhận và không gỡ tích file nào - dùng khi tên
             // file đặt sai nên quy tắc lọc bỏ sót. false (mặc định) = chỉ giữ file bộ lọc nhận.
             qt2SelectAllFiles: false,
+            qt2SoChuSo: 3,
             forwardUser: "",
             delayOpen: 500, delayAction: 500, delayNext: 500,
             selectorMainProcess: "button:contains('Xử lý hồ sơ'), a:contains('Xử lý hồ sơ'), .btn-process",
@@ -22,6 +23,32 @@ import { createModuleRuntime } from './module-runtime.js';
             defaultConfig,
             logPrefix: '[MPLIS QT] ',
             domSuffix: 'process'
+        });
+
+        // Lắng nghe phản hồi API để điều khiển state machine thay vì mò chữ trên DOM
+        window.addEventListener('mplis:api', ({ detail: e }) => {
+            const topState = getTopState();
+            if (!topState || !topState.isRunning) return;
+            const ep = e.ep || '';
+            const ok = !!(e.res && (e.res.success === true || e.res.Success === true));
+
+            // QT1: check trả về ok → chuẩn bị jconfirm xác nhận cập nhật pháp lý
+            if (ep.includes('KiemTraCapNhatDuLieuPhapLy') && ok) topState.expectQT1Confirm = true;
+
+            // QT1: lưu pháp lý thành công → dọn cờ, reset đếm lặp
+            if (ep.includes('CapNhatDuLieuPhapLy') && ok) {
+                topState.expectQT1Confirm = false;
+                topState.qt1ConfirmStreak = 0;
+            }
+
+            // QT4: kết ISO phản hồi (dù thành công hay lỗi) → dọn cờ
+            if (ep.includes('ThucHienKetISO')) topState.expectQT4Confirm = false;
+
+            // QT5: executeCommand thành công → dọn cờ
+            if (ep.includes('executeCommand') && ok) topState.expectQT5Confirm = false;
+
+            // Scan ngay sau khi API phản hồi thay vì chờ tick 400ms kế tiếp
+            setTimeout(scanAndExecute, 50);
         });
 
         function getTaskText(tName) {
@@ -120,9 +147,12 @@ import { createModuleRuntime } from './module-runtime.js';
                         const msgLower = jcMessage.toLowerCase();
                         const titleLower = jcTitle.toLowerCase();
 
-                        const isQT1Confirm = msgLower.includes('cập nhật dữ liệu pháp lý') || titleLower.includes('cập nhật dữ liệu pháp lý');
-                        const isQT4Confirm = msgLower.includes('bạn có thật sự muốn kết iso hồ sơ này hay không');
-                        const isQT5Confirm = msgLower.includes('chuyển bước') || msgLower.includes('chuyển tiếp') || msgLower.includes('chuyển tác vụ') || msgLower.includes('chuyển');
+                        const isQT1Confirm = topState.expectQT1Confirm === true
+                            || msgLower.includes('cập nhật dữ liệu pháp lý') || titleLower.includes('cập nhật dữ liệu pháp lý');
+                        const isQT4Confirm = topState.expectQT4Confirm === true
+                            || msgLower.includes('bạn có thật sự muốn kết iso hồ sơ này hay không');
+                        const isQT5Confirm = topState.expectQT5Confirm === true
+                            || msgLower.includes('chuyển bước') || msgLower.includes('chuyển tiếp') || msgLower.includes('chuyển tác vụ') || msgLower.includes('chuyển');
 
                         if (isQT1Confirm || isQT4Confirm || isQT5Confirm) {
                             // Tiêu đề hộp cảnh báo của MPLIS thay đổi tùy trường hợp nên không lọc được
@@ -231,6 +261,228 @@ import { createModuleRuntime } from './module-runtime.js';
                 }
 
 
+
+                // --- AUTO UPLOAD (btnUploadFile) ---
+                // Áp dụng khi tool đã nạp thư mục file. Khớp tên file theo quy tắc SPH cuối / GT / PT.
+                if (topState.uploadFolderFiles && topState.uploadFolderFiles.length > 0) {
+                    // Chỉ nhận nút Tải lên (btn-success = xanh). Sau khi upload xong MPLIS đổi
+                    // thành "Xóa tệp" (btn-danger = đỏ) nhưng vẫn giữ id/type cũ - không click.
+                    const uploadBtns = Array.from(document.querySelectorAll('#btnUploadFile.btn-success, a[type="upload"].btn-success')).filter(el => {
+                        try { return el.getBoundingClientRect().width > 0; } catch (e) { return false; }
+                    });
+                    const btnUpload = uploadBtns.find(el => !el.hasAttribute('data-mplis-uploading'));
+                    if (btnUpload) {
+                        const row = btnUpload.closest('tr');
+                        const rowText = ((row && row.textContent) || '').toUpperCase();
+                        let fileType = 'GCN';
+                        if (/\bGT\b/.test(rowText) || rowText.includes('GIẤY TỜ KÈM')) fileType = 'GT';
+                        else if (/\bPT\b/.test(rowText) || rowText.includes('PHỤ TRANG')) fileType = 'PT';
+
+                        const soChuSo = topState.config.qt2SoChuSo || 3;
+                        let sphList = (topState.qt2SoPhatHanhList || []).slice();
+
+                        // Ưu tiên đọc SPH từ nút hồng "+ AA 08107975" trên đầu modal (cây bị modal
+                        // che nên getBoundingClientRect = 0, không đọc được qua cách cũ).
+                        // Nút này chứa text "+ XX <số>" hoặc "XX <số>" → khớp pattern SPH.
+                        if (sphList.length === 0) {
+                            const SPH_RE = /^([A-ZĐ]{1,2}\s*\d{5,})$/;
+                            document.querySelectorAll('button, a, span').forEach(el => {
+                                const txt = (el.textContent || '').trim().replace(/^\+\s*/, '').replace(/\s+/g, '').toUpperCase();
+                                if (SPH_RE.test(txt) && !sphList.includes(txt)) sphList.push(txt);
+                            });
+                        }
+
+                        // Fallback: cây trên trang chính (khi không có modal che)
+                        if (sphList.length === 0) {
+                            const activeTree = Array.from(document.querySelectorAll('#treeThongTinDangKy, #treeGiayChungNhan')).find(el => {
+                                try { return el.getBoundingClientRect().width > 0; } catch (e) { return false; }
+                            });
+                            if (activeTree) {
+                                for (const node of activeTree.querySelectorAll('a')) {
+                                    const m = (node.textContent || '').match(/Số phát hành:\s*([A-Za-z0-9\s]+)\s*-/i);
+                                    if (m) {
+                                        const sph = m[1].trim().replace(/\s+/g, '').toUpperCase();
+                                        if (!sphList.includes(sph)) sphList.push(sph);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Ưu tiên đọc SPH từ chính dòng btnUploadFile (hồ sơ nhiều GCN có SPH khác nhau)
+                        const rowSphM = rowText.match(/\b([A-ZĐ]{1,2}\s*\d{5,})\b/);
+                        const sphSrc = rowSphM ? rowSphM[1] : (sphList[0] || '');
+                        const sphNum = sphSrc.replace(/[^0-9]/g, '');
+                        const suffix = sphNum.slice(-soChuSo);
+                        const files = topState.uploadFolderFiles;
+                        // Phát hiện file bản sao Windows: "1111+_1.pdf", "7456 (1).pdf" v.v.
+                        // Mỗi mã GCN chỉ được 1 file — bản sao là lỗi thư mục, dừng để xử lý tay
+                        const _dupFile = files.find(f => {
+                            const n = f.name.toUpperCase();
+                            if (/(GT|PT)\.PDF$/.test(n)) return false;
+                            return /\s\(\d+\)\.PDF$/.test(n) || /_\d+\.PDF$/.test(n);
+                        });
+                        if (_dupFile) {
+                            writeLog(`⚠️ File bản sao: "${_dupFile.name}". Xoá bản sao rồi chọn lại thư mục.`);
+                            updateStatus('File bản sao - Dừng', 'idle');
+                            if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function')
+                                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ File bản sao Windows: "${_dupFile.name}" — xoá rồi chọn lại thư mục`);
+                            return;
+                        }
+                        // Tìm file GCN theo suffix của dòng này trước
+                        // Ưu tiên file tên DÀI (có "-") để gcnBase đúng khi tra PT/GT sau
+                        // VD: "H15...-1392-AA 09125452.pdf" ưu tiên hơn "5452.pdf"
+                        const _findGcnBySuffix = (sfx) => {
+                            if (!sfx) return null;
+                            const longFmt = files.find(f => {
+                                const n = f.name.toUpperCase();
+                                if (/(GT|PT)\.PDF$/.test(n)) return false;
+                                return f.name.includes('-') && (n.endsWith(sfx + '+.PDF') || n.endsWith(sfx + '.PDF'));
+                            });
+                            if (longFmt) return longFmt;
+                            return files.find(f => {
+                                const n = f.name.toUpperCase();
+                                if (/(GT|PT)\.PDF$/.test(n)) return false;
+                                return n.endsWith(sfx + '+.PDF') || n.endsWith(sfx + '.PDF');
+                            });
+                        };
+                        let gcnFile = _findGcnBySuffix(suffix);
+                        // Fallback: nhiều GCN dùng chung 1 file "+.PDF" (VD: 1387+1391+1392)
+                        // → thử tất cả SPH còn lại trong sphList
+                        if (!gcnFile && sphList.length > 0) {
+                            for (const sph of sphList) {
+                                const sfx2 = sph.replace(/[^0-9]/g, '').slice(-soChuSo);
+                                if (sfx2 === suffix) continue;
+                                gcnFile = _findGcnBySuffix(sfx2);
+                                if (gcnFile) break;
+                            }
+                        }
+
+                        // Thư mục chứa file GCN (dùng webkitRelativePath để tìm GT/PT cùng thư mục)
+                        // VD: webkitRelativePath="scan/1423/076+.pdf" → gcnDir="scan/1423"
+                        const gcnDir = gcnFile && gcnFile.webkitRelativePath
+                            ? gcnFile.webkitRelativePath.replace(/\/[^/]+$/, '')
+                            : null;
+
+                        // Base tên dài (chỉ dùng khi có dấu "-", tránh nhầm tên ngắn "076+")
+                        const gcnBase = gcnFile && gcnFile.name.includes('-')
+                            ? gcnFile.name.replace(/-[^-]+\.pdf$/i, '').toUpperCase()
+                            : null;
+
+                        let matchedFile = null;
+                        let warnSuffix = suffix; // default cho GCN; PT/GT sẽ override
+
+                        if (fileType === 'GT') {
+                            // Lấy suffix trực tiếp từ tên GT trong rowText
+                            // VD: rowText có "H15...-1392-GT.PDF" → gtSfxFull = "1392"
+                            // VD: rowText có "H15...-1392+-GT.PDF" → gtSfxFull = "1392+"
+                            const gtSfxM = rowText.match(/\b(\d{3,}\+?)-GT\.PDF\b/i);
+                            const gtSfxFull = gtSfxM ? gtSfxM[1] : null;
+                            const gtSfx = gtSfxFull ? gtSfxFull.replace(/\+$/, '').slice(-soChuSo) : null;
+                            warnSuffix = gtSfxFull || gtSfx || suffix;
+                            // 1. Trực tiếp từ rowText (chính xác nhất, tránh nhầm suffix cert)
+                            if (gtSfxFull) matchedFile = files.find(f =>
+                                f.name.toUpperCase().endsWith(gtSfxFull.toUpperCase() + '-GT.PDF'));
+                            // 2. gcnBase từ file GCN dài
+                            if (!matchedFile && gcnBase) matchedFile = files.find(f =>
+                                f.name.toUpperCase() === gcnBase + '-GT.PDF' ||
+                                f.name.toUpperCase() === gcnBase + '+-GT.PDF');
+                            // 3. Cùng thư mục với GCN
+                            if (!matchedFile && gcnDir) matchedFile = files.find(f =>
+                                /GT\.PDF$/i.test(f.name) &&
+                                (f.webkitRelativePath || '').startsWith(gcnDir + '/'));
+                            // 4. sphList fallback (bỏ qua ở chế độ 4 số vì suffix cert ≠ suffix mã hồ sơ)
+                            if (!matchedFile && soChuSo !== 4) {
+                                for (const sph of sphList) {
+                                    const sfx = sph.replace(/[^0-9]/g, '').slice(-soChuSo);
+                                    if (gtSfx && sfx === gtSfx) continue;
+                                    const found = files.find(f =>
+                                        f.name.toUpperCase().endsWith(sfx + '-GT.PDF') ||
+                                        f.name.toUpperCase().endsWith(sfx + '+-GT.PDF'));
+                                    if (found) { matchedFile = found; break; }
+                                }
+                            }
+                            // 5. Quét folder: bất kỳ file -GT.PDF
+                            if (!matchedFile) matchedFile = files.find(f => /-GT\.PDF$/i.test(f.name)) || null;
+                            // 5.5. File tổng hợp nhiều số: suffix mã hồ sơ GT xuất hiện ở bất kỳ vị trí nào
+                            // (VD: 1387+1391+1392+.pdf → tìm được kể cả khi 1391 ở giữa)
+                            if (!matchedFile && gtSfx) {
+                                const s = gtSfx.toUpperCase();
+                                matchedFile = files.find(f => {
+                                    const n = f.name.toUpperCase();
+                                    if (/(GT|PT)\.PDF$/.test(n)) return false;
+                                    return n.includes(s + '+') && f.name.split('+').length >= 3;
+                                }) || null;
+                            }
+                            // 6. Không có file GT riêng → dùng gcnFile chỉ nếu là file tổng hợp nhiều số (có "+")
+                            // VD: "1387+1391+1392+.pdf" → OK. "5452.pdf" → KHÔNG dùng
+                            if (!matchedFile && gcnFile && gcnFile.name.includes('+')) matchedFile = gcnFile;
+                        } else if (fileType === 'PT') {
+                            // Lấy suffix trực tiếp từ tên PT trong rowText
+                            // VD: rowText có "H15...-1392-PT.PDF" → ptSfxFull = "1392"
+                            // VD: rowText có "H15...-1392+-PT.PDF" → ptSfxFull = "1392+"
+                            const ptSfxM = rowText.match(/\b(\d{3,}\+?)-PT\.PDF\b/i);
+                            const ptSfxFull = ptSfxM ? ptSfxM[1] : null;
+                            const ptSfx = ptSfxFull ? ptSfxFull.replace(/\+$/, '').slice(-soChuSo) : null;
+                            warnSuffix = ptSfxFull || ptSfx || suffix;
+                            // 1. Trực tiếp từ rowText (đúng cho cả 3-số và 4-số)
+                            if (ptSfxFull) matchedFile = files.find(f =>
+                                f.name.toUpperCase().endsWith(ptSfxFull.toUpperCase() + '-PT.PDF'));
+                            // 2. gcnBase từ file GCN dài
+                            if (!matchedFile && gcnBase) matchedFile = files.find(f =>
+                                f.name.toUpperCase() === gcnBase + '-PT.PDF' ||
+                                f.name.toUpperCase() === gcnBase + '+-PT.PDF');
+                            // 3. Cùng thư mục với GCN
+                            if (!matchedFile && gcnDir) matchedFile = files.find(f =>
+                                /PT\.PDF$/i.test(f.name) &&
+                                (f.webkitRelativePath || '').startsWith(gcnDir + '/'));
+                            // 4. sphList fallback (bỏ qua ở chế độ 4 số vì suffix cert ≠ suffix mã hồ sơ)
+                            if (!matchedFile && soChuSo !== 4) {
+                                for (const sph of sphList) {
+                                    const sfx = sph.replace(/[^0-9]/g, '').slice(-soChuSo);
+                                    if (ptSfx && sfx === ptSfx) continue;
+                                    const found = files.find(f =>
+                                        f.name.toUpperCase().endsWith(sfx + '-PT.PDF') ||
+                                        f.name.toUpperCase().endsWith(sfx + '+-PT.PDF'));
+                                    if (found) { matchedFile = found; break; }
+                                }
+                            }
+                            // 5. Quét folder: bất kỳ file -PT.PDF
+                            if (!matchedFile) matchedFile = files.find(f => /-PT\.PDF$/i.test(f.name)) || null;
+                            // 5.5. File tổng hợp nhiều số: suffix mã hồ sơ PT xuất hiện ở bất kỳ vị trí nào
+                            // (VD: 1387+1391+1392+.pdf → tìm được kể cả khi 1391 ở giữa)
+                            if (!matchedFile && ptSfx) {
+                                const s = ptSfx.toUpperCase();
+                                matchedFile = files.find(f => {
+                                    const n = f.name.toUpperCase();
+                                    if (/(GT|PT)\.PDF$/.test(n)) return false;
+                                    return n.includes(s + '+') && f.name.split('+').length >= 3;
+                                }) || null;
+                            }
+                            // 6. Không có file PT riêng → dùng gcnFile chỉ nếu là file tổng hợp nhiều số (có "+")
+                            // VD: "1387+1391+1392+.pdf" → OK. "5452.pdf" → KHÔNG dùng
+                            if (!matchedFile && gcnFile && gcnFile.name.includes('+')) matchedFile = gcnFile;
+                        } else if (suffix) {
+                            matchedFile = gcnFile || null;
+                        }
+                        // Không có suffix → matchedFile = null → log cảnh báo, không pick bừa
+
+                        if (matchedFile) {
+                            writeLog(`Auto upload ${fileType}: ${matchedFile.name}`);
+                            btnUpload.setAttribute('data-mplis-uploading', 'true');
+                            topState._pendingUploadFile = matchedFile;
+                            const jqU = (typeof unsafeWindow !== 'undefined' && unsafeWindow.$) ? unsafeWindow.$ : null;
+                            if (jqU) jqU(btnUpload).click(); else clickElement(btnUpload);
+                            setLastActionTime(now, topState.config.delayAction);
+                            setTimeout(() => { try { btnUpload.removeAttribute('data-mplis-uploading'); } catch (e2) {} }, 8000);
+                            return;
+                        } else {
+                            writeLog(`⚠️ Không tìm file ${fileType}${warnSuffix ? ' (suffix ' + warnSuffix + ')' : ''}. Dừng để upload tay.`);
+                            updateStatus('Cần upload tay', 'idle');
+                            if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function')
+                                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ Không tìm file ${fileType} — upload tay rồi bấm lại`);
+                        }
+                    }
+                }
 
                 // --- QT0: CHỐT TỆP ĐÍNH KÈM (Bấm Cập nhật -> Đợi Nhập thông tin -> Đóng -> Xử lý hồ sơ) ---
                 if (topState.config.activeWorkflows.includes("QT0")) {
@@ -1057,7 +1309,9 @@ import { createModuleRuntime } from './module-runtime.js';
                         const execBtn = visibleExecBtns[0];
                         setLastActionTime(now, topState.config.delayAction);
                         writeLog("Tìm thấy nút 'Thực hiện'. Đang click...");
-                        topState.qt1ConfirmStreak = 0; // Bắt đầu lượt cập nhật pháp lý mới, reset đếm lặp hộp xác nhận
+                        topState.qt1ConfirmStreak = 0;
+                        if (topState.currentTaskCode === 'QT4') topState.expectQT4Confirm = true;
+                        else if (topState.currentTaskCode && topState.currentTaskCode !== 'QT1') topState.expectQT5Confirm = true;
                         clickElement(execBtn);
                         updateStatus("Chờ xác nhận...", "waiting");
                         return;
@@ -1156,7 +1410,36 @@ import { createModuleRuntime } from './module-runtime.js';
         // Quét 400ms thay vì 1200ms. Nhịp hành động vẫn do khóa lastActionTime + delay* quyết
         // định, nên quét dày KHÔNG làm tool bấm sớm hơn - chỉ bỏ phần chết: trước đây delay 500ms
         // xong vẫn phải chờ tới nhịp 1200ms kế tiếp, mỗi bước phí trung bình ~700ms.
+        // Chặn page JS mở hộp thoại file khi tool đã chuẩn sẵn file từ thư mục.
+        // Patch lên unsafeWindow vì page code dùng HTMLInputElement của page, không phải sandbox.
+        (function() {
+            const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+            if (win.HTMLInputElement.prototype.__mplisUpload) return;
+            const orig = win.HTMLInputElement.prototype.click;
+            win.HTMLInputElement.prototype.click = function() {
+                if (this.type === 'file') {
+                    const ts = getTopState();
+                    if (ts && ts._pendingUploadFile) {
+                        const f = ts._pendingUploadFile;
+                        ts._pendingUploadFile = null;
+                        try {
+                            const dt = new DataTransfer();
+                            dt.items.add(f);
+                            this.files = dt.files;
+                            this.dispatchEvent(new Event('change', { bubbles: true }));
+                            this.dispatchEvent(new Event('input', { bubbles: true }));
+                        } catch (e) { console.error('[MPLIS Upload]', e); }
+                        return;
+                    }
+                }
+                return orig.apply(this, arguments);
+            };
+            win.HTMLInputElement.prototype.__mplisUpload = true;
+        })();
+
         setInterval(scanAndExecute, 400);
+        // Quét ngay khi chuyển lại tab, không phụ thuộc vào tick tiếp theo
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) scanAndExecute(); });
 
         return {
             getTopState, saveConfig

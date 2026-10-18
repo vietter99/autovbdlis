@@ -5,7 +5,7 @@ import { ExcelModule } from './excel-module.js';
 import { AlertModule } from './alert-module.js';
 import { isAutoConfirmEnabled, escapeHtml } from './utils.js';
 import { toggleProcess, toggleReturn } from './toggle.js';
-import { getLogJson, clearLog, getLogCount } from './mplis-logger.js';
+import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from './mplis-logger.js';
 
     // Icon dạng SVG inline (bộ Lucide, nét 2px, viewBox 24) thay cho emoji: emoji phụ thuộc font
     // của từng máy nên mỗi trình duyệt/Windows hiển thị một kiểu, lại không đổi màu theo trạng thái
@@ -161,6 +161,28 @@ import { getLogJson, clearLog, getLogCount } from './mplis-logger.js';
                                     </label>
                                 </div>
                                 <div class="mplis-hint" style="margin:4px 0 0;" id="qt2-file-hint">${qt2FileHint(pCfg.qt2SelectAllFiles)}</div>
+                            </div>
+                        </div>
+
+                        <div class="mplis-card mplis-collapse" id="qt-upload-group">
+                            <button type="button" class="mplis-collapse-head" id="qt-upload-toggle" aria-expanded="false" aria-controls="qt-upload-body">
+                                <span class="mplis-section-label">Upload file tự động</span>
+                                <span class="mplis-collapse-state" id="qt-upload-state">Chưa chọn</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="qt-upload-body">
+                                <input type="file" id="mplis-folder-picker" webkitdirectory multiple style="display:none">
+                                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                                    <button type="button" id="btn-chon-thu-muc" class="mplis-btn-primary" style="flex:1; padding:9px; font-size:12px;">Chọn thư mục</button>
+                                    <button type="button" id="btn-xoa-thu-muc" class="mplis-btn-ghost" style="padding:9px 12px; flex-shrink:0;" title="Xóa thư mục đã chọn">✕</button>
+                                </div>
+                                <div id="qt-upload-files-status" style="font-size:11.5px; color:var(--mplis-text-dim); margin-bottom:8px; word-break:break-all; line-height:1.5;"></div>
+                                <div style="font-size:12px; color:#e2e8f0; margin-bottom:6px;">Số cuối SPH để khớp file GCN:</div>
+                                <div id="qt-upload-sochuso-group" role="radiogroup" aria-label="Số chữ số cuối SPH" style="display:flex; gap:6px;">
+                                    <button type="button" class="mplis-hauto-btn" data-sochuso="3" role="radio" aria-checked="${(pCfg.qt2SoChuSo || 3) === 3 ? 'true' : 'false'}" style="flex:1; font-size:11px;" title="TC, XN NN (3 số cuối SPH)">3 số</button>
+                                    <button type="button" class="mplis-hauto-btn" data-sochuso="4" role="radio" aria-checked="${(pCfg.qt2SoChuSo || 3) === 4 ? 'true' : 'false'}" style="flex:1; font-size:11px;" title="GCN khác (4 số cuối SPH)">4 số</button>
+                                </div>
+                                <div class="mplis-hint" style="margin-top:6px;">VD: SPH <b>08107975</b> → 3 số: <b>975</b> · 4 số: <b>7975</b><br/>File GT.pdf / PT.pdf tự nhận theo đuôi tên.</div>
                             </div>
                         </div>
 
@@ -480,6 +502,10 @@ import { getLogJson, clearLog, getLogCount } from './mplis-logger.js';
                             </button>
                             <div class="mplis-collapse-body" id="set-log-body">
                                 <div style="font-size:11.5px; color:var(--mplis-text-dim); margin-bottom:8px; line-height:1.6;">Ghi lại fetch, response, lỗi JS. Copy paste cho Claude để phân tích và nâng cấp.</div>
+                                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
+                                    <input type="checkbox" id="chk-log-enabled" style="width:16px;height:16px;cursor:pointer;" />
+                                    <span style="font-size:12px; color:#e2e8f0;">Bật ghi nhật ký</span>
+                                </label>
                                 <div style="display:flex; gap:6px; margin-bottom:8px;">
                                     <button type="button" id="btn-log-copy" class="mplis-btn-ghost" style="flex:1;">Copy log</button>
                                     <button type="button" id="btn-log-clear" class="mplis-btn-ghost" style="padding:7px 12px;">Xóa</button>
@@ -779,8 +805,71 @@ import { getLogJson, clearLog, getLogCount } from './mplis-logger.js';
         };
 
         // Nhớ trạng thái đóng/mở qua F5, giống cách nút 3 chấm nhớ mplis_extra_tabs_visible
+        // Upload folder picker
+        const folderPickerEl = document.getElementById('mplis-folder-picker');
+        const btnChonThuMuc = document.getElementById('btn-chon-thu-muc');
+        const btnXoaThuMuc = document.getElementById('btn-xoa-thu-muc');
+        const uploadStatusEl = document.getElementById('qt-upload-files-status');
+        const uploadStateEl = document.getElementById('qt-upload-state');
+        const soChuSoGroup = document.getElementById('qt-upload-sochuso-group');
+
+        function veUploadState(files) {
+            const n = files ? files.length : 0;
+            if (n > 0) {
+                const preview = files.slice(0, 3).map(f => f.name).join(', ');
+                if (uploadStatusEl) uploadStatusEl.textContent = n + ' file: ' + preview + (n > 3 ? ' ... (+' + (n - 3) + ')' : '');
+                if (uploadStateEl) { uploadStateEl.textContent = n + ' file'; uploadStateEl.classList.add('on'); }
+            } else {
+                if (uploadStatusEl) uploadStatusEl.textContent = '';
+                if (uploadStateEl) { uploadStateEl.textContent = 'Chưa chọn'; uploadStateEl.classList.remove('on'); }
+            }
+        }
+
+        function veSoChuSo(n) {
+            if (!soChuSoGroup) return;
+            soChuSoGroup.querySelectorAll('.mplis-hauto-btn').forEach(b => {
+                const on = parseInt(b.dataset.sochuso) === n;
+                b.setAttribute('aria-checked', on ? 'true' : 'false');
+                b.classList.toggle('on', on);
+            });
+        }
+
+        veSoChuSo(pCfg.qt2SoChuSo || 3);
+
+        if (soChuSoGroup) {
+            soChuSoGroup.querySelectorAll('.mplis-hauto-btn').forEach(b => {
+                b.onclick = () => {
+                    const n = parseInt(b.dataset.sochuso);
+                    ProcessModule.saveConfig({ qt2SoChuSo: n });
+                    veSoChuSo(n);
+                };
+            });
+        }
+
+        if (btnChonThuMuc && folderPickerEl) {
+            btnChonThuMuc.onclick = () => folderPickerEl.click();
+            folderPickerEl.onchange = () => {
+                const files = Array.from(folderPickerEl.files || []);
+                const ts = ProcessModule.getTopState();
+                if (ts) ts.uploadFolderFiles = files;
+                veUploadState(files);
+                folderPickerEl.value = '';
+            };
+        }
+
+        if (btnXoaThuMuc) {
+            btnXoaThuMuc.onclick = () => {
+                const ts = ProcessModule.getTopState();
+                if (ts) ts.uploadFolderFiles = [];
+                veUploadState(null);
+            };
+        }
+
+        veUploadState(null);
+
         bindCollapse('bypass-card', 'bypass-card-toggle', 'mplis_bypass_card_open');
         bindCollapse('qt2-file-group', 'qt2-file-toggle', 'mplis_qt2_file_open');
+        bindCollapse('qt-upload-group', 'qt-upload-toggle', 'mplis_qt_upload_open');
         bindCollapse('fw-user-group', 'fw-user-toggle', 'mplis_fw_user_open');
         bindCollapse('set-safe-group', 'set-safe-toggle', 'mplis_set_safe_open');
         bindCollapse('set-autofill-group', 'set-autofill-toggle', 'mplis_set_autofill_open');
@@ -824,6 +913,12 @@ import { getLogJson, clearLog, getLogCount } from './mplis-logger.js';
             clearLog();
             veLogState();
         };
+
+        const chkLogEnabled = document.getElementById('chk-log-enabled');
+        if (chkLogEnabled) {
+            chkLogEnabled.checked = isLogEnabled();
+            chkLogEnabled.onchange = () => setLogEnabled(chkLogEnabled.checked);
+        }
 
         // Cập nhật preview khi mở log card
         document.getElementById('set-log-toggle')?.addEventListener('click', () => {

@@ -492,6 +492,7 @@
       // true = tích thêm cả file mà bộ lọc không nhận và không gỡ tích file nào - dùng khi tên
       // file đặt sai nên quy tắc lọc bỏ sót. false (mặc định) = chỉ giữ file bộ lọc nhận.
       qt2SelectAllFiles: false,
+      qt2SoChuSo: 3,
       forwardUser: "",
       delayOpen: 500,
       delayAction: 500,
@@ -506,6 +507,20 @@
       defaultConfig,
       logPrefix: "[MPLIS QT] ",
       domSuffix: "process"
+    });
+    window.addEventListener("mplis:api", ({ detail: e }) => {
+      const topState = getTopState();
+      if (!topState || !topState.isRunning) return;
+      const ep = e.ep || "";
+      const ok = !!(e.res && (e.res.success === true || e.res.Success === true));
+      if (ep.includes("KiemTraCapNhatDuLieuPhapLy") && ok) topState.expectQT1Confirm = true;
+      if (ep.includes("CapNhatDuLieuPhapLy") && ok) {
+        topState.expectQT1Confirm = false;
+        topState.qt1ConfirmStreak = 0;
+      }
+      if (ep.includes("ThucHienKetISO")) topState.expectQT4Confirm = false;
+      if (ep.includes("executeCommand") && ok) topState.expectQT5Confirm = false;
+      setTimeout(scanAndExecute, 50);
     });
     function getTaskText(tName) {
       if (tName === "QT1") return "cập nhật dữ liệu pháp lý";
@@ -583,9 +598,9 @@
             const jcTitle = (jconfirmBox.querySelector(".jconfirm-title") || {}).textContent || "";
             const msgLower = jcMessage.toLowerCase();
             const titleLower = jcTitle.toLowerCase();
-            const isQT1Confirm = msgLower.includes("cập nhật dữ liệu pháp lý") || titleLower.includes("cập nhật dữ liệu pháp lý");
-            const isQT4Confirm = msgLower.includes("bạn có thật sự muốn kết iso hồ sơ này hay không");
-            const isQT5Confirm = msgLower.includes("chuyển bước") || msgLower.includes("chuyển tiếp") || msgLower.includes("chuyển tác vụ") || msgLower.includes("chuyển");
+            const isQT1Confirm = topState.expectQT1Confirm === true || msgLower.includes("cập nhật dữ liệu pháp lý") || titleLower.includes("cập nhật dữ liệu pháp lý");
+            const isQT4Confirm = topState.expectQT4Confirm === true || msgLower.includes("bạn có thật sự muốn kết iso hồ sơ này hay không");
+            const isQT5Confirm = topState.expectQT5Confirm === true || msgLower.includes("chuyển bước") || msgLower.includes("chuyển tiếp") || msgLower.includes("chuyển tác vụ") || msgLower.includes("chuyển");
             if (isQT1Confirm || isQT4Confirm || isQT5Confirm) {
               if (isQT1Confirm && (topState.qt1ConfirmStreak || 0) >= 1) {
                 writeLog("⚠️ Hộp 'Đồng ý' cập nhật pháp lý xuất hiện LẦN 2 liên tiếp (tiêu đề: '" + jcTitle.trim() + "'). Có thể là cảnh báo. DỪNG AUTO để kiểm tra.");
@@ -683,6 +698,176 @@
             incrementSuccess();
             updateStatus("Chờ lưu...", "waiting");
             return;
+          }
+        }
+        if (topState.uploadFolderFiles && topState.uploadFolderFiles.length > 0) {
+          const uploadBtns = Array.from(document.querySelectorAll('#btnUploadFile.btn-success, a[type="upload"].btn-success')).filter((el) => {
+            try {
+              return el.getBoundingClientRect().width > 0;
+            } catch (e) {
+              return false;
+            }
+          });
+          const btnUpload = uploadBtns.find((el) => !el.hasAttribute("data-mplis-uploading"));
+          if (btnUpload) {
+            const row = btnUpload.closest("tr");
+            const rowText = (row && row.textContent || "").toUpperCase();
+            let fileType = "GCN";
+            if (/\bGT\b/.test(rowText) || rowText.includes("GIẤY TỜ KÈM")) fileType = "GT";
+            else if (/\bPT\b/.test(rowText) || rowText.includes("PHỤ TRANG")) fileType = "PT";
+            const soChuSo = topState.config.qt2SoChuSo || 3;
+            let sphList = (topState.qt2SoPhatHanhList || []).slice();
+            if (sphList.length === 0) {
+              const SPH_RE2 = /^([A-ZĐ]{1,2}\s*\d{5,})$/;
+              document.querySelectorAll("button, a, span").forEach((el) => {
+                const txt = (el.textContent || "").trim().replace(/^\+\s*/, "").replace(/\s+/g, "").toUpperCase();
+                if (SPH_RE2.test(txt) && !sphList.includes(txt)) sphList.push(txt);
+              });
+            }
+            if (sphList.length === 0) {
+              const activeTree = Array.from(document.querySelectorAll("#treeThongTinDangKy, #treeGiayChungNhan")).find((el) => {
+                try {
+                  return el.getBoundingClientRect().width > 0;
+                } catch (e) {
+                  return false;
+                }
+              });
+              if (activeTree) {
+                for (const node of activeTree.querySelectorAll("a")) {
+                  const m = (node.textContent || "").match(/Số phát hành:\s*([A-Za-z0-9\s]+)\s*-/i);
+                  if (m) {
+                    const sph = m[1].trim().replace(/\s+/g, "").toUpperCase();
+                    if (!sphList.includes(sph)) sphList.push(sph);
+                  }
+                }
+              }
+            }
+            const rowSphM = rowText.match(/\b([A-ZĐ]{1,2}\s*\d{5,})\b/);
+            const sphSrc = rowSphM ? rowSphM[1] : sphList[0] || "";
+            const sphNum = sphSrc.replace(/[^0-9]/g, "");
+            const suffix = sphNum.slice(-soChuSo);
+            const files = topState.uploadFolderFiles;
+            const _dupFile = files.find((f) => {
+              const n = f.name.toUpperCase();
+              if (/(GT|PT)\.PDF$/.test(n)) return false;
+              return /\s\(\d+\)\.PDF$/.test(n) || /_\d+\.PDF$/.test(n);
+            });
+            if (_dupFile) {
+              writeLog(`⚠️ File bản sao: "${_dupFile.name}". Xoá bản sao rồi chọn lại thư mục.`);
+              updateStatus("File bản sao - Dừng", "idle");
+              if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function")
+                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ File bản sao Windows: "${_dupFile.name}" — xoá rồi chọn lại thư mục`);
+              return;
+            }
+            const _findGcnBySuffix = (sfx) => {
+              if (!sfx) return null;
+              const longFmt = files.find((f) => {
+                const n = f.name.toUpperCase();
+                if (/(GT|PT)\.PDF$/.test(n)) return false;
+                return f.name.includes("-") && (n.endsWith(sfx + "+.PDF") || n.endsWith(sfx + ".PDF"));
+              });
+              if (longFmt) return longFmt;
+              return files.find((f) => {
+                const n = f.name.toUpperCase();
+                if (/(GT|PT)\.PDF$/.test(n)) return false;
+                return n.endsWith(sfx + "+.PDF") || n.endsWith(sfx + ".PDF");
+              });
+            };
+            let gcnFile = _findGcnBySuffix(suffix);
+            if (!gcnFile && sphList.length > 0) {
+              for (const sph of sphList) {
+                const sfx2 = sph.replace(/[^0-9]/g, "").slice(-soChuSo);
+                if (sfx2 === suffix) continue;
+                gcnFile = _findGcnBySuffix(sfx2);
+                if (gcnFile) break;
+              }
+            }
+            const gcnDir = gcnFile && gcnFile.webkitRelativePath ? gcnFile.webkitRelativePath.replace(/\/[^/]+$/, "") : null;
+            const gcnBase = gcnFile && gcnFile.name.includes("-") ? gcnFile.name.replace(/-[^-]+\.pdf$/i, "").toUpperCase() : null;
+            let matchedFile = null;
+            let warnSuffix = suffix;
+            if (fileType === "GT") {
+              const gtSfxM = rowText.match(/\b(\d{3,}\+?)-GT\.PDF\b/i);
+              const gtSfxFull = gtSfxM ? gtSfxM[1] : null;
+              const gtSfx = gtSfxFull ? gtSfxFull.replace(/\+$/, "").slice(-soChuSo) : null;
+              warnSuffix = gtSfxFull || gtSfx || suffix;
+              if (gtSfxFull) matchedFile = files.find((f) => f.name.toUpperCase().endsWith(gtSfxFull.toUpperCase() + "-GT.PDF"));
+              if (!matchedFile && gcnBase) matchedFile = files.find((f) => f.name.toUpperCase() === gcnBase + "-GT.PDF" || f.name.toUpperCase() === gcnBase + "+-GT.PDF");
+              if (!matchedFile && gcnDir) matchedFile = files.find((f) => /GT\.PDF$/i.test(f.name) && (f.webkitRelativePath || "").startsWith(gcnDir + "/"));
+              if (!matchedFile && soChuSo !== 4) {
+                for (const sph of sphList) {
+                  const sfx = sph.replace(/[^0-9]/g, "").slice(-soChuSo);
+                  if (gtSfx && sfx === gtSfx) continue;
+                  const found = files.find((f) => f.name.toUpperCase().endsWith(sfx + "-GT.PDF") || f.name.toUpperCase().endsWith(sfx + "+-GT.PDF"));
+                  if (found) {
+                    matchedFile = found;
+                    break;
+                  }
+                }
+              }
+              if (!matchedFile) matchedFile = files.find((f) => /-GT\.PDF$/i.test(f.name)) || null;
+              if (!matchedFile && gtSfx) {
+                const s = gtSfx.toUpperCase();
+                matchedFile = files.find((f) => {
+                  const n = f.name.toUpperCase();
+                  if (/(GT|PT)\.PDF$/.test(n)) return false;
+                  return n.includes(s + "+") && f.name.split("+").length >= 3;
+                }) || null;
+              }
+              if (!matchedFile && gcnFile && gcnFile.name.includes("+")) matchedFile = gcnFile;
+            } else if (fileType === "PT") {
+              const ptSfxM = rowText.match(/\b(\d{3,}\+?)-PT\.PDF\b/i);
+              const ptSfxFull = ptSfxM ? ptSfxM[1] : null;
+              const ptSfx = ptSfxFull ? ptSfxFull.replace(/\+$/, "").slice(-soChuSo) : null;
+              warnSuffix = ptSfxFull || ptSfx || suffix;
+              if (ptSfxFull) matchedFile = files.find((f) => f.name.toUpperCase().endsWith(ptSfxFull.toUpperCase() + "-PT.PDF"));
+              if (!matchedFile && gcnBase) matchedFile = files.find((f) => f.name.toUpperCase() === gcnBase + "-PT.PDF" || f.name.toUpperCase() === gcnBase + "+-PT.PDF");
+              if (!matchedFile && gcnDir) matchedFile = files.find((f) => /PT\.PDF$/i.test(f.name) && (f.webkitRelativePath || "").startsWith(gcnDir + "/"));
+              if (!matchedFile && soChuSo !== 4) {
+                for (const sph of sphList) {
+                  const sfx = sph.replace(/[^0-9]/g, "").slice(-soChuSo);
+                  if (ptSfx && sfx === ptSfx) continue;
+                  const found = files.find((f) => f.name.toUpperCase().endsWith(sfx + "-PT.PDF") || f.name.toUpperCase().endsWith(sfx + "+-PT.PDF"));
+                  if (found) {
+                    matchedFile = found;
+                    break;
+                  }
+                }
+              }
+              if (!matchedFile) matchedFile = files.find((f) => /-PT\.PDF$/i.test(f.name)) || null;
+              if (!matchedFile && ptSfx) {
+                const s = ptSfx.toUpperCase();
+                matchedFile = files.find((f) => {
+                  const n = f.name.toUpperCase();
+                  if (/(GT|PT)\.PDF$/.test(n)) return false;
+                  return n.includes(s + "+") && f.name.split("+").length >= 3;
+                }) || null;
+              }
+              if (!matchedFile && gcnFile && gcnFile.name.includes("+")) matchedFile = gcnFile;
+            } else if (suffix) {
+              matchedFile = gcnFile || null;
+            }
+            if (matchedFile) {
+              writeLog(`Auto upload ${fileType}: ${matchedFile.name}`);
+              btnUpload.setAttribute("data-mplis-uploading", "true");
+              topState._pendingUploadFile = matchedFile;
+              const jqU = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+              if (jqU) jqU(btnUpload).click();
+              else clickElement(btnUpload);
+              setLastActionTime(now2, topState.config.delayAction);
+              setTimeout(() => {
+                try {
+                  btnUpload.removeAttribute("data-mplis-uploading");
+                } catch (e2) {
+                }
+              }, 8e3);
+              return;
+            } else {
+              writeLog(`⚠️ Không tìm file ${fileType}${warnSuffix ? " (suffix " + warnSuffix + ")" : ""}. Dừng để upload tay.`);
+              updateStatus("Cần upload tay", "idle");
+              if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function")
+                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ Không tìm file ${fileType} — upload tay rồi bấm lại`);
+            }
           }
         }
         if (topState.config.activeWorkflows.includes("QT0")) {
@@ -1482,6 +1667,8 @@
             setLastActionTime(now2, topState.config.delayAction);
             writeLog("Tìm thấy nút 'Thực hiện'. Đang click...");
             topState.qt1ConfirmStreak = 0;
+            if (topState.currentTaskCode === "QT4") topState.expectQT4Confirm = true;
+            else if (topState.currentTaskCode && topState.currentTaskCode !== "QT1") topState.expectQT5Confirm = true;
             clickElement(execBtn);
             updateStatus("Chờ xác nhận...", "waiting");
             return;
@@ -1578,7 +1765,36 @@
         console.error("[MPLIS Auto Scanner Error] ", e);
       }
     }
+    (function() {
+      const win = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+      if (win.HTMLInputElement.prototype.__mplisUpload) return;
+      const orig = win.HTMLInputElement.prototype.click;
+      win.HTMLInputElement.prototype.click = function() {
+        if (this.type === "file") {
+          const ts = getTopState();
+          if (ts && ts._pendingUploadFile) {
+            const f = ts._pendingUploadFile;
+            ts._pendingUploadFile = null;
+            try {
+              const dt = new DataTransfer();
+              dt.items.add(f);
+              this.files = dt.files;
+              this.dispatchEvent(new Event("change", { bubbles: true }));
+              this.dispatchEvent(new Event("input", { bubbles: true }));
+            } catch (e) {
+              console.error("[MPLIS Upload]", e);
+            }
+            return;
+          }
+        }
+        return orig.apply(this, arguments);
+      };
+      win.HTMLInputElement.prototype.__mplisUpload = true;
+    })();
     setInterval(scanAndExecute, 400);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) scanAndExecute();
+    });
     return {
       getTopState,
       saveConfig
@@ -2566,12 +2782,29 @@
   // src/mplis-logger.js
   var MAX = 100;
   var _buf = [];
+  var LOG_ENABLED_KEY = "mplis_log_enabled";
   function now() {
     return Date.now();
   }
+  function isLogEnabled() {
+    try {
+      return localStorage.getItem(LOG_ENABLED_KEY) !== "false";
+    } catch {
+      return true;
+    }
+  }
+  function setLogEnabled(on) {
+    try {
+      localStorage.setItem(LOG_ENABLED_KEY, on ? "true" : "false");
+    } catch {
+    }
+  }
   function push(entry) {
-    _buf.push(entry);
-    if (_buf.length > MAX) _buf.shift();
+    if (isLogEnabled()) {
+      _buf.push(entry);
+      if (_buf.length > MAX) _buf.shift();
+    }
+    window.dispatchEvent(new CustomEvent("mplis:api", { detail: entry }));
   }
   function epTag(url) {
     try {
@@ -3767,6 +4000,28 @@
                             </div>
                         </div>
 
+                        <div class="mplis-card mplis-collapse" id="qt-upload-group">
+                            <button type="button" class="mplis-collapse-head" id="qt-upload-toggle" aria-expanded="false" aria-controls="qt-upload-body">
+                                <span class="mplis-section-label">Upload file tự động</span>
+                                <span class="mplis-collapse-state" id="qt-upload-state">Chưa chọn</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="qt-upload-body">
+                                <input type="file" id="mplis-folder-picker" webkitdirectory multiple style="display:none">
+                                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                                    <button type="button" id="btn-chon-thu-muc" class="mplis-btn-primary" style="flex:1; padding:9px; font-size:12px;">Chọn thư mục</button>
+                                    <button type="button" id="btn-xoa-thu-muc" class="mplis-btn-ghost" style="padding:9px 12px; flex-shrink:0;" title="Xóa thư mục đã chọn">✕</button>
+                                </div>
+                                <div id="qt-upload-files-status" style="font-size:11.5px; color:var(--mplis-text-dim); margin-bottom:8px; word-break:break-all; line-height:1.5;"></div>
+                                <div style="font-size:12px; color:#e2e8f0; margin-bottom:6px;">Số cuối SPH để khớp file GCN:</div>
+                                <div id="qt-upload-sochuso-group" role="radiogroup" aria-label="Số chữ số cuối SPH" style="display:flex; gap:6px;">
+                                    <button type="button" class="mplis-hauto-btn" data-sochuso="3" role="radio" aria-checked="${(pCfg.qt2SoChuSo || 3) === 3 ? "true" : "false"}" style="flex:1; font-size:11px;" title="TC, XN NN (3 số cuối SPH)">3 số</button>
+                                    <button type="button" class="mplis-hauto-btn" data-sochuso="4" role="radio" aria-checked="${(pCfg.qt2SoChuSo || 3) === 4 ? "true" : "false"}" style="flex:1; font-size:11px;" title="GCN khác (4 số cuối SPH)">4 số</button>
+                                </div>
+                                <div class="mplis-hint" style="margin-top:6px;">VD: SPH <b>08107975</b> → 3 số: <b>975</b> · 4 số: <b>7975</b><br/>File GT.pdf / PT.pdf tự nhận theo đuôi tên.</div>
+                            </div>
+                        </div>
+
                         <div class="mplis-card mplis-collapse" id="fw-user-group" style="display: ${pCfg.isQT5 ? "block" : "none"};">
                             <button type="button" class="mplis-collapse-head" id="fw-user-toggle" aria-expanded="false" aria-controls="fw-user-body">
                                 <span class="mplis-section-label">Chuyển tiếp (sau khi Kết ISO)</span>
@@ -4083,6 +4338,10 @@
                             </button>
                             <div class="mplis-collapse-body" id="set-log-body">
                                 <div style="font-size:11.5px; color:var(--mplis-text-dim); margin-bottom:8px; line-height:1.6;">Ghi lại fetch, response, lỗi JS. Copy paste cho Claude để phân tích và nâng cấp.</div>
+                                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
+                                    <input type="checkbox" id="chk-log-enabled" style="width:16px;height:16px;cursor:pointer;" />
+                                    <span style="font-size:12px; color:#e2e8f0;">Bật ghi nhật ký</span>
+                                </label>
                                 <div style="display:flex; gap:6px; margin-bottom:8px;">
                                     <button type="button" id="btn-log-copy" class="mplis-btn-ghost" style="flex:1;">Copy log</button>
                                     <button type="button" id="btn-log-clear" class="mplis-btn-ghost" style="padding:7px 12px;">Xóa</button>
@@ -4336,8 +4595,68 @@
       stateEl.classList.toggle("on", !!user);
       ProcessModule.saveConfig({ forwardUser: user });
     };
+    const folderPickerEl = document.getElementById("mplis-folder-picker");
+    const btnChonThuMuc = document.getElementById("btn-chon-thu-muc");
+    const btnXoaThuMuc = document.getElementById("btn-xoa-thu-muc");
+    const uploadStatusEl = document.getElementById("qt-upload-files-status");
+    const uploadStateEl = document.getElementById("qt-upload-state");
+    const soChuSoGroup = document.getElementById("qt-upload-sochuso-group");
+    function veUploadState(files) {
+      const n = files ? files.length : 0;
+      if (n > 0) {
+        const preview = files.slice(0, 3).map((f) => f.name).join(", ");
+        if (uploadStatusEl) uploadStatusEl.textContent = n + " file: " + preview + (n > 3 ? " ... (+" + (n - 3) + ")" : "");
+        if (uploadStateEl) {
+          uploadStateEl.textContent = n + " file";
+          uploadStateEl.classList.add("on");
+        }
+      } else {
+        if (uploadStatusEl) uploadStatusEl.textContent = "";
+        if (uploadStateEl) {
+          uploadStateEl.textContent = "Chưa chọn";
+          uploadStateEl.classList.remove("on");
+        }
+      }
+    }
+    function veSoChuSo(n) {
+      if (!soChuSoGroup) return;
+      soChuSoGroup.querySelectorAll(".mplis-hauto-btn").forEach((b) => {
+        const on = parseInt(b.dataset.sochuso) === n;
+        b.setAttribute("aria-checked", on ? "true" : "false");
+        b.classList.toggle("on", on);
+      });
+    }
+    veSoChuSo(pCfg.qt2SoChuSo || 3);
+    if (soChuSoGroup) {
+      soChuSoGroup.querySelectorAll(".mplis-hauto-btn").forEach((b) => {
+        b.onclick = () => {
+          const n = parseInt(b.dataset.sochuso);
+          ProcessModule.saveConfig({ qt2SoChuSo: n });
+          veSoChuSo(n);
+        };
+      });
+    }
+    if (btnChonThuMuc && folderPickerEl) {
+      btnChonThuMuc.onclick = () => folderPickerEl.click();
+      folderPickerEl.onchange = () => {
+        const files = Array.from(folderPickerEl.files || []);
+        const ts = ProcessModule.getTopState();
+        if (ts) ts.uploadFolderFiles = files;
+        veUploadState(files);
+        folderPickerEl.value = "";
+      };
+    }
+    if (btnXoaThuMuc) {
+      btnXoaThuMuc.onclick = () => {
+        const ts = ProcessModule.getTopState();
+        if (ts) ts.uploadFolderFiles = [];
+        veUploadState(null);
+      };
+    }
+    veUploadState(null);
     bindCollapse("bypass-card", "bypass-card-toggle", "mplis_bypass_card_open");
     bindCollapse("qt2-file-group", "qt2-file-toggle", "mplis_qt2_file_open");
+    bindCollapse("qt-upload-group", "qt-upload-toggle", "mplis_qt_upload_open");
     bindCollapse("fw-user-group", "fw-user-toggle", "mplis_fw_user_open");
     bindCollapse("set-safe-group", "set-safe-toggle", "mplis_set_safe_open");
     bindCollapse("set-autofill-group", "set-autofill-toggle", "mplis_set_autofill_open");
@@ -4390,6 +4709,11 @@
       clearLog();
       veLogState();
     };
+    const chkLogEnabled = document.getElementById("chk-log-enabled");
+    if (chkLogEnabled) {
+      chkLogEnabled.checked = isLogEnabled();
+      chkLogEnabled.onchange = () => setLogEnabled(chkLogEnabled.checked);
+    }
     document.getElementById("set-log-toggle")?.addEventListener("click", () => {
       setTimeout(veLogState, 50);
     });
@@ -5855,6 +6179,10 @@
 
   // src/main.js
   if (window === window.top) {
+    if ("locks" in navigator) {
+      navigator.locks.request("mplis-keepalive", { mode: "shared" }, () => new Promise(() => {
+      }));
+    }
     const checkBody = setInterval(() => {
       if (document.body) {
         clearInterval(checkBody);
