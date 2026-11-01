@@ -764,13 +764,13 @@
               const longFmt = files.find((f) => {
                 const n = f.name.toUpperCase();
                 if (/(GT|PT)\.PDF$/.test(n)) return false;
-                return f.name.includes("-") && (n.endsWith(sfx + "+.PDF") || n.endsWith(sfx + ".PDF"));
+                return f.name.includes("-") && (n.endsWith(sfx + ".PDF") || n.endsWith(sfx + "+.PDF"));
               });
               if (longFmt) return longFmt;
               return files.find((f) => {
                 const n = f.name.toUpperCase();
                 if (/(GT|PT)\.PDF$/.test(n)) return false;
-                return n.endsWith(sfx + "+.PDF") || n.endsWith(sfx + ".PDF");
+                return n.endsWith(sfx + ".PDF") || n.endsWith(sfx + "+.PDF");
               });
             };
             let gcnFile = _findGcnBySuffix(suffix);
@@ -784,14 +784,23 @@
             }
             const gcnDir = gcnFile && gcnFile.webkitRelativePath ? gcnFile.webkitRelativePath.replace(/\/[^/]+$/, "") : null;
             const gcnBase = gcnFile && gcnFile.name.includes("-") ? gcnFile.name.replace(/-[^-]+\.pdf$/i, "").toUpperCase() : null;
+            const _findByMaHS = (sfx) => {
+              if (!sfx) return null;
+              return files.find((f) => {
+                const n = f.name.toUpperCase().replace(/\.PDF$/, "");
+                if (!n.includes("+")) return false;
+                return n.split("+").map((s) => s.trim()).includes(sfx);
+              }) || null;
+            };
             let matchedFile = null;
             let warnSuffix = suffix;
             if (fileType === "GT") {
-              const gtSfxM = rowText.match(/\b(\d{3,}\+?)-GT\.PDF\b/i);
+              const gtSfxM = rowText.match(/\b(\d{3,}\+?)-GT(?:\.PDF)?(?![A-Z])/i);
               const gtSfxFull = gtSfxM ? gtSfxM[1] : null;
               const gtSfx = gtSfxFull ? gtSfxFull.replace(/\+$/, "").slice(-soChuSo) : null;
               warnSuffix = gtSfxFull || gtSfx || suffix;
               if (gtSfxFull) matchedFile = files.find((f) => f.name.toUpperCase().endsWith(gtSfxFull.toUpperCase() + "-GT.PDF"));
+              if (!matchedFile && soChuSo === 4) matchedFile = _findByMaHS(gtSfx);
               if (!matchedFile && gcnBase) matchedFile = files.find((f) => f.name.toUpperCase() === gcnBase + "-GT.PDF" || f.name.toUpperCase() === gcnBase + "+-GT.PDF");
               if (!matchedFile && gcnDir) matchedFile = files.find((f) => /GT\.PDF$/i.test(f.name) && (f.webkitRelativePath || "").startsWith(gcnDir + "/"));
               if (!matchedFile && soChuSo !== 4) {
@@ -806,7 +815,7 @@
                 }
               }
               if (!matchedFile) matchedFile = files.find((f) => /-GT\.PDF$/i.test(f.name)) || null;
-              if (!matchedFile && gtSfx) {
+              if (!matchedFile && gtSfx && !(gcnFile && gcnFile.name.includes("+"))) {
                 const s = gtSfx.toUpperCase();
                 matchedFile = files.find((f) => {
                   const n = f.name.toUpperCase();
@@ -816,11 +825,12 @@
               }
               if (!matchedFile && gcnFile && gcnFile.name.includes("+")) matchedFile = gcnFile;
             } else if (fileType === "PT") {
-              const ptSfxM = rowText.match(/\b(\d{3,}\+?)-PT\.PDF\b/i);
+              const ptSfxM = rowText.match(/\b(\d{3,}\+?)-PT(?:\.PDF)?(?![A-Z])/i);
               const ptSfxFull = ptSfxM ? ptSfxM[1] : null;
               const ptSfx = ptSfxFull ? ptSfxFull.replace(/\+$/, "").slice(-soChuSo) : null;
               warnSuffix = ptSfxFull || ptSfx || suffix;
               if (ptSfxFull) matchedFile = files.find((f) => f.name.toUpperCase().endsWith(ptSfxFull.toUpperCase() + "-PT.PDF"));
+              if (!matchedFile && soChuSo === 4) matchedFile = _findByMaHS(ptSfx);
               if (!matchedFile && gcnBase) matchedFile = files.find((f) => f.name.toUpperCase() === gcnBase + "-PT.PDF" || f.name.toUpperCase() === gcnBase + "+-PT.PDF");
               if (!matchedFile && gcnDir) matchedFile = files.find((f) => /PT\.PDF$/i.test(f.name) && (f.webkitRelativePath || "").startsWith(gcnDir + "/"));
               if (!matchedFile && soChuSo !== 4) {
@@ -835,7 +845,7 @@
                 }
               }
               if (!matchedFile) matchedFile = files.find((f) => /-PT\.PDF$/i.test(f.name)) || null;
-              if (!matchedFile && ptSfx) {
+              if (!matchedFile && ptSfx && !(gcnFile && gcnFile.name.includes("+"))) {
                 const s = ptSfx.toUpperCase();
                 matchedFile = files.find((f) => {
                   const n = f.name.toUpperCase();
@@ -895,7 +905,7 @@
               const rows = Array.from(tbGiayToDinhKem.querySelectorAll("tbody tr"));
               const hasLoadedFiles = rows.some((tr) => {
                 const text = tr.textContent.toUpperCase();
-                return text.includes("NHẬP THÔNG TIN") && (text.includes(".PDF") || text.includes("GT.PDF"));
+                return text.includes("NHẬP THÔNG TIN");
               });
               if (hasLoadedFiles) {
                 const btnDongList = Array.from(document.querySelectorAll(".modal-footer button, .panel-footer button")).filter((b) => {
@@ -1317,8 +1327,9 @@
                 const cb = row.querySelector('input[type="checkbox"]');
                 if (!cb) continue;
                 const fileName = (row.textContent || "").toUpperCase();
-                if (!fileName.includes(".PDF")) continue;
-                const isGtPt = /(GT|PT)\.PDF/.test(fileName);
+                const isGtPt = /(GT|PT)\.PDF/.test(fileName) || /[\d+]-(GT|PT)(?![A-Z])/.test(fileName);
+                const coTenFile = fileName.includes(".PDF") || isGtPt || /\d{3,}\+?-[A-ZĐ]{1,2}\s*\d{5,}/.test(fileName);
+                if (!coTenFile) continue;
                 let shouldKeep;
                 if (totalDons <= 1) {
                   shouldKeep = true;
@@ -1413,8 +1424,9 @@
               }
               let targetRow = rows.find((tr) => {
                 const t = tr.textContent.toUpperCase();
-                const isGtPt = /(?:GT|PT)\.PDF/.test(t);
-                return t.includes(".PDF") && t.includes("GIẤY TỜ HỒ SƠ") && !isGtPt;
+                const isGtPt = /(?:GT|PT)\.PDF/.test(t) || /[\d+]-(?:GT|PT)(?![A-Z])/.test(t);
+                const coTenFile = t.includes(".PDF") || /\d{3,}\+?-[A-ZĐ]{1,2}\s*\d{5,}/.test(t);
+                return coTenFile && t.includes("GIẤY TỜ HỒ SƠ") && !isGtPt;
               });
               if (targetRow) {
                 const editBtn = targetRow.querySelector("#btnEditHoSoQuet");
@@ -1669,7 +1681,17 @@
             topState.qt1ConfirmStreak = 0;
             if (topState.currentTaskCode === "QT4") topState.expectQT4Confirm = true;
             else if (topState.currentTaskCode && topState.currentTaskCode !== "QT1") topState.expectQT5Confirm = true;
-            clickElement(execBtn);
+            try {
+              execBtn.classList.add("mplis-highlight-target");
+              setTimeout(() => {
+                try {
+                  execBtn.classList.remove("mplis-highlight-target");
+                } catch (e) {
+                }
+              }, 1200);
+              execBtn.click();
+            } catch (e) {
+            }
             updateStatus("Chờ xác nhận...", "waiting");
             return;
           }
@@ -5191,7 +5213,7 @@
   var BTN_CLASS = "mplis-btn-copy-tenfile";
   var BTN_MARK = "data-mplis-tenfile";
   var MA_HS_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+)+-\d{6}-\d{3,}/i;
-  var DUOI = ".pdf";
+  var DUOI = "";
   var SPH_RE = /\b([A-ZĐ]{1,2})\s*(\d{5,})\b/;
   var GIAY_RE = /giấy\s+(in mới|thu hồi)/i;
   var GIAY_THU_HOI_RE = /thu hồi/i;
@@ -5567,8 +5589,8 @@
   }
   var COT_MOT_CUA_RE = /một cửa/i;
   var COT_TEN_RE = /tên giấy tờ/i;
-  var TEN_GCN_RE = /-[A-ZĐ]{1,2}\s*\d{5,}\.PDF$/;
-  var TEN_KEM_RE = /-(GT|PT)\.PDF$/;
+  var TEN_GCN_RE = /-[A-ZĐ]{1,2}\s*\d{5,}(\.PDF)?$/i;
+  var TEN_KEM_RE = /-(GT|PT)(\.PDF)?$/i;
   function layChiSoCot(hang, re) {
     if (!hang) return -1;
     const o = Array.from(hang.children);
@@ -5626,7 +5648,8 @@
       const o = Array.from(tr.children);
       const lech = Math.max(0, o.length - soOTieuDe);
       const ungVienTen = [o[cotTen], o[cotTen + lech]].filter(Boolean);
-      const ten = ungVienTen.map((x) => (x.textContent || "").replace(/\s+/g, " ").trim()).find((t) => /\.PDF$/i.test(t)) || (tr.textContent || "").replace(/\s+/g, " ").trim();
+      const ungVienTenStr = ungVienTen.map((x) => (x.textContent || "").replace(/\s+/g, " ").trim());
+      const ten = ungVienTenStr.find((t) => /\.PDF$/i.test(t)) || ungVienTenStr.find((t) => /-(GT|PT)$/i.test(t) || /-[A-ZĐ]{1,2}\s*\d{5,}$/i.test(t)) || (tr.textContent || "").replace(/\s+/g, " ").trim();
       const tenGon = ten.replace(/\s+/g, "").toUpperCase();
       const laGcn = TEN_GCN_RE.test(tenGon);
       const laKem = TEN_KEM_RE.test(tenGon);

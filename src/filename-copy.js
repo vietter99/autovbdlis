@@ -29,7 +29,7 @@ const BTN_MARK = 'data-mplis-tenfile';
 // Mã hồ sơ có số nhóm chấm khác nhau: "H15.50.05.12-260917-1436" và "H15.50-260625-0680" đều
 // hợp lệ, nên chỉ đòi CÓ dấu chấm, không đòi số lượng.
 const MA_HS_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+)+-\d{6}-\d{3,}/i;
-const DUOI = '.pdf';
+const DUOI = '';
 // Số phát hành: 1-2 chữ cái rồi dãy số, khoảng trắng ở giữa có hoặc không.
 // Giấy đời mới 2 chữ cái ("AA 09122325"), giấy cũ chỉ 1 chữ cái ("V 547970"). Bắt cứng 2 chữ cái
 // là bỏ sót sạch giấy cũ: không ra nút, không nhận dòng, không tích ô gửi về một cửa.
@@ -485,9 +485,9 @@ function ganThanhNut() {
 const COT_MOT_CUA_RE = /một cửa/i;
 const COT_TEN_RE = /tên giấy tờ/i;
 // "...-AA 09122314.pdf" hoặc "...-V 547970.pdf": hậu tố là Số phát hành -> dòng giấy chứng nhận.
-const TEN_GCN_RE = /-[A-ZĐ]{1,2}\s*\d{5,}\.PDF$/;
+const TEN_GCN_RE = /-[A-ZĐ]{1,2}\s*\d{5,}(\.PDF)?$/i;
 // "...-GT.pdf" / "...-PT.pdf" -> dòng giấy tờ kèm.
-const TEN_KEM_RE = /-(GT|PT)\.PDF$/;
+const TEN_KEM_RE = /-(GT|PT)(\.PDF)?$/i;
 
 function layChiSoCot(hang, re) {
     if (!hang) return -1;
@@ -572,8 +572,10 @@ function tuTichDongBo() {
         // Cột tên cũng lệch như cột một cửa, nên dò cả 2 vị trí rồi lấy ô nào ra tên file .pdf.
         const lech = Math.max(0, o.length - soOTieuDe);
         const ungVienTen = [o[cotTen], o[cotTen + lech]].filter(Boolean);
-        const ten = (ungVienTen.map(x => (x.textContent || '').replace(/\s+/g, ' ').trim())
-            .find(t => /\.PDF$/i.test(t)) || (tr.textContent || '').replace(/\s+/g, ' ').trim());
+        const ungVienTenStr = ungVienTen.map(x => (x.textContent || '').replace(/\s+/g, ' ').trim());
+        const ten = ungVienTenStr.find(t => /\.PDF$/i.test(t))
+            || ungVienTenStr.find(t => /-(GT|PT)$/i.test(t) || /-[A-ZĐ]{1,2}\s*\d{5,}$/i.test(t))
+            || (tr.textContent || '').replace(/\s+/g, ' ').trim();
         const tenGon = ten.replace(/\s+/g, '').toUpperCase();
 
         const laGcn = TEN_GCN_RE.test(tenGon);

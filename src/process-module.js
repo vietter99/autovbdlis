@@ -336,13 +336,13 @@ import { createModuleRuntime } from './module-runtime.js';
                             const longFmt = files.find(f => {
                                 const n = f.name.toUpperCase();
                                 if (/(GT|PT)\.PDF$/.test(n)) return false;
-                                return f.name.includes('-') && (n.endsWith(sfx + '+.PDF') || n.endsWith(sfx + '.PDF'));
+                                return f.name.includes('-') && (n.endsWith(sfx + '.PDF') || n.endsWith(sfx + '+.PDF'));
                             });
                             if (longFmt) return longFmt;
                             return files.find(f => {
                                 const n = f.name.toUpperCase();
                                 if (/(GT|PT)\.PDF$/.test(n)) return false;
-                                return n.endsWith(sfx + '+.PDF') || n.endsWith(sfx + '.PDF');
+                                return n.endsWith(sfx + '.PDF') || n.endsWith(sfx + '+.PDF');
                             });
                         };
                         let gcnFile = _findGcnBySuffix(suffix);
@@ -368,6 +368,17 @@ import { createModuleRuntime } from './module-runtime.js';
                             ? gcnFile.name.replace(/-[^-]+\.pdf$/i, '').toUpperCase()
                             : null;
 
+                        // Chế độ 4 số: file GT/PT đặt theo 4 số cuối mã hồ sơ + "+" ("0028+.pdf"),
+                        // hoặc file gộp nhiều mã ("0432+0435+.pdf")
+                        const _findByMaHS = (sfx) => {
+                            if (!sfx) return null;
+                            return files.find(f => {
+                                const n = f.name.toUpperCase().replace(/\.PDF$/, '');
+                                if (!n.includes('+')) return false;
+                                return n.split('+').map(s => s.trim()).includes(sfx);
+                            }) || null;
+                        };
+
                         let matchedFile = null;
                         let warnSuffix = suffix; // default cho GCN; PT/GT sẽ override
 
@@ -375,13 +386,15 @@ import { createModuleRuntime } from './module-runtime.js';
                             // Lấy suffix trực tiếp từ tên GT trong rowText
                             // VD: rowText có "H15...-1392-GT.PDF" → gtSfxFull = "1392"
                             // VD: rowText có "H15...-1392+-GT.PDF" → gtSfxFull = "1392+"
-                            const gtSfxM = rowText.match(/\b(\d{3,}\+?)-GT\.PDF\b/i);
+                            const gtSfxM = rowText.match(/\b(\d{3,}\+?)-GT(?:\.PDF)?(?![A-Z])/i);
                             const gtSfxFull = gtSfxM ? gtSfxM[1] : null;
                             const gtSfx = gtSfxFull ? gtSfxFull.replace(/\+$/, '').slice(-soChuSo) : null;
                             warnSuffix = gtSfxFull || gtSfx || suffix;
                             // 1. Trực tiếp từ rowText (chính xác nhất, tránh nhầm suffix cert)
                             if (gtSfxFull) matchedFile = files.find(f =>
                                 f.name.toUpperCase().endsWith(gtSfxFull.toUpperCase() + '-GT.PDF'));
+                            // 1b. Chế độ 4 số: file "<4 số mã hồ sơ>+.pdf" hoặc file gộp
+                            if (!matchedFile && soChuSo === 4) matchedFile = _findByMaHS(gtSfx);
                             // 2. gcnBase từ file GCN dài
                             if (!matchedFile && gcnBase) matchedFile = files.find(f =>
                                 f.name.toUpperCase() === gcnBase + '-GT.PDF' ||
@@ -405,7 +418,8 @@ import { createModuleRuntime } from './module-runtime.js';
                             if (!matchedFile) matchedFile = files.find(f => /-GT\.PDF$/i.test(f.name)) || null;
                             // 5.5. File tổng hợp nhiều số: suffix mã hồ sơ GT xuất hiện ở bất kỳ vị trí nào
                             // (VD: 1387+1391+1392+.pdf → tìm được kể cả khi 1391 ở giữa)
-                            if (!matchedFile && gtSfx) {
+                            // Bỏ qua nếu gcnFile đã là file riêng cho cert này (có "+") — để step 6 dùng gcnFile
+                            if (!matchedFile && gtSfx && !(gcnFile && gcnFile.name.includes('+'))) {
                                 const s = gtSfx.toUpperCase();
                                 matchedFile = files.find(f => {
                                     const n = f.name.toUpperCase();
@@ -420,13 +434,15 @@ import { createModuleRuntime } from './module-runtime.js';
                             // Lấy suffix trực tiếp từ tên PT trong rowText
                             // VD: rowText có "H15...-1392-PT.PDF" → ptSfxFull = "1392"
                             // VD: rowText có "H15...-1392+-PT.PDF" → ptSfxFull = "1392+"
-                            const ptSfxM = rowText.match(/\b(\d{3,}\+?)-PT\.PDF\b/i);
+                            const ptSfxM = rowText.match(/\b(\d{3,}\+?)-PT(?:\.PDF)?(?![A-Z])/i);
                             const ptSfxFull = ptSfxM ? ptSfxM[1] : null;
                             const ptSfx = ptSfxFull ? ptSfxFull.replace(/\+$/, '').slice(-soChuSo) : null;
                             warnSuffix = ptSfxFull || ptSfx || suffix;
                             // 1. Trực tiếp từ rowText (đúng cho cả 3-số và 4-số)
                             if (ptSfxFull) matchedFile = files.find(f =>
                                 f.name.toUpperCase().endsWith(ptSfxFull.toUpperCase() + '-PT.PDF'));
+                            // 1b. Chế độ 4 số: file "<4 số mã hồ sơ>+.pdf" hoặc file gộp
+                            if (!matchedFile && soChuSo === 4) matchedFile = _findByMaHS(ptSfx);
                             // 2. gcnBase từ file GCN dài
                             if (!matchedFile && gcnBase) matchedFile = files.find(f =>
                                 f.name.toUpperCase() === gcnBase + '-PT.PDF' ||
@@ -450,7 +466,8 @@ import { createModuleRuntime } from './module-runtime.js';
                             if (!matchedFile) matchedFile = files.find(f => /-PT\.PDF$/i.test(f.name)) || null;
                             // 5.5. File tổng hợp nhiều số: suffix mã hồ sơ PT xuất hiện ở bất kỳ vị trí nào
                             // (VD: 1387+1391+1392+.pdf → tìm được kể cả khi 1391 ở giữa)
-                            if (!matchedFile && ptSfx) {
+                            // Bỏ qua nếu gcnFile đã là file riêng cho cert này (có "+") — để step 6 dùng gcnFile
+                            if (!matchedFile && ptSfx && !(gcnFile && gcnFile.name.includes('+'))) {
                                 const s = ptSfx.toUpperCase();
                                 matchedFile = files.find(f => {
                                     const n = f.name.toUpperCase();
@@ -507,7 +524,7 @@ import { createModuleRuntime } from './module-runtime.js';
                             const rows = Array.from(tbGiayToDinhKem.querySelectorAll('tbody tr'));
                             const hasLoadedFiles = rows.some(tr => {
                                 const text = tr.textContent.toUpperCase();
-                                return text.includes('NHẬP THÔNG TIN') && (text.includes('.PDF') || text.includes('GT.PDF'));
+                                return text.includes('NHẬP THÔNG TIN');
                             });
 
                             if (hasLoadedFiles) {
@@ -930,17 +947,10 @@ import { createModuleRuntime } from './module-runtime.js';
                                 const cb = row.querySelector('input[type="checkbox"]');
                                 if (!cb) continue;
                                 const fileName = (row.textContent || '').toUpperCase();
-                                if (!fileName.includes('.PDF')) continue;
-
-                                // Quy tắc CHÍNH XÁC cho file gt/pt: tên file phải chứa đúng chuỗi
-                                // "GT.PDF"/"PT.PDF" (kể chữ hoa/thường, có/không có tiền tố Mã hồ sơ đứng
-                                // trước đều được). KHÔNG bắt buộc phải có khoảng trắng/ranh giới đứng ngay
-                                // trước/sau - vì textContent của dòng bảng có thể dính liền số thứ tự hoặc
-                                // cột kế bên mà không có khoảng trắng phân cách (tùy cấu trúc HTML), nếu bắt
-                                // buộc ranh giới sẽ bị bỏ sót. Đuôi ".PDF" đứng ngay sau "GT"/"PT" đã đủ đặc
-                                // trưng để không nhầm với văn bản tiếng Việt khác (không câu nào tình cờ có
-                                // đúng 4 ký tự ".PDF" ngay sau 2 chữ đó).
-                                const isGtPt = /(GT|PT)\.PDF/.test(fileName);
+                                // Tên file không còn đuôi .pdf thì chỉ nhận đúng dạng "<mã HS>-<SPH>" / "<mã HS>-GT|PT"
+                                const isGtPt = /(GT|PT)\.PDF/.test(fileName) || /[\d+]-(GT|PT)(?![A-Z])/.test(fileName);
+                                const coTenFile = fileName.includes('.PDF') || isGtPt || /\d{3,}\+?-[A-ZĐ]{1,2}\s*\d{5,}/.test(fileName);
+                                if (!coTenFile) continue;
 
                                 // Quy tắc lọc theo Số phát hành LUÔN chạy, kể cả khi bật "chọn hết file" -
                                 // chế độ đó chỉ tích THÊM phần còn lại chứ không thay thế bước lọc này.
@@ -1031,8 +1041,9 @@ import { createModuleRuntime } from './module-runtime.js';
 
                             let targetRow = rows.find(tr => {
                                 const t = tr.textContent.toUpperCase();
-                                const isGtPt = /(?:GT|PT)\.PDF/.test(t);
-                                return t.includes('.PDF') && t.includes('GIẤY TỜ HỒ SƠ') && !isGtPt;
+                                const isGtPt = /(?:GT|PT)\.PDF/.test(t) || /[\d+]-(?:GT|PT)(?![A-Z])/.test(t);
+                                const coTenFile = t.includes('.PDF') || /\d{3,}\+?-[A-ZĐ]{1,2}\s*\d{5,}/.test(t);
+                                return coTenFile && t.includes('GIẤY TỜ HỒ SƠ') && !isGtPt;
                             });
 
                             if (targetRow) {
@@ -1312,7 +1323,13 @@ import { createModuleRuntime } from './module-runtime.js';
                         topState.qt1ConfirmStreak = 0;
                         if (topState.currentTaskCode === 'QT4') topState.expectQT4Confirm = true;
                         else if (topState.currentTaskCode && topState.currentTaskCode !== 'QT1') topState.expectQT5Confirm = true;
-                        clickElement(execBtn);
+                        // Chỉ click 1 lần: clickElement() bắn cả el.click() lẫn MouseEvent('click')
+                        // nên nút "Thực hiện" bị kích hoạt 2 lần (gửi cập nhật pháp lý 2 lượt).
+                        try {
+                            execBtn.classList.add('mplis-highlight-target');
+                            setTimeout(() => { try { execBtn.classList.remove('mplis-highlight-target'); } catch (e) { } }, 1200);
+                            execBtn.click();
+                        } catch (e) { }
                         updateStatus("Chờ xác nhận...", "waiting");
                         return;
                     }
