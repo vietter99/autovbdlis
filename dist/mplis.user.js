@@ -498,7 +498,7 @@
       delayAction: 500,
       delayNext: 500,
       selectorMainProcess: "button:contains('Xử lý hồ sơ'), a:contains('Xử lý hồ sơ'), .btn-process",
-      selectorExecute: "button:contains('Thực hiện'), button:contains('Cập nhật'), button:contains('Chấp nhận'), button:contains('Đồng ý'), a:contains('Thực hiện')",
+      selectorExecute: "button:contains('Thực hiện'), button:contains('Cập nhật'), button:contains('Chấp nhận'), a:contains('Thực hiện')",
       selectorConfirm: "button:contains('Đồng ý'), button:contains('Xác nhận'), button:contains('OK'), button:contains('Có')"
     };
     const { getTopState, writeLog, updateStatus, incrementSuccess, setLastActionTime, saveConfig } = createModuleRuntime({
@@ -621,9 +621,10 @@
                   } catch (e) {
                   }
                 }, 3e3);
-                const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-                if (jq) jq(agreeBtn).click();
-                else clickElement(agreeBtn);
+                try {
+                  agreeBtn.click();
+                } catch (e) {
+                }
                 if (isQT1Confirm) topState.qt1ConfirmStreak = (topState.qt1ConfirmStreak || 0) + 1;
                 incrementSuccess();
                 updateStatus("Chờ xử lý...", "waiting");
@@ -641,9 +642,10 @@
                     } catch (e) {
                     }
                   }, 3e3);
-                  const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-                  if (jq) jq(okBtn).click();
-                  else clickElement(okBtn);
+                  try {
+                    okBtn.click();
+                  } catch (e) {
+                  }
                   setLastActionTime(now2, 500);
                   return;
                 }
@@ -692,9 +694,10 @@
               } catch (e) {
               }
             }, 3e3);
-            const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-            if (jq) jq(confirmBtn).click();
-            else clickElement(confirmBtn);
+            try {
+              confirmBtn.click();
+            } catch (e) {
+            }
             incrementSuccess();
             updateStatus("Chờ lưu...", "waiting");
             return;
