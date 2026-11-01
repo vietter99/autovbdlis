@@ -254,6 +254,21 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                             </div>
                             <div class="mplis-log" id="mplis-step-log-process">Sẵn sàng</div>
                         </div>
+
+                        <div class="mplis-card mplis-collapse" id="proc-log-group" style="margin-top:8px;">
+                            <button type="button" class="mplis-collapse-head" id="proc-log-toggle" aria-expanded="false" aria-controls="proc-log-body">
+                                <span class="mplis-section-label">Log chi tiết</span>
+                                <span class="mplis-collapse-state" id="proc-log-count-process" style="font-variant-numeric:tabular-nums;">0</span>
+                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="mplis-collapse-body" id="proc-log-body">
+                                <div id="mplis-log-area-process" style="max-height:180px; overflow-y:auto; font-family:'Consolas','Cascadia Code',monospace; font-size:11px; line-height:1.65; color:var(--mplis-text-dim); background:rgba(0,0,0,0.25); border-radius:6px; padding:6px 8px; word-break:break-all;"></div>
+                                <div style="display:flex; gap:6px; margin-top:6px;">
+                                    <button type="button" id="btn-proc-log-copy" class="mplis-btn-ghost" style="flex:1; font-size:11.5px; padding:7px;">Copy log</button>
+                                    <button type="button" id="btn-proc-log-clear" class="mplis-btn-ghost" style="padding:7px 14px; font-size:11.5px;">Xóa</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- TAB 2: ALERT -->
@@ -866,6 +881,32 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
         }
 
         veUploadState(null);
+
+        bindCollapse('proc-log-group', 'proc-log-toggle', 'mplis_proc_log_open');
+
+        document.getElementById('btn-proc-log-copy').onclick = () => {
+            const ts = ProcessModule.getTopState();
+            const lines = (ts && ts.logBuffer || []).map(e => {
+                const hh = new Date(e.t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                return '[' + hh + '] ' + e.msg;
+            }).join('\n');
+            if (!lines) return;
+            try { GM_setClipboard(lines); } catch (e) {
+                const ta = document.createElement('textarea'); ta.value = lines;
+                document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+            }
+            const btn = document.getElementById('btn-proc-log-copy');
+            if (btn) { const old = btn.textContent; btn.textContent = 'Đã copy!'; setTimeout(() => btn.textContent = old, 1800); }
+        };
+
+        document.getElementById('btn-proc-log-clear').onclick = () => {
+            const ts = ProcessModule.getTopState();
+            if (ts) ts.logBuffer = [];
+            const area = document.getElementById('mplis-log-area-process');
+            if (area) area.innerHTML = '';
+            const badge = document.getElementById('proc-log-count-process');
+            if (badge) badge.textContent = '0';
+        };
 
         bindCollapse('bypass-card', 'bypass-card-toggle', 'mplis_bypass_card_open');
         bindCollapse('qt2-file-group', 'qt2-file-toggle', 'mplis_qt2_file_open');

@@ -20,7 +20,28 @@ function createModuleRuntime({ globalStateKey, configStorageKey, defaultConfig, 
         if (!topWin[globalStateKey]) {
             topWin[globalStateKey] = {
                 isRunning: false, successCount: 0, lastActionTime: 0, currentLockDuration: 1200, config: loadConfig(),
-                writeLog: function (text) { console.log(logPrefix + text); const el = document.getElementById('mplis-step-log-' + domSuffix); if (el) el.textContent = text; },
+                logBuffer: [],
+                writeLog: function (text) {
+                    console.log(logPrefix + text);
+                    const el = document.getElementById('mplis-step-log-' + domSuffix);
+                    if (el) el.textContent = text;
+                    const entry = { t: Date.now(), msg: text };
+                    this.logBuffer.push(entry);
+                    if (this.logBuffer.length > 300) this.logBuffer.shift();
+                    const area = document.getElementById('mplis-log-area-' + domSuffix);
+                    if (area) {
+                        const line = document.createElement('div');
+                        const hh = new Date(entry.t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        line.textContent = '[' + hh + '] ' + text;
+                        if (/⚠️|LỖI|lỗi|dừng|DỪNG/.test(text)) line.style.color = '#f87171';
+                        else if (/✅|Hoàn thành|Thành công/.test(text)) line.style.color = '#4ade80';
+                        area.appendChild(line);
+                        if (area.children.length > 300) area.removeChild(area.firstChild);
+                        area.scrollTop = area.scrollHeight;
+                        const badge = document.getElementById('proc-log-count-' + domSuffix);
+                        if (badge) badge.textContent = this.logBuffer.length;
+                    }
+                },
                 updateStatus: function (text, type) {
                     const statusText = document.getElementById('mplis-status-text-' + domSuffix);
                     const statusDot = document.getElementById('mplis-status-dot-' + domSuffix);
