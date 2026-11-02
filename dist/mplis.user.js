@@ -766,15 +766,18 @@
             const sphSrc = rowSphM ? rowSphM[1] : sphList[0] || "";
             const sphNum = sphSrc.replace(/[^0-9]/g, "");
             const suffix = sphNum.slice(-soChuSo);
-            let files = topState.uploadFolderFiles;
-            const _dupFiles = files.filter((f) => {
+            const files = topState.uploadFolderFiles;
+            const _dupFile = files.find((f) => {
               const n = f.name.toUpperCase();
               if (/(GT|PT)\.PDF$/.test(n)) return false;
               return /\s\(\d+\)\.PDF$/.test(n) || /_\d+\.PDF$/.test(n);
             });
-            if (_dupFiles.length > 0) {
-              _dupFiles.forEach((f) => writeLog(`⚠️ Bỏ qua file bản sao Windows: "${f.name}"`));
-              files = files.filter((f) => !_dupFiles.includes(f));
+            if (_dupFile) {
+              writeLog(`⚠️ File bản sao: "${_dupFile.name}". Xoá bản sao rồi chọn lại thư mục.`);
+              updateStatus("File bản sao - Dừng", "idle");
+              if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function")
+                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ File bản sao Windows: "${_dupFile.name}" — xoá rồi chọn lại thư mục`);
+              return;
             }
             const _findGcnBySuffix = (sfx) => {
               if (!sfx) return null;
