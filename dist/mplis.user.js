@@ -773,10 +773,10 @@
               return /\s\(\d+\)\.PDF$/.test(n) || /_\d+\.PDF$/.test(n);
             });
             if (_dupFile) {
-              writeLog(`⚠️ File bản sao: "${_dupFile.name}". Xoá bản sao rồi chọn lại thư mục.`);
-              updateStatus("File bản sao - Dừng", "idle");
+              writeLog(`⚠️ Có 2 file cùng mã: "${_dupFile.name}". Dừng — upload thủ công file đúng.`);
+              updateStatus("2 file cùng mã - Dừng", "idle");
               if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function")
-                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ File bản sao Windows: "${_dupFile.name}" — xoá rồi chọn lại thư mục`);
+                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ Có 2 file cùng mã: "${_dupFile.name}" — upload thủ công file đúng`);
               return;
             }
             const _findGcnBySuffix = (sfx) => {
