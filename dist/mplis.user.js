@@ -1696,11 +1696,19 @@
           const isInsideFwd = visibleExecBtns[0].closest("#frmChuyenTiepHoSo_tbUsers, .modal-chuyentiep");
           if (!isInsideFwd) {
             const execBtn = visibleExecBtns[0];
+            if (execBtn.hasAttribute("data-mplis-clicked")) return;
             setLastActionTime(now2, topState.config.delayAction);
             writeLog("Tìm thấy nút 'Thực hiện'. Đang click...");
             topState.qt1ConfirmStreak = 0;
             if (topState.currentTaskCode === "QT4") topState.expectQT4Confirm = true;
             else if (topState.currentTaskCode && topState.currentTaskCode !== "QT1") topState.expectQT5Confirm = true;
+            execBtn.setAttribute("data-mplis-clicked", "true");
+            setTimeout(() => {
+              try {
+                execBtn.removeAttribute("data-mplis-clicked");
+              } catch (e) {
+              }
+            }, 5e3);
             try {
               execBtn.classList.add("mplis-highlight-target");
               setTimeout(() => {
