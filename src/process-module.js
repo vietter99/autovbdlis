@@ -308,18 +308,17 @@ import { createModuleRuntime } from './module-runtime.js';
                         const sphNum = sphSrc.replace(/[^0-9]/g, '');
                         const suffix = sphNum.slice(-soChuSo);
                         const files = topState.uploadFolderFiles;
-                        // Phát hiện file bản sao Windows: "1111+_1.pdf", "7456 (1).pdf" v.v.
-                        // Dừng để người dùng xóa bản sao rồi chọn lại thư mục đúng
-                        const _dupFile = files.find(f => {
+                        // Nếu mã đang xử lý khớp 2+ file → 2 GCN cùng số → dừng upload thủ công
+                        const _sameCodeFiles = files.filter(f => {
                             const n = f.name.toUpperCase();
                             if (/(GT|PT)\.PDF$/.test(n)) return false;
-                            return /\s\(\d+\)\.PDF$/.test(n) || /_\d+\.PDF$/.test(n);
+                            return n.endsWith(suffix + '.PDF') || n.endsWith(suffix + '+.PDF');
                         });
-                        if (_dupFile) {
-                            writeLog(`⚠️ Có 2 file cùng mã: "${_dupFile.name}". Dừng — upload thủ công file đúng.`);
+                        if (_sameCodeFiles.length > 1) {
+                            writeLog(`⚠️ Mã ...${suffix}: có ${_sameCodeFiles.length} file cùng khớp. Dừng — upload thủ công.`);
                             updateStatus('2 file cùng mã - Dừng', 'idle');
                             if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function')
-                                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ Có 2 file cùng mã: "${_dupFile.name}" — upload thủ công file đúng`);
+                                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ Mã ...${suffix} có ${_sameCodeFiles.length} file — upload thủ công`);
                             return;
                         }
                         // Tìm file GCN theo suffix của dòng này trước
