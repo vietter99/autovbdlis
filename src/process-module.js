@@ -307,20 +307,17 @@ import { createModuleRuntime } from './module-runtime.js';
                         const sphSrc = rowSphM ? rowSphM[1] : (sphList[0] || '');
                         const sphNum = sphSrc.replace(/[^0-9]/g, '');
                         const suffix = sphNum.slice(-soChuSo);
-                        const files = topState.uploadFolderFiles;
+                        let files = topState.uploadFolderFiles;
                         // Phát hiện file bản sao Windows: "1111+_1.pdf", "7456 (1).pdf" v.v.
-                        // Mỗi mã GCN chỉ được 1 file — bản sao là lỗi thư mục, dừng để xử lý tay
-                        const _dupFile = files.find(f => {
+                        // Tự bỏ qua bản sao, cảnh báo log rồi chạy tiếp với file gốc
+                        const _dupFiles = files.filter(f => {
                             const n = f.name.toUpperCase();
                             if (/(GT|PT)\.PDF$/.test(n)) return false;
                             return /\s\(\d+\)\.PDF$/.test(n) || /_\d+\.PDF$/.test(n);
                         });
-                        if (_dupFile) {
-                            writeLog(`⚠️ File bản sao: "${_dupFile.name}". Xoá bản sao rồi chọn lại thư mục.`);
-                            updateStatus('File bản sao - Dừng', 'idle');
-                            if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function')
-                                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ File bản sao Windows: "${_dupFile.name}" — xoá rồi chọn lại thư mục`);
-                            return;
+                        if (_dupFiles.length > 0) {
+                            _dupFiles.forEach(f => writeLog(`⚠️ Bỏ qua file bản sao Windows: "${f.name}"`));
+                            files = files.filter(f => !_dupFiles.includes(f));
                         }
                         // Tìm file GCN theo suffix của dòng này trước
                         // Ưu tiên file tên DÀI (có "-") để gcnBase đúng khi tra PT/GT sau
