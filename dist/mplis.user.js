@@ -781,17 +781,15 @@
             }
             const _findGcnBySuffix = (sfx) => {
               if (!sfx) return null;
-              const longFmt = files.find((f) => {
+              const _match = (f) => {
                 const n = f.name.toUpperCase();
                 if (/(GT|PT)\.PDF$/.test(n)) return false;
-                return f.name.includes("-") && (n.endsWith(sfx + ".PDF") || n.endsWith(sfx + "+.PDF"));
-              });
+                if (n.endsWith(sfx + ".PDF") || n.endsWith(sfx + "+.PDF")) return true;
+                return n.replace(/\.PDF$/, "").split("+").some((p) => p && p.endsWith(sfx));
+              };
+              const longFmt = files.find((f) => f.name.includes("-") && _match(f));
               if (longFmt) return longFmt;
-              return files.find((f) => {
-                const n = f.name.toUpperCase();
-                if (/(GT|PT)\.PDF$/.test(n)) return false;
-                return n.endsWith(sfx + ".PDF") || n.endsWith(sfx + "+.PDF");
-              });
+              return files.find((f) => _match(f));
             };
             let gcnFile = _findGcnBySuffix(suffix);
             if (!gcnFile && sphList.length > 0) {
