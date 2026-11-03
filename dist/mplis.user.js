@@ -5752,19 +5752,11 @@
   });
 
   // src/notify-capture.js
-  var ENABLED_KEY2 = "mplis_notify_capture_enabled";
   var WORK_LOGGED_KEY = "mplis_notify_logged";
   var WORK_SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
   var NOTIFY_ACCOUNT_FILTER_KEY = "mplis_notify_account_filter";
   var NOTIFY_RESOLVED_KEY = "mplis_notify_resolved";
   var _workPending = /* @__PURE__ */ new Set();
-  function isNotifyCaptureEnabled() {
-    try {
-      return localStorage.getItem(ENABLED_KEY2) !== "false";
-    } catch (e) {
-      return true;
-    }
-  }
   function getNotifyAccountFilter() {
     try {
       return (localStorage.getItem(NOTIFY_ACCOUNT_FILTER_KEY) || "").trim().toLowerCase();
@@ -5962,10 +5954,6 @@
     });
   }
   function pollWorkList() {
-    if (!isNotifyCaptureEnabled()) {
-      console.log("[Notify] Tắt trong Cài đặt - bỏ qua quét GetXuLyCongViec.");
-      return;
-    }
     const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
     if (!jq || !jq.ajax) {
       console.log("[Notify] Không tìm thấy jQuery ($) trên trang, không thể gọi GetXuLyCongViec.");
@@ -6033,11 +6021,11 @@
   }
 
   // src/spatial-link-bypass.js
-  var ENABLED_KEY3 = "mplis_bypass_spatial_link_enabled";
+  var ENABLED_KEY2 = "mplis_bypass_spatial_link_enabled";
   var ENDPOINT = "ThucHienKetISO";
   function isSpatialLinkBypassEnabled() {
     try {
-      return localStorage.getItem(ENABLED_KEY3) === "true";
+      return localStorage.getItem(ENABLED_KEY2) === "true";
     } catch (e) {
       return false;
     }
@@ -6088,11 +6076,11 @@
   installFetchPatch();
 
   // src/dakyso-bypass.js
-  var ENABLED_KEY4 = "mplis_bypass_dakyso_enabled";
+  var ENABLED_KEY3 = "mplis_bypass_dakyso_enabled";
   var ENDPOINT2 = "UpdateHoSoQuetExistFile";
   function isBypassEnabled() {
     try {
-      return localStorage.getItem(ENABLED_KEY4) === "true";
+      return localStorage.getItem(ENABLED_KEY3) === "true";
     } catch (e) {
       return false;
     }
