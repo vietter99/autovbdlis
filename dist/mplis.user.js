@@ -5754,33 +5754,7 @@
   // src/notify-capture.js
   var WORK_LOGGED_KEY = "mplis_notify_logged";
   var WORK_SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
-  var NOTIFY_ACCOUNT_FILTER_KEY = "mplis_notify_account_filter";
   var NOTIFY_RESOLVED_KEY = "mplis_notify_resolved";
-  var _workPending = /* @__PURE__ */ new Set();
-  function getNotifyAccountFilter() {
-    try {
-      return (localStorage.getItem(NOTIFY_ACCOUNT_FILTER_KEY) || "").trim().toLowerCase();
-    } catch (e) {
-      return "";
-    }
-  }
-  function isWorkLogged(soBienNhan) {
-    try {
-      const stored = JSON.parse(localStorage.getItem(WORK_LOGGED_KEY) || "{}");
-      return !!stored[soBienNhan];
-    } catch (e) {
-      return false;
-    }
-  }
-  function markWorkLogged(soBienNhan) {
-    try {
-      const stored = JSON.parse(localStorage.getItem(WORK_LOGGED_KEY) || "{}");
-      stored[soBienNhan] = true;
-      localStorage.setItem(WORK_LOGGED_KEY, JSON.stringify(stored));
-    } catch (e) {
-    }
-    _workPending.delete(soBienNhan);
-  }
   function getWorkSheetUrl() {
     try {
       return (localStorage.getItem(WORK_SHEET_URL_KEY) || "").trim();
@@ -5804,11 +5778,6 @@
     } catch (e) {
     }
   }
-  function extractXa(diaChiTaiSan) {
-    if (!diaChiTaiSan) return "";
-    const m = diaChiTaiSan.match(/(?:Xã|Phường|Thị trấn)\s+([^,]+)/i);
-    return m ? m[1].trim() : "";
-  }
   function parseAspNetDate(str) {
     if (!str) return "";
     const m = str.match(/\/Date\((\d+)\)\//);
@@ -5819,48 +5788,6 @@
     const hh = String(d.getHours()).padStart(2, "0");
     const mi = String(d.getMinutes()).padStart(2, "0");
     return `${dd}/${mm}/${d.getFullYear()} ${hh}:${mi}`;
-  }
-  function pushWork(item) {
-    const url = getWorkSheetUrl();
-    if (!url) {
-      console.log("[Notify] Bỏ qua đẩy - chưa cấu hình link Sheet (ô 🔗 ở tab Excel).");
-      return;
-    }
-    if (typeof GM_xmlhttpRequest === "undefined") {
-      console.log("[Notify] Bỏ qua đẩy - GM_xmlhttpRequest không khả dụng.");
-      return;
-    }
-    const record = {
-      bucket: "thongbao",
-      maHS: item.soBienNhan || "",
-      ngayNhan: parseAspNetDate(item.ngayPhanCong),
-      nguoiChuyen: item.tenNguoiChuyenTiep || "",
-      nguoiNop: item.nguoiNopDon ? item.nguoiNopDon.hoTen || "" : "",
-      xa: extractXa(item.diaChiTaiSan),
-      tenTTHC: item.quytrinh ? item.quytrinh.SchemaName || "" : ""
-    };
-    _workPending.add(item.soBienNhan);
-    gmxhr({
-      method: "POST",
-      url,
-      data: JSON.stringify(record),
-      headers: { "Content-Type": "application/json" },
-      onload: function(res) {
-        console.log("[Notify] Phản hồi từ Sheet:", res.status, res.responseText);
-        try {
-          const body = JSON.parse(res.responseText);
-          if (body.ok) markWorkLogged(item.soBienNhan);
-          else _workPending.delete(item.soBienNhan);
-        } catch (e) {
-          console.log("[Notify] Không parse được phản hồi JSON:", e);
-          _workPending.delete(item.soBienNhan);
-        }
-      },
-      onerror: function(err) {
-        console.log("[Notify] Lỗi kết nối khi đẩy lên Sheet:", err);
-        _workPending.delete(item.soBienNhan);
-      }
-    });
   }
   function formatTrangThaiChiTiet(item) {
     if (item.daTra) {
@@ -5953,70 +5880,7 @@
       }, idx * STATUS_POLL_DELAY_MS);
     });
   }
-  function pollWorkList() {
-    const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-    if (!jq || !jq.ajax) {
-      console.log("[Notify] Không tìm thấy jQuery ($) trên trang, không thể gọi GetXuLyCongViec.");
-      return;
-    }
-    console.log("[Notify] Đang quét GetXuLyCongViec (qua $.ajax của trang)...");
-    jq.ajax({
-      url: "https://dla.mplis.gov.vn/dc/DangKyAjax/GetXuLyCongViec",
-      method: "POST",
-      data: {
-        draw: 1,
-        "columns[0][data]": "stt",
-        "columns[0][name]": "",
-        "columns[0][searchable]": true,
-        "columns[0][orderable]": false,
-        "columns[0][search][value]": "",
-        "columns[0][search][regex]": false,
-        "columns[1][data]": "soBienNhan",
-        "columns[1][name]": "",
-        "columns[1][searchable]": true,
-        "columns[1][orderable]": false,
-        "columns[1][search][value]": "",
-        "columns[1][search][regex]": false,
-        "order[0][column]": 0,
-        "order[0][dir]": "asc",
-        start: 0,
-        length: 100,
-        "search[value]": "",
-        "search[regex]": false,
-        query: "",
-        soNgayCanhBaoHoSoSapDenNgayTra: 7,
-        sortField: "ngayhenTra",
-        sortDirection: "asc",
-        filterBy: 0
-      }
-    }).done((json) => {
-      if (!json || !Array.isArray(json.data)) {
-        console.log("[Notify] Phản hồi GetXuLyCongViec không đúng dạng mong đợi:", json);
-        return;
-      }
-      console.log(`[Notify] Nhận được ${json.data.length} hồ sơ đang cần xử lý.`);
-      const accountFilter = getNotifyAccountFilter();
-      const newItems = json.data.filter((item) => {
-        if (!item.soBienNhan) return false;
-        if (accountFilter) {
-          const owner = (item.nguoiTiepNhan || item.tenNguoiTiepNhan || "").trim().toLowerCase();
-          if (owner !== accountFilter) return false;
-        }
-        return !_workPending.has(item.soBienNhan) && !isWorkLogged(item.soBienNhan);
-      });
-      if (accountFilter && json.data.length > 0 && newItems.length === 0) {
-        const sample = json.data[0];
-        console.log('[Notify] Lọc theo TK "' + accountFilter + '" không khớp hồ sơ nào. Mẫu 1 hồ sơ để kiểm tra tên trường:', sample);
-      }
-      newItems.forEach((item, idx) => {
-        setTimeout(() => pushWork(item), idx * STATUS_POLL_DELAY_MS);
-      });
-    }).fail((xhr) => {
-      console.log("[Notify] Lỗi khi gọi GetXuLyCongViec:", xhr.status, xhr.responseText);
-    });
-  }
   if (window === window.top) {
-    setTimeout(pollWorkList, 3e3);
     topWin.MPLIS_POLL_ALL_STATUSES = pollAllStatuses;
   }
 

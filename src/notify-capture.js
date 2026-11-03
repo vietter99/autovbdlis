@@ -300,10 +300,6 @@ function pollWorkList() {
     });
 }
 
-// Chỉ tự quét hồ sơ MỚI (pollWorkList) 1 lần lúc tải trang (F5). Tra trạng thái toàn bộ
-// (pollAllStatuses) KHÔNG tự chạy nữa - quá nặng nếu có vài chục hồ sơ đang theo dõi, chỉ chạy
-// khi người dùng chủ động bấm nút "Tra trạng thái" ở tab Excel (xem inject-panel.js).
 if (window === window.top) {
-    setTimeout(pollWorkList, 3000);
     topWin.MPLIS_POLL_ALL_STATUSES = pollAllStatuses;
 }
