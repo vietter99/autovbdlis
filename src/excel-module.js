@@ -47,12 +47,6 @@ import { gmxhr } from './mplis-logger.js';
         const SHEET_URL_KEY = 'mplis_excel_sheet_url_mine';
         const PUSHABLE_BUCKETS = MY_COMMUNES.map(c => c.key).concat(['khac', 'thechap', 'xacnhan']);
 
-        // Tài khoản dùng để lọc dữ liệu "Thông báo nhận HS" (notify-capture.js đọc key này) - dùng
-        // chung ô cấu hình 🔗 ở đây cho gọn, dù logic lọc thật sự nằm ở module khác.
-        const NOTIFY_ACCOUNT_FILTER_KEY = 'mplis_notify_account_filter';
-        function getNotifyAccountFilter() {
-            try { return (localStorage.getItem(NOTIFY_ACCOUNT_FILTER_KEY) || '').trim(); } catch (e) { return ''; }
-        }
 
         // Sheet Thế chấp không có "Ngày ký GCN" như của tôi, thay vào đó có cột NGÀY suy ra từ
         // chính Mã hồ sơ: 2 số đầu của mã (VD "26-1919") là NGÀY, còn tháng/năm lấy theo thời điểm
@@ -204,24 +198,11 @@ import { gmxhr } from './mplis-logger.js';
                 };
             }
 
-            // Tài khoản dùng để lọc "Thông báo nhận HS" (nguoiTiepNhan trong GetXuLyCongViec) -
-            // cần thiết vì đồng nghiệp cùng dùng tool này sẽ thấy chung API, không lọc sẽ lẫn hồ sơ.
-            const accountFilterInput = document.getElementById('cfg-notify-account-filter');
-            if (accountFilterInput) {
-                accountFilterInput.value = getNotifyAccountFilter();
-                accountFilterInput.oninput = () => {
-                    try { localStorage.setItem(NOTIFY_ACCOUNT_FILTER_KEY, accountFilterInput.value.trim()); } catch (e) { }
-                };
-            }
-
             const btnToggleSheetCfg = document.getElementById('btn-toggle-sheet-cfg');
             const sheetCfgRow = document.getElementById('excel-sheet-cfg-row');
-            const accountFilterRow = document.getElementById('excel-account-filter-row');
             if (btnToggleSheetCfg && sheetCfgRow) {
                 btnToggleSheetCfg.onclick = () => {
-                    const nextDisplay = sheetCfgRow.style.display === 'none' ? 'flex' : 'none';
-                    sheetCfgRow.style.display = nextDisplay;
-                    if (accountFilterRow) accountFilterRow.style.display = nextDisplay;
+                    sheetCfgRow.style.display = sheetCfgRow.style.display === 'none' ? 'flex' : 'none';
                 };
             }
 

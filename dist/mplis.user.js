@@ -3020,14 +3020,6 @@
     };
     const SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
     const PUSHABLE_BUCKETS = MY_COMMUNES.map((c) => c.key).concat(["khac", "thechap", "xacnhan"]);
-    const NOTIFY_ACCOUNT_FILTER_KEY2 = "mplis_notify_account_filter";
-    function getNotifyAccountFilter2() {
-      try {
-        return (localStorage.getItem(NOTIFY_ACCOUNT_FILTER_KEY2) || "").trim();
-      } catch (e) {
-        return "";
-      }
-    }
     function deriveNgayFromMaHS(maHS) {
       if (!maHS) return "";
       const m = maHS.match(/^(\d{1,2})-/);
@@ -3168,24 +3160,11 @@
           }
         };
       }
-      const accountFilterInput = document.getElementById("cfg-notify-account-filter");
-      if (accountFilterInput) {
-        accountFilterInput.value = getNotifyAccountFilter2();
-        accountFilterInput.oninput = () => {
-          try {
-            localStorage.setItem(NOTIFY_ACCOUNT_FILTER_KEY2, accountFilterInput.value.trim());
-          } catch (e) {
-          }
-        };
-      }
       const btnToggleSheetCfg = document.getElementById("btn-toggle-sheet-cfg");
       const sheetCfgRow = document.getElementById("excel-sheet-cfg-row");
-      const accountFilterRow = document.getElementById("excel-account-filter-row");
       if (btnToggleSheetCfg && sheetCfgRow) {
         btnToggleSheetCfg.onclick = () => {
-          const nextDisplay = sheetCfgRow.style.display === "none" ? "flex" : "none";
-          sheetCfgRow.style.display = nextDisplay;
-          if (accountFilterRow) accountFilterRow.style.display = nextDisplay;
+          sheetCfgRow.style.display = sheetCfgRow.style.display === "none" ? "flex" : "none";
         };
       }
       const btnTestSheetLink = document.getElementById("btn-test-sheet-link");
@@ -4207,10 +4186,6 @@
                         <div id="excel-sheet-cfg-row" style="display:none; align-items:center; gap:6px; margin-bottom:8px;">
                             <label for="cfg-excel-sheet-url" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Sheet:</label>
                             <input type="text" id="cfg-excel-sheet-url" placeholder="Dán link Web App Google Apps Script..." style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px;">
-                        </div>
-                        <div id="excel-account-filter-row" style="display:none; align-items:center; gap:6px; margin-bottom:8px;">
-                            <label for="cfg-notify-account-filter" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">TK lọc:</label>
-                            <input type="text" id="cfg-notify-account-filter" placeholder="VD: dla.vietpq" style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px;">
                         </div>
                         <div style="flex:1; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px; max-height:190px;">
                             <table id="table-excel-cart" style="width:100%; font-size:12px; color:#f8fafc; border-collapse:collapse; text-align:center;">
@@ -6033,9 +6008,6 @@
       }
       console.log(`[Notify] Nhận được ${json.data.length} hồ sơ đang cần xử lý.`);
       const accountFilter = getNotifyAccountFilter();
-      if (!accountFilter) {
-        console.log('[Notify] ⚠️ CHƯA cấu hình "TK lọc (Th.báo HS)" ở tab Excel (🔗) - sẽ đẩy TẤT CẢ hồ sơ trả về, kể cả của đồng nghiệp nếu API trả về chung cho cả đơn vị.');
-      }
       const newItems = json.data.filter((item) => {
         if (!item.soBienNhan) return false;
         if (accountFilter) {

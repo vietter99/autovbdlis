@@ -283,9 +283,6 @@ function pollWorkList() {
         }
         console.log(`[Notify] Nhận được ${json.data.length} hồ sơ đang cần xử lý.`);
         const accountFilter = getNotifyAccountFilter();
-        if (!accountFilter) {
-            console.log('[Notify] ⚠️ CHƯA cấu hình "TK lọc (Th.báo HS)" ở tab Excel (🔗) - sẽ đẩy TẤT CẢ hồ sơ trả về, kể cả của đồng nghiệp nếu API trả về chung cho cả đơn vị.');
-        }
         // Chỉ đẩy hồ sơ MỚI (chưa từng đẩy) - và đẩy TUẦN TỰ (cách nhau STATUS_POLL_DELAY_MS)
         // thay vì cùng lúc, phòng trường hợp phát hiện nhiều chục hồ sơ mới 1 lượt (VD lần đầu
         // dùng tool) làm nhiều request tới Apps Script cùng lúc, dễ gây mất dữ liệu (xem doPost).
