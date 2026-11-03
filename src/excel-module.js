@@ -225,6 +225,36 @@ import { gmxhr } from './mplis-logger.js';
                 };
             }
 
+            const btnTestSheetLink = document.getElementById('btn-test-sheet-link');
+            if (btnTestSheetLink) {
+                btnTestSheetLink.onclick = () => {
+                    const url = getSheetUrl();
+                    if (!url) { setSheetStatus('❌ chưa cấu hình link', false); return; }
+                    if (typeof GM_xmlhttpRequest === 'undefined') { setSheetStatus('❌ GM_xmlhttpRequest không khả dụng', false); return; }
+                    setSheetStatus('⏳ đang kiểm tra...', true);
+                    btnTestSheetLink.disabled = true;
+                    gmxhr({
+                        method: 'GET',
+                        url: url + (url.includes('?') ? '&' : '?') + 'ping=1',
+                        onload: function(res) {
+                            btnTestSheetLink.disabled = false;
+                            try {
+                                const body = JSON.parse(res.responseText);
+                                if (body.ok) setSheetStatus('✅ link hoạt động', true);
+                                else setSheetStatus('❌ ' + (body.error || 'lỗi từ Script'), false);
+                            } catch (e) {
+                                if (res.status >= 200 && res.status < 300) setSheetStatus('✅ link phản hồi', true);
+                                else setSheetStatus('❌ lỗi HTTP ' + res.status, false);
+                            }
+                        },
+                        onerror: function() {
+                            btnTestSheetLink.disabled = false;
+                            setSheetStatus('❌ lỗi kết nối', false);
+                        }
+                    });
+                };
+            }
+
 
             // Bắt sự kiện ở tầng cao nhất (Window) để đánh bại hoàn toàn các lớp chặn click của VBDLIS
             window.addEventListener('mousedown', (e) => {

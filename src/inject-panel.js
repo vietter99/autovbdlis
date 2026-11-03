@@ -306,6 +306,7 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; padding:8px 10px; background:rgba(255,255,255,0.04); border:1px solid var(--mplis-border); border-radius:10px;">
                             <button id="btn-toggle-sheet-cfg" class="mplis-btn-ghost" style="width:30px; height:30px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:8px; flex-shrink:0;" title="Cấu hình link Google Sheet" aria-label="Cấu hình link Google Sheet">${ICON_LINK}</button>
                             <span id="excel-sheet-status" style="font-size:12px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+                            <button id="btn-test-sheet-link" class="mplis-btn-ghost" style="width:26px; height:26px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:7px; flex-shrink:0;" title="Kiểm tra link Sheet còn hoạt động không" aria-label="Kiểm tra link Sheet">${ICON_REFRESH}</button>
                             <span style="flex-shrink:0; font-size:11px; color:var(--mplis-text-dim);">Hồ sơ: <b id="excel-count" style="color:#fde047; font-variant-numeric:tabular-nums;">0</b></span>
                         </div>
                         <div id="excel-sheet-cfg-row" style="display:none; align-items:center; gap:6px; margin-bottom:8px;">
