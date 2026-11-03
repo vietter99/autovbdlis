@@ -216,8 +216,8 @@
             --mplis-bg-soft: #0d1225;
             --mplis-surface: rgba(255,255,255,0.045);
             --mplis-surface-hover: rgba(255,255,255,0.085);
-            --mplis-border: rgba(148,163,184,0.16);
-            --mplis-border-strong: rgba(148,163,184,0.28);
+            --mplis-border: rgba(148,163,184,0.22);
+            --mplis-border-strong: rgba(148,163,184,0.38);
             --mplis-text: #eef2f8;
             --mplis-text-dim: #8494b0;
             --mplis-accent: #6366f1;
@@ -338,7 +338,7 @@
         .mplis-btn-ghost { background: rgba(255,255,255,0.05) !important; border: 1px solid var(--mplis-border) !important; color: var(--mplis-text) !important; border-radius: 9px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
         .mplis-btn-ghost:hover { background: rgba(255,255,255,0.09) !important; border-color: var(--mplis-border-strong) !important; }
 
-        .mplis-status-bar { margin-top: 8px !important; background: rgba(0,0,0,0.3) !important; border-radius: 10px !important; padding: 7px 10px !important; border: 1px solid rgba(148,163,184,0.12) !important; box-shadow: inset 0 1px 0 rgba(0,0,0,0.3); }
+        .mplis-status-bar { margin-top: 8px !important; background: linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.018)) !important; border-radius: 10px !important; padding: 7px 10px !important; border: 1px solid var(--mplis-border) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04); }
         .mplis-status-row { display: flex !important; justify-content: space-between !important; align-items: center !important; font-size: 12px !important; }
         .mplis-status-lbl { display: flex !important; align-items: center !important; gap: 7px !important; color: #c8d3e8 !important; }
         .mplis-status-dot { width: 8px !important; height: 8px !important; border-radius: 50% !important; background-color: #4a5568 !important; flex-shrink: 0; }
@@ -4195,6 +4195,7 @@
                                 <tbody></tbody>
                             </table>
                         </div>
+                        <button id="btn-poll-statuses" class="mplis-btn-primary" style="width:100%; margin-bottom:6px; background:linear-gradient(135deg,#0ea5e9,#0369a1);" title="Tra lại trạng thái cho tất cả hồ sơ đã ghi nhận, cập nhật vào Google Sheet">Tra trạng thái Sheet</button>
                         <div style="display:flex; gap:8px;">
                             <button id="btn-excel-copy" class="mplis-btn-primary" style="flex:1; background:linear-gradient(135deg,#8b5cf6,#7c3aed);" title="Copy bảng đang xem">COPY</button>
                             <button id="btn-excel-clear" class="mplis-btn-primary" style="flex:0.35; background:linear-gradient(135deg,#f43f5e,#e11d48);" title="Xóa bảng đang xem">XÓA</button>
@@ -4788,6 +4789,40 @@
     });
     document.getElementById("btn-toggle-process").onclick = toggleProcess;
     document.getElementById("btn-toggle-return").onclick = toggleReturn;
+    const btnPollStatuses = document.getElementById("btn-poll-statuses");
+    if (btnPollStatuses) {
+      btnPollStatuses.onclick = () => {
+        const fn = topWin.MPLIS_POLL_ALL_STATUSES;
+        if (typeof fn !== "function") {
+          btnPollStatuses.textContent = "Không khả dụng";
+          setTimeout(() => {
+            btnPollStatuses.textContent = "Tra trạng thái Sheet";
+          }, 2e3);
+          return;
+        }
+        btnPollStatuses.disabled = true;
+        btnPollStatuses.textContent = "Đang tra...";
+        fn((done, total) => {
+          if (total === 0) {
+            btnPollStatuses.textContent = "Không có hồ sơ";
+            setTimeout(() => {
+              btnPollStatuses.disabled = false;
+              btnPollStatuses.textContent = "Tra trạng thái Sheet";
+            }, 2e3);
+            return;
+          }
+          if (done >= total) {
+            btnPollStatuses.textContent = "Xong · " + total + " hồ sơ";
+            setTimeout(() => {
+              btnPollStatuses.disabled = false;
+              btnPollStatuses.textContent = "Tra trạng thái Sheet";
+            }, 2500);
+          } else {
+            btnPollStatuses.textContent = done + "/" + total + "...";
+          }
+        });
+      };
+    }
     AlertModule.init();
     ExcelModule.init();
     UpdateParcelModule.init();

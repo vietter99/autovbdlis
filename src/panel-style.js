@@ -4,8 +4,8 @@
             --mplis-bg-soft: #0d1225;
             --mplis-surface: rgba(255,255,255,0.045);
             --mplis-surface-hover: rgba(255,255,255,0.085);
-            --mplis-border: rgba(148,163,184,0.16);
-            --mplis-border-strong: rgba(148,163,184,0.28);
+            --mplis-border: rgba(148,163,184,0.22);
+            --mplis-border-strong: rgba(148,163,184,0.38);
             --mplis-text: #eef2f8;
             --mplis-text-dim: #8494b0;
             --mplis-accent: #6366f1;
@@ -126,7 +126,7 @@
         .mplis-btn-ghost { background: rgba(255,255,255,0.05) !important; border: 1px solid var(--mplis-border) !important; color: var(--mplis-text) !important; border-radius: 9px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
         .mplis-btn-ghost:hover { background: rgba(255,255,255,0.09) !important; border-color: var(--mplis-border-strong) !important; }
 
-        .mplis-status-bar { margin-top: 8px !important; background: rgba(0,0,0,0.3) !important; border-radius: 10px !important; padding: 7px 10px !important; border: 1px solid rgba(148,163,184,0.12) !important; box-shadow: inset 0 1px 0 rgba(0,0,0,0.3); }
+        .mplis-status-bar { margin-top: 8px !important; background: linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.018)) !important; border-radius: 10px !important; padding: 7px 10px !important; border: 1px solid var(--mplis-border) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04); }
         .mplis-status-row { display: flex !important; justify-content: space-between !important; align-items: center !important; font-size: 12px !important; }
         .mplis-status-lbl { display: flex !important; align-items: center !important; gap: 7px !important; color: #c8d3e8 !important; }
         .mplis-status-dot { width: 8px !important; height: 8px !important; border-radius: 50% !important; background-color: #4a5568 !important; flex-shrink: 0; }
