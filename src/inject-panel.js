@@ -312,7 +312,10 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                             <label for="cfg-excel-sheet-url" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Sheet:</label>
                             <input type="text" id="cfg-excel-sheet-url" placeholder="Dán link Web App Google Apps Script..." style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px;">
                         </div>
-                        <div id="excel-account-filter-row" style="display:none;"></div>
+                        <div id="excel-account-filter-row" style="display:none; align-items:center; gap:6px; margin-bottom:8px;">
+                            <label for="cfg-notify-account-filter" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">TK lọc:</label>
+                            <input type="text" id="cfg-notify-account-filter" placeholder="VD: dla.vietpq" style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px;">
+                        </div>
                         <div style="flex:1; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px; max-height:190px;">
                             <table id="table-excel-cart" style="width:100%; font-size:12px; color:#f8fafc; border-collapse:collapse; text-align:center;">
                                 <thead>
