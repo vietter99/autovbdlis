@@ -304,13 +304,6 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                     <div class="mplis-panel-body" id="tab-excel">
                         <div id="excel-filter-bar" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;">
                             <button class="mplis-excel-filter active" data-excel-bucket="all" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tất cả</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="krongnang" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Krông Năng</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="phuxuan" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Phú Xuân</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="tamgiang" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tam Giang</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="dlieya" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Dliê Ya</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="thechap" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Thế chấp</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="xacnhan" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Xác nhận</button>
-                            <button class="mplis-excel-filter" data-excel-bucket="khac" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Khác</button>
                         </div>
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
                             <button id="btn-toggle-sheet-cfg" class="mplis-btn-ghost" style="width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:8px; flex-shrink:0;" title="Cấu hình link Google Sheet (của tôi)" aria-label="Cấu hình link Google Sheet">${ICON_LINK}</button>
