@@ -3961,7 +3961,6 @@
     const isQT4 = pCfg.activeWorkflows.includes("QT4") ? "checked" : "";
     const isAutoConfirmChecked = isAutoConfirmEnabled() ? "checked" : "";
     const isPhapLyAutofillChecked = localStorage.getItem("mplis_phaply_autofill_enabled") !== "false" ? "checked" : "";
-    const isNotifyCaptureChecked = localStorage.getItem("mplis_notify_capture_enabled") !== "false" ? "checked" : "";
     const phapLyNgayVaoSo = (localStorage.getItem("mplis_phaply_ngay_vao_so") || "").trim();
     const hauToTenFile = ["GT", "PT"].includes((localStorage.getItem("mplis_tenfile_hau_to") || "").toUpperCase()) ? localStorage.getItem("mplis_tenfile_hau_to").toUpperCase() : "GT";
     const isTuTichDongBoChecked = localStorage.getItem("mplis_tenfile_tu_tich_dongbo") === "true" ? "checked" : "";
@@ -4356,26 +4355,6 @@
                             </div>
                         </div>
 
-                        <div class="mplis-card mplis-collapse" id="set-notify-group">
-                            <button type="button" class="mplis-collapse-head" id="set-notify-toggle" aria-expanded="false" aria-controls="set-notify-body">
-                                <span class="mplis-section-label">Thông báo hồ sơ mới</span>
-                                <span class="mplis-collapse-state ${isNotifyCaptureChecked ? "on" : ""}" id="set-notify-state">${isNotifyCaptureChecked ? "Bật" : "Tắt"}</span>
-                                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                            </button>
-                            <div class="mplis-collapse-body" id="set-notify-body">
-                                <div class="mplis-bypass-row">
-                                    <div class="mplis-bypass-row-label">
-                                        <strong>Thông báo hồ sơ mới</strong>
-                                        <span>Mỗi lần tải trang, ghi hồ sơ mới vào Sheet. Cần <b>tải lại trang</b>.</span>
-                                    </div>
-                                    <label class="mplis-toggle-sw">
-                                        <input type="checkbox" id="chk-notify-capture" ${isNotifyCaptureChecked}>
-                                        <span class="mplis-toggle-track"></span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
                         <div class="mplis-card mplis-collapse" id="set-keys-group">
                             <button type="button" class="mplis-collapse-head" id="set-keys-toggle" aria-expanded="false" aria-controls="set-keys-body">
                                 <span class="mplis-section-label">Phím tắt</span>
@@ -4557,13 +4536,6 @@
     }));
     if (tocDoSlider) tocDoSlider.oninput = () => datTocDo(tocDoSlider.value);
     if (nhomTocDo.length || tocDoSlider) veTocDo(pCfg.delayAction || 500);
-    const chkNotifyCapture = document.getElementById("chk-notify-capture");
-    if (chkNotifyCapture) {
-      chkNotifyCapture.onchange = (e) => {
-        localStorage.setItem("mplis_notify_capture_enabled", e.target.checked ? "true" : "false");
-        veBadge("set-notify-state", e.target.checked ? "Bật" : "Tắt", e.target.checked);
-      };
-    }
     function veBypassCardState() {
       const kg = (document.getElementById("chk-bypass-kg") || {}).checked;
       const dakyso = (document.getElementById("chk-bypass-dakyso") || {}).checked;
@@ -4755,7 +4727,6 @@
     bindCollapse("set-autofill-group", "set-autofill-toggle", "mplis_set_autofill_open");
     bindCollapse("set-tenfile-group", "set-tenfile-toggle", "mplis_set_tenfile_open");
     bindCollapse("set-speed-group", "set-speed-toggle", "mplis_set_speed_open");
-    bindCollapse("set-notify-group", "set-notify-toggle", "mplis_set_notify_open");
     bindCollapse("set-keys-group", "set-keys-toggle", "mplis_set_keys_open");
     bindCollapse("set-log-group", "set-log-toggle", "mplis_set_log_open");
     function veLogState() {
