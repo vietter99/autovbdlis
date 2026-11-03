@@ -3,7 +3,7 @@ import { ReturnModule } from './return-module.js';
 import { UpdateParcelModule } from './update-parcel-module.js';
 import { ExcelModule } from './excel-module.js';
 import { AlertModule } from './alert-module.js';
-import { topWin, isAutoConfirmEnabled, escapeHtml } from './utils.js';
+import { isAutoConfirmEnabled, escapeHtml } from './utils.js';
 import { toggleProcess, toggleReturn } from './toggle.js';
 import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from './mplis-logger.js';
 
@@ -320,7 +320,6 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                                 <tbody></tbody>
                             </table>
                         </div>
-                        <button id="btn-poll-statuses" class="mplis-btn-primary" style="width:100%; margin-bottom:6px; background:linear-gradient(135deg,#0ea5e9,#0369a1);" title="Tra lại trạng thái cho tất cả hồ sơ đã ghi nhận, cập nhật vào Google Sheet">Tra trạng thái Sheet</button>
                         <div style="display:flex; gap:8px;">
                             <button id="btn-excel-copy" class="mplis-btn-primary" style="flex:1; background:linear-gradient(135deg,#8b5cf6,#7c3aed);" title="Copy bảng đang xem">COPY</button>
                             <button id="btn-excel-clear" class="mplis-btn-primary" style="flex:0.35; background:linear-gradient(135deg,#f43f5e,#e11d48);" title="Xóa bảng đang xem">XÓA</button>
@@ -954,33 +953,6 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
 
         document.getElementById('btn-toggle-process').onclick = toggleProcess;
         document.getElementById('btn-toggle-return').onclick = toggleReturn;
-
-        const btnPollStatuses = document.getElementById('btn-poll-statuses');
-        if (btnPollStatuses) {
-            btnPollStatuses.onclick = () => {
-                const fn = topWin.MPLIS_POLL_ALL_STATUSES;
-                if (typeof fn !== 'function') {
-                    btnPollStatuses.textContent = 'Không khả dụng';
-                    setTimeout(() => { btnPollStatuses.textContent = 'Tra trạng thái Sheet'; }, 2000);
-                    return;
-                }
-                btnPollStatuses.disabled = true;
-                btnPollStatuses.textContent = 'Đang tra...';
-                fn((done, total) => {
-                    if (total === 0) {
-                        btnPollStatuses.textContent = 'Không có hồ sơ';
-                        setTimeout(() => { btnPollStatuses.disabled = false; btnPollStatuses.textContent = 'Tra trạng thái Sheet'; }, 2000);
-                        return;
-                    }
-                    if (done >= total) {
-                        btnPollStatuses.textContent = 'Xong · ' + total + ' hồ sơ';
-                        setTimeout(() => { btnPollStatuses.disabled = false; btnPollStatuses.textContent = 'Tra trạng thái Sheet'; }, 2500);
-                    } else {
-                        btnPollStatuses.textContent = done + '/' + total + '...';
-                    }
-                });
-            };
-        }
 
         AlertModule.init();
         ExcelModule.init();
