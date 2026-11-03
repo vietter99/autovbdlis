@@ -225,31 +225,6 @@ import { gmxhr } from './mplis-logger.js';
                 };
             }
 
-            // Tra trạng thái "Thông báo nhận HS" giờ chỉ chạy khi bấm nút (không tự động mỗi lần
-            // F5 nữa) - tránh bắn hàng chục request cùng lúc làm trang loading lâu, khó thao tác.
-            const btnPollStatus = document.getElementById('btn-notify-poll-status');
-            const pollStatusEl = document.getElementById('notify-poll-status');
-            if (btnPollStatus) {
-                btnPollStatus.onclick = () => {
-                    const fn = topWin.MPLIS_POLL_ALL_STATUSES;
-                    if (typeof fn !== 'function') {
-                        if (pollStatusEl) pollStatusEl.textContent = '❌ Không tìm thấy module tra trạng thái.';
-                        return;
-                    }
-                    btnPollStatus.disabled = true;
-                    fn((done, total) => {
-                        if (!pollStatusEl) return;
-                        if (total === 0) {
-                            pollStatusEl.textContent = 'Không có hồ sơ nào đang theo dõi.';
-                        } else if (done < total) {
-                            pollStatusEl.textContent = `Đang tra ${done}/${total} hồ sơ...`;
-                        } else {
-                            pollStatusEl.textContent = `✅ Đã tra xong ${total} hồ sơ.`;
-                            btnPollStatus.disabled = false;
-                        }
-                    });
-                };
-            }
 
             // Bắt sự kiện ở tầng cao nhất (Window) để đánh bại hoàn toàn các lớp chặn click của VBDLIS
             window.addEventListener('mousedown', (e) => {

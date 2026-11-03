@@ -3188,29 +3188,6 @@
           if (accountFilterRow) accountFilterRow.style.display = nextDisplay;
         };
       }
-      const btnPollStatus = document.getElementById("btn-notify-poll-status");
-      const pollStatusEl = document.getElementById("notify-poll-status");
-      if (btnPollStatus) {
-        btnPollStatus.onclick = () => {
-          const fn = topWin.MPLIS_POLL_ALL_STATUSES;
-          if (typeof fn !== "function") {
-            if (pollStatusEl) pollStatusEl.textContent = "❌ Không tìm thấy module tra trạng thái.";
-            return;
-          }
-          btnPollStatus.disabled = true;
-          fn((done, total) => {
-            if (!pollStatusEl) return;
-            if (total === 0) {
-              pollStatusEl.textContent = "Không có hồ sơ nào đang theo dõi.";
-            } else if (done < total) {
-              pollStatusEl.textContent = `Đang tra ${done}/${total} hồ sơ...`;
-            } else {
-              pollStatusEl.textContent = `✅ Đã tra xong ${total} hồ sơ.`;
-              btnPollStatus.disabled = false;
-            }
-          });
-        };
-      }
       window.addEventListener("mousedown", (e) => {
         const btnClear = e.target.closest("#btn-excel-clear");
         if (btnClear) {
@@ -4186,30 +4163,21 @@
 
                     <!-- TAB 3: EXCEL -->
                     <div class="mplis-panel-body" id="tab-excel">
-                        <div id="excel-filter-bar" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;">
-                            <button class="mplis-excel-filter active" data-excel-bucket="all" style="padding:7px 11px; font-size:12px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer;">Tất cả</button>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-                            <button id="btn-toggle-sheet-cfg" class="mplis-btn-ghost" style="width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:8px; flex-shrink:0;" title="Cấu hình link Google Sheet (của tôi)" aria-label="Cấu hình link Google Sheet">${ICON_LINK}</button>
-                            <span id="excel-sheet-status" style="font-size:12px; flex:1;"></span>
+                        <div id="excel-filter-bar" style="display:none;"><button class="mplis-excel-filter active" data-excel-bucket="all" style="display:none;"></button></div>
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; padding:8px 10px; background:rgba(255,255,255,0.04); border:1px solid var(--mplis-border); border-radius:10px;">
+                            <button id="btn-toggle-sheet-cfg" class="mplis-btn-ghost" style="width:30px; height:30px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:8px; flex-shrink:0;" title="Cấu hình link Google Sheet" aria-label="Cấu hình link Google Sheet">${ICON_LINK}</button>
+                            <span id="excel-sheet-status" style="font-size:12px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+                            <span style="flex-shrink:0; font-size:11px; color:var(--mplis-text-dim);">Hồ sơ: <b id="excel-count" style="color:#fde047; font-variant-numeric:tabular-nums;">0</b></span>
                         </div>
                         <div id="excel-sheet-cfg-row" style="display:none; align-items:center; gap:6px; margin-bottom:8px;">
-                            <label for="cfg-excel-sheet-url" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Sheet (của tôi):</label>
+                            <label for="cfg-excel-sheet-url" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">Sheet:</label>
                             <input type="text" id="cfg-excel-sheet-url" placeholder="Dán link Web App Google Apps Script..." style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px;">
                         </div>
-                        <div id="excel-account-filter-row" style="display:none; align-items:center; gap:6px; margin-bottom:8px;">
-                            <label for="cfg-notify-account-filter" style="font-size:12px; color:var(--mplis-text-dim); flex-shrink:0;">TK lọc (Th.báo HS):</label>
-                            <input type="text" id="cfg-notify-account-filter" placeholder="VD: dla.vietpq (để trống = không lọc)" style="flex:1; min-width:0; padding:7px 8px; background:rgba(0,0,0,0.25); border:1px solid var(--mplis-border); border-radius:6px; color:#f8fafc; font-size:12px;">
-                        </div>
-                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-                            <button id="btn-notify-poll-status" class="mplis-btn-primary" style="flex:1; padding:9px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:7px; background:linear-gradient(135deg,#0ea5e9,#0284c7);" title="Tra lại trạng thái thời gian thực cho toàn bộ hồ sơ đang theo dõi ở 'Thông báo nhận HS'">${ICON_REFRESH}Tra trạng thái hồ sơ</button>
-                        </div>
-                        <div id="notify-poll-status" style="font-size:12px; color:var(--mplis-text-dim); margin-bottom:8px;"></div>
-                        <div style="font-size:12px; color:var(--mplis-text-dim); margin-bottom:10px;">Số hồ sơ trong bảng: <b id="excel-count" style="color:#fde047;">0</b> · tự động quét khi mở QT</div>
-                        <div style="max-height:170px; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px;">
+                        <div id="excel-account-filter-row" style="display:none;"></div>
+                        <div style="flex:1; overflow-y:auto; margin-bottom:10px; border:1px solid var(--mplis-border); border-radius:10px; max-height:190px;">
                             <table id="table-excel-cart" style="width:100%; font-size:12px; color:#f8fafc; border-collapse:collapse; text-align:center;">
                                 <thead>
-                                    <tr style="background:rgba(255,255,255,0.06);" id="table-excel-cart-head"></tr>
+                                    <tr style="background:rgba(255,255,255,0.06); position:sticky; top:0; z-index:1;" id="table-excel-cart-head"></tr>
                                 </thead>
                                 <tbody></tbody>
                             </table>
