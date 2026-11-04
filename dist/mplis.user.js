@@ -229,10 +229,18 @@
 
         /* Bề ngang cố định 460px sẽ tràn/che nội dung trên màn hẹp hoặc khi trình duyệt zoom to,
            nên kẹp lại theo bề ngang cửa sổ (chừa 32px cho lề 2 bên). */
-        #mplis-auto-panel { position: fixed !important; bottom: 24px !important; right: 24px !important; width: min(392px, calc(100vw - 32px)) !important; max-height: 82vh !important; background: linear-gradient(160deg, #0e1428 0%, #070b16 60%) !important; border: 1px solid rgba(99,102,241,0.22) !important; border-radius: 18px !important; box-shadow: 0 28px 70px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.07) !important; color: var(--mplis-text) !important; font-family: 'Segoe UI', 'Inter', sans-serif !important; z-index: 999999999 !important; user-select: none !important; box-sizing: border-box !important; transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important; display: flex; flex-direction: column; overflow: hidden; transform-origin: bottom right; }
+        #mplis-auto-panel { position: fixed !important; bottom: 24px !important; right: 24px !important; width: min(var(--mplis-w, 392px), calc(100vw - 32px)) !important; max-height: 82vh !important; background: linear-gradient(160deg, #0e1428 0%, #070b16 60%) !important; border: 1px solid rgba(99,102,241,0.22) !important; border-radius: 18px !important; box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important; color: var(--mplis-text) !important; font-family: 'Segoe UI', 'Inter', sans-serif !important; z-index: 999999999 !important; user-select: none !important; box-sizing: border-box !important; display: flex; flex-direction: column; overflow: hidden; transform-origin: bottom right; }
         #mplis-auto-panel * { box-sizing: border-box; }
-        #mplis-auto-panel.minimized { width: 58px !important; height: 58px !important; border-radius: 50% !important; background: linear-gradient(135deg, var(--mplis-accent), var(--mplis-accent-2)) !important; border: none !important; box-shadow: 0 10px 28px rgba(99,102,241,0.6), 0 0 0 2px rgba(99,102,241,0.2) !important; cursor: pointer; transform: scale(0.92); }
-        #mplis-auto-panel.minimized:hover { transform: scale(1); box-shadow: 0 14px 34px rgba(99,102,241,0.7), 0 0 0 2px rgba(99,102,241,0.3) !important; }
+        #mplis-auto-panel.sized { height: var(--mplis-h) !important; max-height: calc(100vh - 32px) !important; }
+        #mplis-auto-panel.sized .mplis-content { min-height: 0 !important; }
+        #mplis-auto-panel .mplis-content { zoom: var(--mplis-zoom, 1); }
+        .mplis-resize { position: absolute; top: 0; left: 0; width: 22px; height: 22px; cursor: nwse-resize; z-index: 5; touch-action: none; opacity: 0.55; background: linear-gradient(135deg, rgba(148,163,184,0.9) 0 2px, transparent 2px 5px, rgba(148,163,184,0.9) 5px 7px, transparent 7px); border-top-left-radius: 18px; }
+        .mplis-resize:hover { opacity: 1; }
+        #mplis-auto-panel.minimized .mplis-resize { display: none !important; }
+        #mplis-auto-panel .mplis-hdr-actions { display: flex; align-items: center; gap: 2px; }
+        #mplis-auto-panel .mplis-hdr-actions .mplis-btn-minimize { font: 700 11px 'Segoe UI', sans-serif; }
+        #mplis-auto-panel.minimized { width: 58px !important; height: 58px !important; border-radius: 50% !important; background: linear-gradient(135deg, var(--mplis-accent), var(--mplis-accent-2)) !important; border: none !important; box-shadow: 0 10px 28px rgba(99,102,241,0.6), 0 0 0 2px rgba(99,102,241,0.2) !important; cursor: pointer; }
+        #mplis-auto-panel.minimized:hover { filter: brightness(1.1); }
         #mplis-auto-panel.minimized .mplis-panel-header,
         #mplis-auto-panel.minimized .mplis-shell { display: none !important; }
 
@@ -240,17 +248,17 @@
         #mplis-auto-panel .mplis-panel-header { display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 10px 13px !important; border-bottom: 1px solid rgba(99,102,241,0.18) !important; flex-shrink: 0; background: rgba(99,102,241,0.05); }
         #mplis-auto-panel .mplis-panel-title { font-weight: 700 !important; font-size: 13px !important; letter-spacing: -0.02em; color: var(--mplis-text) !important; display: flex !important; align-items: center !important; gap: 9px !important; }
         #mplis-auto-panel .mplis-panel-title .mplis-logo { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, var(--mplis-accent), var(--mplis-accent-2)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 3px 12px rgba(99,102,241,0.45), inset 0 1px 0 rgba(255,255,255,0.2); }
-        #mplis-auto-panel .mplis-btn-minimize { background: transparent !important; border: 1px solid transparent !important; border-radius: 8px !important; color: var(--mplis-text-dim) !important; cursor: pointer !important; width: 28px !important; height: 28px !important; display: flex !important; align-items: center !important; justify-content: center !important; transition: all 0.15s !important; padding: 0; margin: 0; }
+        #mplis-auto-panel .mplis-btn-minimize { background: transparent !important; border: 1px solid transparent !important; border-radius: 8px !important; color: var(--mplis-text-dim) !important; cursor: pointer !important; width: 28px !important; height: 28px !important; display: flex !important; align-items: center !important; justify-content: center !important; transition: background-color 0.12s, color 0.12s, border-color 0.12s !important; padding: 0; margin: 0; }
         #mplis-auto-panel .mplis-btn-minimize:hover { color: var(--mplis-text) !important; background: rgba(255,255,255,0.1) !important; border-color: var(--mplis-border) !important; }
         #mplis-auto-panel .mplis-minimized-trigger { display: none !important; width: 100% !important; height: 100% !important; align-items: center !important; justify-content: center !important; color: #fff !important; background: transparent !important; border: none !important; outline: none !important; padding: 0 !important; margin: 0 !important; cursor: pointer !important; }
-        #mplis-auto-panel.minimized .mplis-minimized-trigger { display: flex !important; animation: mplis-float 3s ease-in-out infinite; }
+        #mplis-auto-panel.minimized .mplis-minimized-trigger { display: flex !important; }
         @keyframes mplis-float { 0% { transform: translateY(0); } 50% { transform: translateY(-3px); } 100% { transform: translateY(0); } }
 
         /* ---- Shell: nav rail (trái) + nội dung (phải) ---- */
         .mplis-shell { display: flex; flex: 1; min-height: 0; }
 
         .mplis-tabs { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 48px; flex-shrink: 0; padding: 10px 0; background: rgba(0,0,0,0.25); border-right: 1px solid rgba(99,102,241,0.14); overflow-y: auto; overflow-x: visible; }
-        .mplis-tab { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 10px; color: var(--mplis-text-dim); cursor: pointer; transition: all 0.18s ease; position: relative; flex-shrink: 0; }
+        .mplis-tab { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 10px; color: var(--mplis-text-dim); cursor: pointer; transition: background-color 0.12s, color 0.12s; position: relative; flex-shrink: 0; }
         /* Icon tab dùng SVG (không dùng emoji) - khóa cùng 1 cỡ để nhịp thị giác đều nhau. */
         .mplis-tab svg, .mplis-tab-toggle svg { width: 18px; height: 18px; display: block; }
         .mplis-tab:hover { color: var(--mplis-text); background: rgba(99,102,241,0.12); }
@@ -261,13 +269,13 @@
         .mplis-tab-toggle:hover { color: var(--mplis-text); }
         .mplis-tab-toggle.expanded { color: var(--mplis-accent-2); }
 
-        .mplis-content { flex: 1; min-width: 0; min-height: 240px; overflow-y: auto; padding: 10px; transition: min-height 0.22s ease; }
+        .mplis-content { flex: 1; min-width: 0; min-height: 240px; overflow-y: auto; padding: 10px; }
         .mplis-content::-webkit-scrollbar, .mplis-tabs::-webkit-scrollbar { width: 4px; }
         .mplis-content::-webkit-scrollbar-thumb, .mplis-tabs::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 4px; }
         .mplis-content::-webkit-scrollbar-thumb:hover, .mplis-tabs::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.5); }
 
         .mplis-panel-body { display: none; }
-        .mplis-panel-body.active { display: block; animation: mplis-fade-in 0.2s ease; }
+        .mplis-panel-body.active { display: block; }
         @keyframes mplis-fade-in { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: translateY(0);} }
 
         .mplis-section-label { font-size: 10px; color: var(--mplis-text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 6px; display: block; }
@@ -286,10 +294,10 @@
         /* Tên tài khoản chuyển tiếp có thể dài hơn chỗ trống - cắt bằng "..." để thanh tiêu đề không vỡ. */
         .mplis-collapse-state { margin-left: auto; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; color: var(--mplis-text-dim); background: rgba(255,255,255,0.06); border: 1px solid var(--mplis-border); border-radius: 20px; padding: 3px 9px; }
         .mplis-collapse-state.on { color: #021018; background: var(--mplis-accent-2); border-color: transparent; box-shadow: 0 2px 8px rgba(34,211,238,0.35); }
-        .mplis-collapse-caret { flex-shrink: 0; color: var(--mplis-text-dim); transition: transform 0.22s cubic-bezier(0.4,0,0.2,1); }
+        .mplis-collapse-caret { flex-shrink: 0; color: var(--mplis-text-dim); }
         .mplis-collapse.open .mplis-collapse-caret { transform: rotate(180deg); }
-        .mplis-collapse-body { max-height: 0; opacity: 0; overflow: hidden; padding: 0 10px; transition: max-height 0.24s ease, opacity 0.18s ease, padding-bottom 0.24s ease; }
-        .mplis-collapse.open .mplis-collapse-body { max-height: 420px; overflow-y: auto; opacity: 1; padding-bottom: 10px; }
+        .mplis-collapse-body { display: none; padding: 0 10px; }
+        .mplis-collapse.open .mplis-collapse-body { display: block; max-height: 420px; overflow-y: auto; padding-bottom: 10px; }
         @media (prefers-reduced-motion: reduce) {
             .mplis-collapse-body, .mplis-collapse-caret { transition: none; }
         }
@@ -302,7 +310,7 @@
         #mplis-run-toast .mplis-toast-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         #mplis-run-toast .mplis-toast-step { font-size: 12px; font-weight: 700; color: var(--mplis-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #mplis-run-toast .mplis-toast-count { margin-left: auto; flex-shrink: 0; font-size: 11px; font-weight: 700; color: var(--mplis-accent-2); font-variant-numeric: tabular-nums; }
-        #mplis-run-toast .mplis-toast-close { flex-shrink: 0; width: 20px; height: 20px; margin: -3px -3px -3px 2px; display: flex; align-items: center; justify-content: center; padding: 0; background: transparent; border: none; border-radius: 6px; color: var(--mplis-text-dim); cursor: pointer; transition: all 0.15s ease; }
+        #mplis-run-toast .mplis-toast-close { flex-shrink: 0; width: 20px; height: 20px; margin: -3px -3px -3px 2px; display: flex; align-items: center; justify-content: center; padding: 0; background: transparent; border: none; border-radius: 6px; color: var(--mplis-text-dim); cursor: pointer; transition: background-color 0.12s, color 0.12s, border-color 0.12s ease; }
         #mplis-run-toast .mplis-toast-close:hover { background: var(--mplis-surface-hover); color: var(--mplis-text); }
         #mplis-run-toast .mplis-toast-close:focus-visible { outline: 2px solid var(--mplis-accent-2); outline-offset: 1px; }
         #mplis-run-toast .mplis-toast-bar { height: 4px; border-radius: 3px; background: rgba(255,255,255,0.09); overflow: hidden; }
@@ -318,15 +326,15 @@
         .mplis-checkbox-group label:hover { background: rgba(99,102,241,0.1) !important; border-color: rgba(99,102,241,0.3) !important; }
         .mplis-checkbox-group input, #mplis-auto-panel input[type="checkbox"] { accent-color: var(--mplis-accent); width: 14px; height: 14px; cursor: pointer; }
 
-        .mplis-btn-primary { width: 100% !important; background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%) !important; border: none !important; border-radius: 10px !important; padding: 9px 14px !important; color: #ffffff !important; font-weight: 700 !important; font-size: 12.5px !important; cursor: pointer !important; letter-spacing: 0.01em; transition: all 0.18s ease !important; box-shadow: 0 4px 15px rgba(99,102,241,0.38), inset 0 1px 0 rgba(255,255,255,0.15); }
-        .mplis-btn-primary:hover { filter: brightness(1.12); transform: translateY(-1.5px); box-shadow: 0 7px 22px rgba(99,102,241,0.5), inset 0 1px 0 rgba(255,255,255,0.2) !important; }
+        .mplis-btn-primary { width: 100% !important; background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%) !important; border: none !important; border-radius: 10px !important; padding: 9px 14px !important; color: #ffffff !important; font-weight: 700 !important; font-size: 12.5px !important; cursor: pointer !important; letter-spacing: 0.01em; transition: filter 0.12s ease !important; box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
+        .mplis-btn-primary:hover { filter: brightness(1.12); }
         .mplis-btn-primary:active { transform: translateY(0); filter: brightness(0.97); box-shadow: 0 2px 8px rgba(99,102,241,0.3) !important; }
         .mplis-btn-primary.running { background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%) !important; box-shadow: 0 4px 15px rgba(244,63,94,0.4), inset 0 1px 0 rgba(255,255,255,0.15) !important; }
         .mplis-btn-primary.running:hover { box-shadow: 0 7px 22px rgba(244,63,94,0.55), inset 0 1px 0 rgba(255,255,255,0.2) !important; }
         .mplis-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; filter: none; box-shadow: none !important; }
 
         /* Chọn hậu tố GT/PT - 2 nút kiểu segmented, nút đang chọn đổi màu + đậm để nhìn là biết. */
-        .mplis-hauto-btn { padding: 7px 10px !important; font: 650 12.5px 'Segoe UI', sans-serif !important; color: var(--mplis-text-dim) !important; background: rgba(255,255,255,0.05) !important; border: 1px solid var(--mplis-border) !important; border-radius: 8px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
+        .mplis-hauto-btn { padding: 7px 10px !important; font: 650 12.5px 'Segoe UI', sans-serif !important; color: var(--mplis-text-dim) !important; background: rgba(255,255,255,0.05) !important; border: 1px solid var(--mplis-border) !important; border-radius: 8px !important; cursor: pointer !important; transition: background-color 0.12s, color 0.12s, border-color 0.12s ease !important; }
         .mplis-hauto-btn:hover { background: rgba(99,102,241,0.12) !important; color: var(--mplis-text) !important; border-color: rgba(99,102,241,0.3) !important; }
         .mplis-hauto-btn.on { color: #fff !important; background: linear-gradient(135deg, #6366f1, #4338ca) !important; border-color: transparent !important; box-shadow: 0 3px 12px rgba(99,102,241,0.4), inset 0 1px 0 rgba(255,255,255,0.15) !important; }
 
@@ -335,14 +343,14 @@
         #mplis-auto-panel input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: var(--mplis-accent-2); border: 2px solid #070b16; cursor: pointer; box-shadow: 0 0 0 2px rgba(34,211,238,0.3), 0 2px 8px rgba(34,211,238,0.4); }
         #mplis-auto-panel input[type="range"]::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--mplis-accent-2); border: 2px solid #070b16; cursor: pointer; }
 
-        .mplis-btn-ghost { background: rgba(255,255,255,0.05) !important; border: 1px solid var(--mplis-border) !important; color: var(--mplis-text) !important; border-radius: 9px !important; cursor: pointer !important; transition: all 0.15s ease !important; }
+        .mplis-btn-ghost { background: rgba(255,255,255,0.05) !important; border: 1px solid var(--mplis-border) !important; color: var(--mplis-text) !important; border-radius: 9px !important; cursor: pointer !important; transition: background-color 0.12s, color 0.12s, border-color 0.12s ease !important; }
         .mplis-btn-ghost:hover { background: rgba(255,255,255,0.09) !important; border-color: var(--mplis-border-strong) !important; }
 
         .mplis-status-bar { margin-top: 8px !important; background: linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.018)) !important; border-radius: 10px !important; padding: 7px 10px !important; border: 1px solid var(--mplis-border) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04); }
         .mplis-status-row { display: flex !important; justify-content: space-between !important; align-items: center !important; font-size: 12px !important; }
         .mplis-status-lbl { display: flex !important; align-items: center !important; gap: 7px !important; color: #c8d3e8 !important; }
         .mplis-status-dot { width: 8px !important; height: 8px !important; border-radius: 50% !important; background-color: #4a5568 !important; flex-shrink: 0; }
-        .mplis-status-dot.active { background-color: var(--mplis-good) !important; box-shadow: 0 0 0 2px rgba(34,197,94,0.2), 0 0 10px rgba(34,197,94,0.6) !important; animation: mplis-pulse 1.5s infinite !important; }
+        .mplis-status-dot.active { background-color: var(--mplis-good) !important; box-shadow: 0 0 0 2px rgba(34,197,94,0.2), 0 0 10px rgba(34,197,94,0.6) !important; }
         .mplis-status-dot.waiting { background-color: var(--mplis-warn) !important; box-shadow: 0 0 0 2px rgba(245,158,11,0.2), 0 0 10px rgba(245,158,11,0.6) !important; }
         @keyframes mplis-pulse { 0% { opacity: 0.55; } 50% { opacity: 1; } 100% { opacity: 0.55; } }
 
@@ -396,6 +404,28 @@
         .mplis-bypass-row-label { min-width: 0; }
         .mplis-bypass-row-label strong { display: block; font-size: 12px; color: #dde4f0; font-weight: 600; line-height: 1.3; }
         .mplis-bypass-row-label span { font-size: 11px; color: var(--mplis-text-dim); line-height: 1.3; }
+
+        /* ---- Tab tra cứu hồ sơ ---- */
+        .mplis-lk-bar { display: flex; gap: 6px; }
+        .mplis-lk-bar input { flex: 1; min-width: 0; padding: 9px 10px; font-size: 13px; }
+        .mplis-lk-bar .mplis-btn-primary { width: auto !important; padding: 9px 16px !important; flex-shrink: 0; }
+        .mplis-lk-card { padding: 11px !important; user-select: text; }
+        .mplis-lk-code { background: transparent; border: none; padding: 0; margin: 0; color: var(--mplis-accent-2); font: 700 14px Consolas, 'Cascadia Code', monospace; cursor: pointer; text-align: left; word-break: break-all; }
+        .mplis-lk-code:hover { text-decoration: underline; }
+        .mplis-lk-state { margin: 6px 0 4px; font-size: 13px; font-weight: 700; color: var(--mplis-text); }
+        .mplis-lk-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+        .mplis-chip { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; color: var(--mplis-text-dim); background: rgba(255,255,255,0.07); border: 1px solid var(--mplis-border); }
+        .mplis-chip.good { color: #86efac; background: rgba(34,197,94,0.14); border-color: rgba(34,197,94,0.35); }
+        .mplis-chip.info { color: #67e8f9; background: rgba(34,211,238,0.12); border-color: rgba(34,211,238,0.3); }
+        .mplis-chip.warn { color: #fcd34d; background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.35); }
+        .mplis-lk-row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; padding: 4px 0; border-top: 1px solid rgba(148,163,184,0.12); }
+        .mplis-lk-row span { color: var(--mplis-text-dim); flex-shrink: 0; }
+        .mplis-lk-row b { color: var(--mplis-text); text-align: right; font-weight: 600; }
+        .mplis-lk-docs-title { margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(148,163,184,0.12); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mplis-text-dim); }
+        .mplis-lk-docs { margin: 4px 0 0; padding-left: 16px; font-size: 12px; line-height: 1.6; color: #dde4f0; word-break: break-all; }
+        .mplis-lk-doc { color: var(--mplis-accent-2) !important; text-decoration: none !important; cursor: pointer; }
+        .mplis-lk-doc:hover { text-decoration: underline !important; }
+        .mplis-dim { color: var(--mplis-text-dim); list-style: none; margin-left: -16px; }
 
         @media print { #mplis-auto-panel { display: none !important; } }
     `;
@@ -2969,12 +2999,17 @@
     XMLHttpRequest.prototype.send = function(body) {
       const entry = { t: now(), type: "xhr", ep: epTag(this._mplisUrl || ""), method: this._mplisMethod || "GET" };
       if (body && typeof body === "string") entry.req = body.slice(0, 300);
+      entry.url = String(this._mplisUrl || "").slice(0, 300);
       this.addEventListener("load", function() {
         entry.status = this.status;
-        try {
-          entry.res = JSON.parse(this.responseText);
-        } catch {
-          entry.res = (this.responseText || "").slice(0, 500);
+        if (this.responseType === "" || this.responseType === "text") {
+          try {
+            entry.res = JSON.parse(this.responseText);
+          } catch {
+            entry.res = (this.responseText || "").slice(0, 500);
+          }
+        } else {
+          entry.res = "(" + this.responseType + " " + (this.getResponseHeader("content-type") || "") + ")";
         }
         push(entry);
       });
@@ -2986,9 +3021,35 @@
     };
     XMLHttpRequest.prototype.__mplisLogged = true;
   }
+  function installOpenLogger() {
+    const win = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+    if (!win.open || win.open.__mplisLogged) return;
+    const orig = win.open;
+    win.open = function(url) {
+      push({ t: now(), type: "windowOpen", url: String(url || "").slice(0, 300) });
+      return orig.apply(this, arguments);
+    };
+    win.open.__mplisLogged = true;
+  }
+  function installResourceLogger() {
+    if (typeof PerformanceObserver === "undefined") return;
+    const SKIP = /^(script|link|css|img|image|font|beacon|xmlhttprequest|fetch)$/;
+    try {
+      new PerformanceObserver((list) => {
+        for (const r of list.getEntries()) {
+          if (SKIP.test(r.initiatorType || "")) continue;
+          if (/\.(js|css|png|jpe?g|gif|svg|woff2?|ttf|ico)(\?|$)/i.test(r.name)) continue;
+          push({ t: now(), type: "resource", via: r.initiatorType, url: String(r.name).slice(0, 400) });
+        }
+      }).observe({ type: "resource", buffered: false });
+    } catch {
+    }
+  }
   installErrorLogger();
   installFetchLogger();
   installXhrLogger();
+  installOpenLogger();
+  installResourceLogger();
 
   // src/excel-module.js
   var ExcelModule = function() {
@@ -3850,6 +3911,198 @@
     };
   }();
 
+  // src/lookup-module.js
+  var MAX_RESULTS = 30;
+  function parseAspNetDate(str) {
+    const m = (str || "").match(/\/Date\((\d+)\)\//);
+    if (!m) return "";
+    const d = new Date(parseInt(m[1], 10));
+    const p = (n) => String(n).padStart(2, "0");
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+  function buildPattern(raw) {
+    const q = (raw || "").trim();
+    if (!q) return "";
+    return q.startsWith("%") ? q : "%" + q;
+  }
+  function search(pattern) {
+    return new Promise((resolve, reject) => {
+      const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+      if (!jq || !jq.ajax) {
+        reject(new Error("Trang chưa sẵn sàng (không có jQuery)"));
+        return;
+      }
+      jq.ajax({
+        url: "https://dla.mplis.gov.vn/dc/DangKyAjax/AdvancedSearchHoSoTiepNhan",
+        method: "POST",
+        data: {
+          start: 0,
+          length: MAX_RESULTS,
+          "model[tinhId]": 66,
+          "model[huyenId]": 650,
+          "model[xaId]": "",
+          "model[quytrinh]": "",
+          "model[state]": "",
+          "model[soBienNhan]": pattern,
+          "model[laHoSoMotCua]": false,
+          "model[tiepNhanTuNgay]": "",
+          "model[tiepNhanDenNgay]": "",
+          "model[henTraTuNgay]": "",
+          "model[henTraDenNgay]": "",
+          "model[trangThaiHoSo]": 0,
+          "model[trangThaiKetISO][]": 0,
+          "model[diaChiTaiSan]": "",
+          "model[soThua]": "",
+          "model[soTo]": "",
+          "model[diaChi]": "",
+          "model[hoTen]": "",
+          "model[soDienThoai]": "",
+          "model[giayChungMinh]": "",
+          "model[daXuLy]": -1
+        }
+      }).done((json) => resolve(json && Array.isArray(json.data) ? json.data : [])).fail((xhr) => reject(new Error("Lỗi " + xhr.status)));
+    });
+  }
+  function chip(text, cls) {
+    return `<span class="mplis-chip ${cls || ""}">${escapeHtml(text)}</span>`;
+  }
+  function pickField(obj, regex) {
+    if (!obj || typeof obj !== "object") return "";
+    for (const k of Object.keys(obj)) {
+      if (!regex.test(k)) continue;
+      const v = obj[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+      if (typeof v === "number") return String(v);
+    }
+    return "";
+  }
+  function findDeep(obj, regex, depth = 0) {
+    if (!obj || typeof obj !== "object" || depth > 4) return "";
+    for (const k of Object.keys(obj)) {
+      const v = obj[k];
+      if (regex.test(k) && typeof v === "string" && v.trim()) return v.trim();
+    }
+    for (const k of Object.keys(obj)) {
+      const v = obj[k];
+      if (v && typeof v === "object") {
+        const found = findDeep(v, regex, depth + 1);
+        if (found) return found;
+      }
+    }
+    return "";
+  }
+  function extractApplicant(item) {
+    const n = item.nguoiNopDon || {};
+    const hoTen = pickField(n, /^(hoTen|hovaten|tenNguoiNop|tenNguoiNopDon|ten)$/i) || pickField(n, /ten/i);
+    const soGiayTo = pickField(n, /(giayChungMinh|soGiayTo|cmnd|cccd|cmt|dinhDanh|soGiay)/i);
+    const sdt = pickField(n, /(dienThoai|sdt|phone)/i);
+    const diaChi = pickField(n, /^(diaChi|diaChiThuongTru|diaChiLienHe|diaChiNguoiNop)$/i) || pickField(n, /diaChi/i);
+    const wardMatch = diaChi.match(/(Xã|Phường|Thị trấn)\s+[^,]+/i);
+    const taiSanMatch = String(item.diaChiTaiSan || "").match(/(Xã|Phường|Thị trấn)\s+[^,]+/i);
+    const phuongXa = (taiSanMatch ? taiSanMatch[0].trim() : "") || findDeep(item, /^(phuongXa|tenPhuongXa)$/i) || (wardMatch ? wardMatch[0].trim() : "");
+    if (!hoTen || !soGiayTo || !sdt) {
+      try {
+        console.log("[MPLIS Lookup] Thiếu thông tin người nộp, nguoiNopDon =", JSON.stringify(item.nguoiNopDon));
+      } catch (e) {
+      }
+    }
+    return { hoTen, soGiayTo, sdt, phuongXa };
+  }
+  function renderCard(item) {
+    const state = item.state && item.state.Title || "Đang xử lý";
+    const chips = [];
+    if (item.daTra) chips.push(chip("Đã trả " + parseAspNetDate(item.ngayTra), "good"));
+    if (item.daKetISO) chips.push(chip("Đã kết ISO", "info"));
+    if (item.daCapNhatDuLieuPhapLy) chips.push(chip("Đã cập nhật pháp lý", "info"));
+    if (item.choBoSung) chips.push(chip("Chờ bổ sung", "warn"));
+    const docs = Array.isArray(item.giayToDinhKem) ? item.giayToDinhKem : [];
+    const docHtml = docs.length ? docs.map((g) => {
+      const ten = escapeHtml(g.tenGiayTo || g.Title || "(không tên)");
+      const label = g.tepDinhKem ? `<a class="mplis-lk-doc" href="https://dla.mplis.gov.vn/dc/PdfViewer?fileId=${encodeURIComponent(g.tepDinhKem)}" target="_blank" rel="noopener" title="Mở file trong tab mới">${ten}</a>` : ten;
+      return `<li>${label}${g.laGiayToKySo ? " " + chip("ký số", "good") : ""}</li>`;
+    }).join("") : '<li class="mplis-dim">Chưa có giấy tờ đính kèm</li>';
+    const row = (label, val) => `<div class="mplis-lk-row"><span>${label}</span><b>${escapeHtml(val || "—")}</b></div>`;
+    const hen = parseAspNetDate(item.ngayhenTra);
+    const ap = extractApplicant(item);
+    return `
+        <div class="mplis-card mplis-lk-card">
+            <div class="mplis-lk-head">
+                <button type="button" class="mplis-lk-code" data-copy="${escapeHtml(item.soBienNhan)}" title="Bấm để copy mã hồ sơ">${escapeHtml(item.soBienNhan)}</button>
+            </div>
+            <div class="mplis-lk-state">${escapeHtml(state)}</div>
+            <div class="mplis-lk-chips">${chips.join("")}</div>
+            ${row("Người đang xử lý", item.tenNguoiTiepNhan)}
+            ${row("Người chuyển tiếp", item.tenNguoiChuyenTiep)}
+            ${hen ? row("Hẹn trả", hen) : ""}
+            <div class="mplis-lk-docs-title">Thông tin người nộp đơn</div>
+            ${row("Người nộp hồ sơ", ap.hoTen)}
+            ${row("Số giấy tờ", ap.soGiayTo)}
+            ${row("Số điện thoại", ap.sdt)}
+            ${row("Phường/Xã", ap.phuongXa)}
+            <div class="mplis-lk-docs-title">Giấy tờ đính kèm (${docs.length})</div>
+            <ul class="mplis-lk-docs">${docHtml}</ul>
+        </div>`;
+  }
+  function copyText(text) {
+    try {
+      GM_setClipboard(text);
+    } catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+  }
+  var LookupModule = {
+    init() {
+      const input = document.getElementById("lookup-input");
+      const btn = document.getElementById("btn-lookup");
+      const out = document.getElementById("lookup-results");
+      const info = document.getElementById("lookup-info");
+      if (!input || !btn || !out || !info) return;
+      let seq = 0;
+      const run = async () => {
+        const pattern = buildPattern(input.value);
+        if (!pattern) {
+          info.textContent = "Nhập một phần mã hồ sơ, ví dụ 0402 hoặc 9-0402.";
+          out.innerHTML = "";
+          return;
+        }
+        const mine = ++seq;
+        info.textContent = "Đang tìm...";
+        btn.disabled = true;
+        try {
+          const items = await search(pattern);
+          if (mine !== seq) return;
+          info.textContent = items.length ? `Tìm thấy ${items.length} hồ sơ` + (items.length >= MAX_RESULTS ? " (hiện tối đa " + MAX_RESULTS + ")" : "") : "Không tìm thấy hồ sơ nào.";
+          out.innerHTML = items.map(renderCard).join("");
+        } catch (e) {
+          if (mine !== seq) return;
+          info.textContent = "Lỗi: " + e.message;
+          out.innerHTML = "";
+        } finally {
+          if (mine === seq) btn.disabled = false;
+        }
+      };
+      btn.onclick = run;
+      input.onkeydown = (e) => {
+        if (e.key === "Enter") run();
+      };
+      out.onclick = (e) => {
+        const b = e.target.closest("[data-copy]");
+        if (!b) return;
+        copyText(b.dataset.copy);
+        const old = b.textContent;
+        b.textContent = "Đã copy!";
+        setTimeout(() => {
+          b.textContent = old;
+        }, 1200);
+      };
+    }
+  };
+
   // src/toggle.js
   function toggleProcess(customStopMessage) {
     const state = ProcessModule.getTopState();
@@ -3922,6 +4175,7 @@
   var ICON_RETURN = svgIcon('<path d="M4 4h16v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><polyline points="4 8 12 13 20 8"></polyline>');
   var ICON_UPDATE = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>');
   var ICON_SETTINGS = svgIcon('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>');
+  var ICON_SEARCH = svgIcon('<circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>');
   var ICON_MORE = svgIcon('<circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle>');
   var ICON_LINK = svgIcon('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>', 16);
   var ICON_REFRESH = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"></path>', 16);
@@ -3982,10 +4236,17 @@
                     </span>
                     MPLIS Auto
                 </div>
+                <div class="mplis-hdr-actions">
+                <button class="mplis-btn-minimize" id="mplis-btn-zoom-out" title="Chữ nhỏ lại" aria-label="Chữ nhỏ lại">A-</button>
+                <button class="mplis-btn-minimize" id="mplis-btn-zoom-in" title="Chữ to lên" aria-label="Chữ to lên">A+</button>
+                <button class="mplis-btn-minimize" id="mplis-btn-size" title="Đổi cỡ khung: vừa / lớn / rất lớn (hoặc kéo góc trên trái)" aria-label="Đổi cỡ khung"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></button>
                 <button class="mplis-btn-minimize" id="mplis-btn-minimize" title="Thu nhỏ">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
                 </button>
+                </div>
             </div>
+
+            <div class="mplis-resize" id="mplis-resize" title="Kéo để đổi cỡ khung, bấm đúp để về mặc định"></div>
 
             <button class="mplis-minimized-trigger" id="mplis-btn-maximize" title="Mở rộng MPLIS Auto">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
@@ -3996,6 +4257,7 @@
                     <button class="mplis-tab active" data-tab="tab-process" title="Xử lý Quy trình" aria-label="Xử lý Quy trình">${ICON_PROCESS}</button>
                     <button class="mplis-tab" data-tab="tab-alert" title="Nhắc nhở hồ sơ trễ hạn" aria-label="Nhắc nhở hồ sơ trễ hạn">${ICON_ALERT}</button>
                     <button class="mplis-tab" data-tab="tab-excel" title="Xuất dữ liệu Excel" aria-label="Xuất dữ liệu Excel">${ICON_EXCEL}</button>
+                    <button class="mplis-tab" data-tab="tab-lookup" title="Tra cứu hồ sơ" aria-label="Tra cứu hồ sơ">${ICON_SEARCH}</button>
                     <!-- ĐANG ẨN TẠM: 2 tab "Trả hồ sơ" và "Auto sửa Thửa/Tờ" (không dùng tới). Toàn bộ code
                          và phần nội dung 2 tab vẫn giữ nguyên bên dưới - muốn bật lại chỉ cần thêm lại 2 dòng:
                          <button class="mplis-tab mplis-tab-extra" data-tab="tab-return" title="Trả hồ sơ" aria-label="Trả hồ sơ" style="display:none;">ICON_RETURN</button>
@@ -4201,6 +4463,16 @@
                         </div>
                     </div>
 
+
+                    <!-- TAB LOOKUP -->
+                    <div class="mplis-panel-body" id="tab-lookup">
+                        <div class="mplis-lk-bar">
+                            <input type="text" id="lookup-input" placeholder="Gõ đuôi mã hồ sơ, VD: 0402 hoặc 9-0402" autocomplete="off">
+                            <button type="button" class="mplis-btn-primary" id="btn-lookup">Tìm</button>
+                        </div>
+                        <div class="mplis-hint" id="lookup-info" style="margin:6px 0 8px;">Gõ một phần mã rồi Enter, tool tự thêm % phía trước.</div>
+                        <div id="lookup-results"></div>
+                    </div>
 
                     <!-- TAB 4: RETURN -->
                     <div class="mplis-panel-body tab-return-color" id="tab-return">
@@ -4544,6 +4816,80 @@
       panel.classList.remove("minimized");
       localStorage.setItem("mplis_auto_minimized", "false");
     };
+    const SIZE_KEY = "mplis_panel_size";
+    const ZOOM_KEY = "mplis_panel_zoom";
+    const SIZE_PRESETS = [null, { w: 560, h: 640 }, { w: 880, h: 820 }];
+    let sizePreset = 0;
+    function applySize(sz) {
+      if (!sz) {
+        panel.classList.remove("sized");
+        panel.style.removeProperty("--mplis-w");
+        panel.style.removeProperty("--mplis-h");
+        return;
+      }
+      const w = Math.max(340, Math.min(sz.w, window.innerWidth - 32));
+      const h = Math.max(300, Math.min(sz.h, window.innerHeight - 32));
+      panel.classList.add("sized");
+      panel.style.setProperty("--mplis-w", w + "px");
+      panel.style.setProperty("--mplis-h", h + "px");
+    }
+    function saveSize(sz) {
+      try {
+        localStorage.setItem(SIZE_KEY, sz ? JSON.stringify(sz) : "");
+      } catch (e) {
+      }
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem(SIZE_KEY) || "null");
+      if (saved && saved.w && saved.h) {
+        applySize(saved);
+        sizePreset = -1;
+      }
+    } catch (e) {
+    }
+    document.getElementById("mplis-btn-size").onclick = () => {
+      sizePreset = (sizePreset + 1) % SIZE_PRESETS.length;
+      applySize(SIZE_PRESETS[sizePreset]);
+      saveSize(SIZE_PRESETS[sizePreset]);
+    };
+    const resizeHandle = document.getElementById("mplis-resize");
+    resizeHandle.ondblclick = () => {
+      sizePreset = 0;
+      applySize(null);
+      saveSize(null);
+    };
+    resizeHandle.onpointerdown = (e) => {
+      e.preventDefault();
+      const rect = panel.getBoundingClientRect();
+      const startX = e.clientX, startY = e.clientY, startW = rect.width, startH = rect.height;
+      resizeHandle.setPointerCapture(e.pointerId);
+      let last = null;
+      resizeHandle.onpointermove = (ev) => {
+        last = { w: Math.round(startW + (startX - ev.clientX)), h: Math.round(startH + (startY - ev.clientY)) };
+        applySize(last);
+      };
+      resizeHandle.onpointerup = () => {
+        resizeHandle.onpointermove = null;
+        resizeHandle.onpointerup = null;
+        if (last) {
+          sizePreset = -1;
+          saveSize(last);
+        }
+      };
+    };
+    const ZOOM_MIN = 0.9, ZOOM_MAX = 1.6;
+    let zoom = parseFloat(localStorage.getItem(ZOOM_KEY)) || 1;
+    function applyZoom(z) {
+      zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 10) / 10));
+      panel.style.setProperty("--mplis-zoom", String(zoom));
+      try {
+        localStorage.setItem(ZOOM_KEY, String(zoom));
+      } catch (e) {
+      }
+    }
+    applyZoom(zoom);
+    document.getElementById("mplis-btn-zoom-in").onclick = () => applyZoom(zoom + 0.1);
+    document.getElementById("mplis-btn-zoom-out").onclick = () => applyZoom(zoom - 0.1);
     document.querySelectorAll(".mplis-tab").forEach((tab) => {
       tab.onclick = () => {
         const content = document.querySelector(".mplis-content");
@@ -4788,6 +5134,7 @@
     });
     document.getElementById("btn-toggle-process").onclick = toggleProcess;
     document.getElementById("btn-toggle-return").onclick = toggleReturn;
+    LookupModule.init();
     AlertModule.init();
     ExcelModule.init();
     UpdateParcelModule.init();
@@ -5778,7 +6125,7 @@
     } catch (e) {
     }
   }
-  function parseAspNetDate(str) {
+  function parseAspNetDate2(str) {
     if (!str) return "";
     const m = str.match(/\/Date\((\d+)\)\//);
     if (!m) return "";
@@ -5791,13 +6138,13 @@
   }
   function formatTrangThaiChiTiet(item) {
     if (item.daTra) {
-      return "Đã trả kết quả ngày " + parseAspNetDate(item.ngayTra);
+      return "Đã trả kết quả ngày " + parseAspNetDate2(item.ngayTra);
     }
     if (item.daKetISO) {
-      return "Đã kết ISO ngày " + parseAspNetDate(item.ngayKetISO);
+      return "Đã kết ISO ngày " + parseAspNetDate2(item.ngayKetISO);
     }
     if (item.daCapNhatDuLieuPhapLy) {
-      return "Đã cập nhật dữ liệu pháp lý ngày " + parseAspNetDate(item.ngayCapNhatDuLieuPhapLy);
+      return "Đã cập nhật dữ liệu pháp lý ngày " + parseAspNetDate2(item.ngayCapNhatDuLieuPhapLy);
     }
     const buoc = item.state && item.state.Title || "Đang xử lý";
     const isLuuTru = item.state && item.state.State === "LuuTru";

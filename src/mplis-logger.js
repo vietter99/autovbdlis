@@ -138,9 +138,14 @@ function installXhrLogger() {
     XMLHttpRequest.prototype.send = function(body) {
         const entry = { t: now(), type: 'xhr', ep: epTag(this._mplisUrl || ''), method: this._mplisMethod || 'GET' };
         if (body && typeof body === 'string') entry.req = body.slice(0, 300);
+        entry.url = String(this._mplisUrl || '').slice(0, 300);
         this.addEventListener('load', function() {
             entry.status = this.status;
-            try { entry.res = JSON.parse(this.responseText); } catch { entry.res = (this.responseText || '').slice(0, 500); }
+            if (this.responseType === '' || this.responseType === 'text') {
+                try { entry.res = JSON.parse(this.responseText); } catch { entry.res = (this.responseText || '').slice(0, 500); }
+            } else {
+                entry.res = '(' + this.responseType + ' ' + (this.getResponseHeader('content-type') || '') + ')';
+            }
             push(entry);
         });
         this.addEventListener('error', function() { entry.err = 'network error'; push(entry); });
@@ -149,6 +154,33 @@ function installXhrLogger() {
     XMLHttpRequest.prototype.__mplisLogged = true;
 }
 
+function installOpenLogger() {
+    const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    if (!win.open || win.open.__mplisLogged) return;
+    const orig = win.open;
+    win.open = function(url) {
+        push({ t: now(), type: 'windowOpen', url: String(url || '').slice(0, 300) });
+        return orig.apply(this, arguments);
+    };
+    win.open.__mplisLogged = true;
+}
+
+function installResourceLogger() {
+    if (typeof PerformanceObserver === 'undefined') return;
+    const SKIP = /^(script|link|css|img|image|font|beacon|xmlhttprequest|fetch)$/;
+    try {
+        new PerformanceObserver((list) => {
+            for (const r of list.getEntries()) {
+                if (SKIP.test(r.initiatorType || '')) continue;
+                if (/\.(js|css|png|jpe?g|gif|svg|woff2?|ttf|ico)(\?|$)/i.test(r.name)) continue;
+                push({ t: now(), type: 'resource', via: r.initiatorType, url: String(r.name).slice(0, 400) });
+            }
+        }).observe({ type: 'resource', buffered: false });
+    } catch { }
+}
+
 installErrorLogger();
 installFetchLogger();
 installXhrLogger();
+installOpenLogger();
+installResourceLogger();

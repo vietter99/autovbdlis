@@ -3,6 +3,7 @@ import { ReturnModule } from './return-module.js';
 import { UpdateParcelModule } from './update-parcel-module.js';
 import { ExcelModule } from './excel-module.js';
 import { AlertModule } from './alert-module.js';
+import { LookupModule } from './lookup-module.js';
 import { isAutoConfirmEnabled, escapeHtml } from './utils.js';
 import { toggleProcess, toggleReturn } from './toggle.js';
 import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from './mplis-logger.js';
@@ -18,7 +19,8 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
     const ICON_RETURN = svgIcon('<path d="M4 4h16v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><polyline points="4 8 12 13 20 8"></polyline>');
     const ICON_UPDATE = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>');
     const ICON_SETTINGS = svgIcon('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>');
-    const ICON_MORE = svgIcon('<circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle>');
+    const ICON_SEARCH = svgIcon('<circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>');
+    const ICON_MORE =svgIcon('<circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle>');
     const ICON_LINK = svgIcon('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>', 16);
     const ICON_REFRESH = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"></path>', 16);
     const ICON_CLIPBOARD = svgIcon('<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1"></rect>', 16);
@@ -107,10 +109,17 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                     </span>
                     MPLIS Auto
                 </div>
+                <div class="mplis-hdr-actions">
+                <button class="mplis-btn-minimize" id="mplis-btn-zoom-out" title="Chữ nhỏ lại" aria-label="Chữ nhỏ lại">A-</button>
+                <button class="mplis-btn-minimize" id="mplis-btn-zoom-in" title="Chữ to lên" aria-label="Chữ to lên">A+</button>
+                <button class="mplis-btn-minimize" id="mplis-btn-size" title="Đổi cỡ khung: vừa / lớn / rất lớn (hoặc kéo góc trên trái)" aria-label="Đổi cỡ khung"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></button>
                 <button class="mplis-btn-minimize" id="mplis-btn-minimize" title="Thu nhỏ">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
                 </button>
+                </div>
             </div>
+
+            <div class="mplis-resize" id="mplis-resize" title="Kéo để đổi cỡ khung, bấm đúp để về mặc định"></div>
 
             <button class="mplis-minimized-trigger" id="mplis-btn-maximize" title="Mở rộng MPLIS Auto">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
@@ -121,6 +130,7 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                     <button class="mplis-tab active" data-tab="tab-process" title="Xử lý Quy trình" aria-label="Xử lý Quy trình">${ICON_PROCESS}</button>
                     <button class="mplis-tab" data-tab="tab-alert" title="Nhắc nhở hồ sơ trễ hạn" aria-label="Nhắc nhở hồ sơ trễ hạn">${ICON_ALERT}</button>
                     <button class="mplis-tab" data-tab="tab-excel" title="Xuất dữ liệu Excel" aria-label="Xuất dữ liệu Excel">${ICON_EXCEL}</button>
+                    <button class="mplis-tab" data-tab="tab-lookup" title="Tra cứu hồ sơ" aria-label="Tra cứu hồ sơ">${ICON_SEARCH}</button>
                     <!-- ĐANG ẨN TẠM: 2 tab "Trả hồ sơ" và "Auto sửa Thửa/Tờ" (không dùng tới). Toàn bộ code
                          và phần nội dung 2 tab vẫn giữ nguyên bên dưới - muốn bật lại chỉ cần thêm lại 2 dòng:
                          <button class="mplis-tab mplis-tab-extra" data-tab="tab-return" title="Trả hồ sơ" aria-label="Trả hồ sơ" style="display:none;">ICON_RETURN</button>
@@ -326,6 +336,16 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                         </div>
                     </div>
 
+
+                    <!-- TAB LOOKUP -->
+                    <div class="mplis-panel-body" id="tab-lookup">
+                        <div class="mplis-lk-bar">
+                            <input type="text" id="lookup-input" placeholder="Gõ đuôi mã hồ sơ, VD: 0402 hoặc 9-0402" autocomplete="off">
+                            <button type="button" class="mplis-btn-primary" id="btn-lookup">Tìm</button>
+                        </div>
+                        <div class="mplis-hint" id="lookup-info" style="margin:6px 0 8px;">Gõ một phần mã rồi Enter, tool tự thêm % phía trước.</div>
+                        <div id="lookup-results"></div>
+                    </div>
 
                     <!-- TAB 4: RETURN -->
                     <div class="mplis-panel-body tab-return-color" id="tab-return">
@@ -700,6 +720,69 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
         document.getElementById('mplis-btn-minimize').onclick = () => { panel.classList.add('minimized'); localStorage.setItem('mplis_auto_minimized', 'true'); };
         document.getElementById('mplis-btn-maximize').onclick = () => { panel.classList.remove('minimized'); localStorage.setItem('mplis_auto_minimized', 'false'); };
 
+        // Cỡ khung (nút cỡ + kéo góc trên-trái) và cỡ chữ (A-/A+), nhớ qua F5.
+        const SIZE_KEY = 'mplis_panel_size';
+        const ZOOM_KEY = 'mplis_panel_zoom';
+        const SIZE_PRESETS = [null, { w: 560, h: 640 }, { w: 880, h: 820 }];
+        let sizePreset = 0;
+
+        function applySize(sz) {
+            if (!sz) {
+                panel.classList.remove('sized');
+                panel.style.removeProperty('--mplis-w');
+                panel.style.removeProperty('--mplis-h');
+                return;
+            }
+            const w = Math.max(340, Math.min(sz.w, window.innerWidth - 32));
+            const h = Math.max(300, Math.min(sz.h, window.innerHeight - 32));
+            panel.classList.add('sized');
+            panel.style.setProperty('--mplis-w', w + 'px');
+            panel.style.setProperty('--mplis-h', h + 'px');
+        }
+        function saveSize(sz) {
+            try { localStorage.setItem(SIZE_KEY, sz ? JSON.stringify(sz) : ''); } catch (e) { }
+        }
+        try {
+            const saved = JSON.parse(localStorage.getItem(SIZE_KEY) || 'null');
+            if (saved && saved.w && saved.h) { applySize(saved); sizePreset = -1; }
+        } catch (e) { }
+
+        document.getElementById('mplis-btn-size').onclick = () => {
+            sizePreset = (sizePreset + 1) % SIZE_PRESETS.length;
+            applySize(SIZE_PRESETS[sizePreset]);
+            saveSize(SIZE_PRESETS[sizePreset]);
+        };
+
+        const resizeHandle = document.getElementById('mplis-resize');
+        resizeHandle.ondblclick = () => { sizePreset = 0; applySize(null); saveSize(null); };
+        resizeHandle.onpointerdown = (e) => {
+            e.preventDefault();
+            const rect = panel.getBoundingClientRect();
+            const startX = e.clientX, startY = e.clientY, startW = rect.width, startH = rect.height;
+            resizeHandle.setPointerCapture(e.pointerId);
+            let last = null;
+            resizeHandle.onpointermove = (ev) => {
+                last = { w: Math.round(startW + (startX - ev.clientX)), h: Math.round(startH + (startY - ev.clientY)) };
+                applySize(last);
+            };
+            resizeHandle.onpointerup = () => {
+                resizeHandle.onpointermove = null;
+                resizeHandle.onpointerup = null;
+                if (last) { sizePreset = -1; saveSize(last); }
+            };
+        };
+
+        const ZOOM_MIN = 0.9, ZOOM_MAX = 1.6;
+        let zoom = parseFloat(localStorage.getItem(ZOOM_KEY)) || 1;
+        function applyZoom(z) {
+            zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 10) / 10));
+            panel.style.setProperty('--mplis-zoom', String(zoom));
+            try { localStorage.setItem(ZOOM_KEY, String(zoom)); } catch (e) { }
+        }
+        applyZoom(zoom);
+        document.getElementById('mplis-btn-zoom-in').onclick = () => applyZoom(zoom + 0.1);
+        document.getElementById('mplis-btn-zoom-out').onclick = () => applyZoom(zoom - 0.1);
+
         // Tabs
         document.querySelectorAll('.mplis-tab').forEach(tab => {
             tab.onclick = () => {
@@ -954,6 +1037,7 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
         document.getElementById('btn-toggle-process').onclick = toggleProcess;
         document.getElementById('btn-toggle-return').onclick = toggleReturn;
 
+        LookupModule.init();
         AlertModule.init();
         ExcelModule.init();
         UpdateParcelModule.init();
