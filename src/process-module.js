@@ -32,6 +32,30 @@ import { createModuleRuntime } from './module-runtime.js';
             const ep = e.ep || '';
             const ok = !!(e.res && (e.res.success === true || e.res.Success === true));
 
+            // Upload file lỗi mạng (đứt kết nối, server không kịp trả lời): thử lại tối đa 2 lần,
+            // vẫn lỗi thì dừng để upload tay - tránh Kết ISO khi hồ sơ còn thiếu file (Kết ISO xong không sửa được).
+            if (ep.includes('UploadGiayToDinhKem')) {
+                const ten = topState._lastUploadName || '';
+                topState._uploadRetry = topState._uploadRetry || {};
+                if (e.err) {
+                    const n = (topState._uploadRetry[ten] || 0) + 1;
+                    topState._uploadRetry[ten] = n;
+                    if (n > 2) {
+                        writeLog(`⚠️ Upload ${ten || 'file'} lỗi mạng ${n} lần liên tiếp. DỪNG AUTO.`);
+                        updateStatus('Upload lỗi - Dừng', 'idle');
+                        if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function')
+                            topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ LỖI: UPLOAD ${ten || 'FILE'} KHÔNG LÊN — upload tay rồi mới Kết ISO`);
+                        return;
+                    }
+                    writeLog(`⚠️ Upload ${ten || 'file'} lỗi mạng, thử lại lần ${n}/2...`);
+                    document.querySelectorAll('[data-mplis-uploading]').forEach(el => el.removeAttribute('data-mplis-uploading'));
+                    topState._uploadFailedAt = Date.now();
+                    topState.lastActionTime = 0;
+                } else if (ten) {
+                    delete topState._uploadRetry[ten];
+                }
+            }
+
             // QT1: check trả về ok → chuẩn bị jconfirm xác nhận cập nhật pháp lý
             if (ep.includes('KiemTraCapNhatDuLieuPhapLy') && ok) topState.expectQT1Confirm = true;
 
@@ -258,6 +282,12 @@ import { createModuleRuntime } from './module-runtime.js';
 
                 // --- AUTO UPLOAD (btnUploadFile) ---
                 // Áp dụng khi tool đã nạp thư mục file. Khớp tên file theo quy tắc SPH cuối / GT / PT.
+                if (topState.uploadDirHandle && typeof topState.refreshUploadFolder === 'function' && now - (topState._dirRefreshAt || 0) > 1500) {
+                    topState._dirRefreshAt = now;
+                    try { await topState.refreshUploadFolder(); } catch (e) {
+                        console.log('[MPLIS Upload] Không đọc lại được thư mục (mất quyền truy cập?):', e);
+                    }
+                }
                 if (topState.uploadFolderFiles && topState.uploadFolderFiles.length > 0) {
                     // Chỉ nhận nút Tải lên (btn-success = xanh). Sau khi upload xong MPLIS đổi
                     // thành "Xóa tệp" (btn-danger = đỏ) nhưng vẫn giữ id/type cũ - không click.
@@ -265,6 +295,19 @@ import { createModuleRuntime } from './module-runtime.js';
                         try { return el.getBoundingClientRect().width > 0; } catch (e) { return false; }
                     });
                     const btnUpload = uploadBtns.find(el => !el.hasAttribute('data-mplis-uploading'));
+                    if (!btnUpload && topState._uploadFailedAt) {
+                        if (now - topState._uploadFailedAt < 6000) {
+                            updateStatus('Đợi thử lại upload...', 'waiting');
+                            return;
+                        }
+                        const ten = topState._lastUploadName || 'file';
+                        topState._uploadFailedAt = 0;
+                        writeLog(`⚠️ Upload ${ten} lỗi mạng và không thấy nút upload để thử lại. DỪNG AUTO.`);
+                        updateStatus('Upload lỗi - Dừng', 'idle');
+                        if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function')
+                            topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ LỖI: UPLOAD ${ten} KHÔNG LÊN — upload tay rồi mới Kết ISO`);
+                        return;
+                    }
                     if (btnUpload) {
                         const row = btnUpload.closest('tr');
                         const rowText = ((row && row.textContent) || '').toUpperCase();
@@ -479,6 +522,8 @@ import { createModuleRuntime } from './module-runtime.js';
                             writeLog(`Auto upload ${fileType}: ${matchedFile.name}`);
                             btnUpload.setAttribute('data-mplis-uploading', 'true');
                             topState._pendingUploadFile = matchedFile;
+                            topState._lastUploadName = matchedFile.name;
+                            topState._uploadFailedAt = 0;
                             const jqU = (typeof unsafeWindow !== 'undefined' && unsafeWindow.$) ? unsafeWindow.$ : null;
                             if (jqU) jqU(btnUpload).click(); else clickElement(btnUpload);
                             setLastActionTime(now, topState.config.delayAction);

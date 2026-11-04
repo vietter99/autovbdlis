@@ -183,6 +183,7 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                                 <input type="file" id="mplis-folder-picker" webkitdirectory multiple style="display:none">
                                 <div style="display:flex; gap:6px; margin-bottom:8px;">
                                     <button type="button" id="btn-chon-thu-muc" class="mplis-btn-primary" style="flex:1; padding:9px; font-size:12px;">Chọn thư mục</button>
+                                    <button type="button" id="btn-lamoi-thu-muc" class="mplis-btn-ghost" style="padding:9px 12px; flex-shrink:0;" title="Đọc lại thư mục (sau khi đổi tên file). Tool cũng tự đọc lại trước mỗi lần upload.">↻</button>
                                     <button type="button" id="btn-xoa-thu-muc" class="mplis-btn-ghost" style="padding:9px 12px; flex-shrink:0;" title="Xóa thư mục đã chọn">✕</button>
                                 </div>
                                 <div id="qt-upload-files-status" style="font-size:11.5px; color:var(--mplis-text-dim); margin-bottom:8px; word-break:break-all; line-height:1.5;"></div>
@@ -898,21 +899,73 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
             });
         }
 
+        // Chọn thư mục kiểu <input webkitdirectory> chỉ "chụp" tên file lúc chọn: đổi tên file sau đó
+        // là bản chụp sai, phải chọn lại từ đầu. showDirectoryPicker giữ được đường dẫn thật nên đọc lại
+        // thư mục bất cứ lúc nào (process-module gọi refreshUploadFolder trước mỗi lần ghép file upload).
+        async function docThuMuc(handle, prefix, out, depth) {
+            for await (const [name, h] of handle.entries()) {
+                if (h.kind === 'file') {
+                    if (!/\.pdf$/i.test(name)) continue;
+                    const f = await h.getFile();
+                    try { Object.defineProperty(f, 'webkitRelativePath', { value: prefix + name }); } catch (e) { }
+                    out.push(f);
+                } else if (depth < 3) {
+                    await docThuMuc(h, prefix + name + '/', out, depth + 1);
+                }
+            }
+        }
+
+        function gachChanThuMuc(ts, handle) {
+            ts.uploadDirHandle = handle;
+            ts.refreshUploadFolder = async () => {
+                if (!ts.uploadDirHandle) return;
+                const out = [];
+                await docThuMuc(ts.uploadDirHandle, ts.uploadDirHandle.name + '/', out, 0);
+                const cu = (ts.uploadFolderFiles || []).map(f => f.name).join('|');
+                ts.uploadFolderFiles = out;
+                if (cu !== out.map(f => f.name).join('|')) veUploadState(out);
+            };
+            return ts.refreshUploadFolder();
+        }
+
         if (btnChonThuMuc && folderPickerEl) {
-            btnChonThuMuc.onclick = () => folderPickerEl.click();
+            btnChonThuMuc.onclick = async () => {
+                const ts = ProcessModule.getTopState();
+                if (ts && typeof window.showDirectoryPicker === 'function') {
+                    try {
+                        const handle = await window.showDirectoryPicker({ mode: 'read' });
+                        await gachChanThuMuc(ts, handle);
+                        return;
+                    } catch (e) {
+                        if (e && e.name === 'AbortError') return;
+                        console.log('[MPLIS Upload] showDirectoryPicker lỗi, dùng cách chọn thư mục thường:', e);
+                    }
+                }
+                folderPickerEl.click();
+            };
             folderPickerEl.onchange = () => {
                 const files = Array.from(folderPickerEl.files || []);
                 const ts = ProcessModule.getTopState();
-                if (ts) ts.uploadFolderFiles = files;
+                if (ts) { ts.uploadFolderFiles = files; ts.uploadDirHandle = null; ts.refreshUploadFolder = null; }
                 veUploadState(files);
                 folderPickerEl.value = '';
+            };
+        }
+
+        const btnLamMoiThuMuc = document.getElementById('btn-lamoi-thu-muc');
+        if (btnLamMoiThuMuc) {
+            btnLamMoiThuMuc.onclick = async () => {
+                const ts = ProcessModule.getTopState();
+                if (ts && ts.refreshUploadFolder) {
+                    try { await ts.refreshUploadFolder(); } catch (e) { console.log('[MPLIS Upload] Không đọc lại được thư mục:', e); }
+                }
             };
         }
 
         if (btnXoaThuMuc) {
             btnXoaThuMuc.onclick = () => {
                 const ts = ProcessModule.getTopState();
-                if (ts) ts.uploadFolderFiles = [];
+                if (ts) { ts.uploadFolderFiles = []; ts.uploadDirHandle = null; ts.refreshUploadFolder = null; }
                 veUploadState(null);
             };
         }

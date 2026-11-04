@@ -560,6 +560,27 @@
       if (!topState || !topState.isRunning) return;
       const ep = e.ep || "";
       const ok = !!(e.res && (e.res.success === true || e.res.Success === true));
+      if (ep.includes("UploadGiayToDinhKem")) {
+        const ten = topState._lastUploadName || "";
+        topState._uploadRetry = topState._uploadRetry || {};
+        if (e.err) {
+          const n = (topState._uploadRetry[ten] || 0) + 1;
+          topState._uploadRetry[ten] = n;
+          if (n > 2) {
+            writeLog(`⚠️ Upload ${ten || "file"} lỗi mạng ${n} lần liên tiếp. DỪNG AUTO.`);
+            updateStatus("Upload lỗi - Dừng", "idle");
+            if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function")
+              topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ LỖI: UPLOAD ${ten || "FILE"} KHÔNG LÊN — upload tay rồi mới Kết ISO`);
+            return;
+          }
+          writeLog(`⚠️ Upload ${ten || "file"} lỗi mạng, thử lại lần ${n}/2...`);
+          document.querySelectorAll("[data-mplis-uploading]").forEach((el) => el.removeAttribute("data-mplis-uploading"));
+          topState._uploadFailedAt = Date.now();
+          topState.lastActionTime = 0;
+        } else if (ten) {
+          delete topState._uploadRetry[ten];
+        }
+      }
       if (ep.includes("KiemTraCapNhatDuLieuPhapLy") && ok) topState.expectQT1Confirm = true;
       if (ep.includes("CapNhatDuLieuPhapLy") && ok) {
         topState.expectQT1Confirm = false;
@@ -750,6 +771,14 @@
             return;
           }
         }
+        if (topState.uploadDirHandle && typeof topState.refreshUploadFolder === "function" && now2 - (topState._dirRefreshAt || 0) > 1500) {
+          topState._dirRefreshAt = now2;
+          try {
+            await topState.refreshUploadFolder();
+          } catch (e) {
+            console.log("[MPLIS Upload] Không đọc lại được thư mục (mất quyền truy cập?):", e);
+          }
+        }
         if (topState.uploadFolderFiles && topState.uploadFolderFiles.length > 0) {
           const uploadBtns = Array.from(document.querySelectorAll('#btnUploadFile.btn-success, a[type="upload"].btn-success')).filter((el) => {
             try {
@@ -759,6 +788,19 @@
             }
           });
           const btnUpload = uploadBtns.find((el) => !el.hasAttribute("data-mplis-uploading"));
+          if (!btnUpload && topState._uploadFailedAt) {
+            if (now2 - topState._uploadFailedAt < 6e3) {
+              updateStatus("Đợi thử lại upload...", "waiting");
+              return;
+            }
+            const ten = topState._lastUploadName || "file";
+            topState._uploadFailedAt = 0;
+            writeLog(`⚠️ Upload ${ten} lỗi mạng và không thấy nút upload để thử lại. DỪNG AUTO.`);
+            updateStatus("Upload lỗi - Dừng", "idle");
+            if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function")
+              topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ LỖI: UPLOAD ${ten} KHÔNG LÊN — upload tay rồi mới Kết ISO`);
+            return;
+          }
           if (btnUpload) {
             const row = btnUpload.closest("tr");
             const rowText = (row && row.textContent || "").toUpperCase();
@@ -909,6 +951,8 @@
               writeLog(`Auto upload ${fileType}: ${matchedFile.name}`);
               btnUpload.setAttribute("data-mplis-uploading", "true");
               topState._pendingUploadFile = matchedFile;
+              topState._lastUploadName = matchedFile.name;
+              topState._uploadFailedAt = 0;
               const jqU = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
               if (jqU) jqU(btnUpload).click();
               else clickElement(btnUpload);
@@ -4310,6 +4354,7 @@
                                 <input type="file" id="mplis-folder-picker" webkitdirectory multiple style="display:none">
                                 <div style="display:flex; gap:6px; margin-bottom:8px;">
                                     <button type="button" id="btn-chon-thu-muc" class="mplis-btn-primary" style="flex:1; padding:9px; font-size:12px;">Chọn thư mục</button>
+                                    <button type="button" id="btn-lamoi-thu-muc" class="mplis-btn-ghost" style="padding:9px 12px; flex-shrink:0;" title="Đọc lại thư mục (sau khi đổi tên file). Tool cũng tự đọc lại trước mỗi lần upload.">↻</button>
                                     <button type="button" id="btn-xoa-thu-muc" class="mplis-btn-ghost" style="padding:9px 12px; flex-shrink:0;" title="Xóa thư mục đã chọn">✕</button>
                                 </div>
                                 <div id="qt-upload-files-status" style="font-size:11.5px; color:var(--mplis-text-dim); margin-bottom:8px; word-break:break-all; line-height:1.5;"></div>
@@ -4992,20 +5037,81 @@
         };
       });
     }
+    async function docThuMuc(handle, prefix, out, depth) {
+      for await (const [name, h] of handle.entries()) {
+        if (h.kind === "file") {
+          if (!/\.pdf$/i.test(name)) continue;
+          const f = await h.getFile();
+          try {
+            Object.defineProperty(f, "webkitRelativePath", { value: prefix + name });
+          } catch (e) {
+          }
+          out.push(f);
+        } else if (depth < 3) {
+          await docThuMuc(h, prefix + name + "/", out, depth + 1);
+        }
+      }
+    }
+    function gachChanThuMuc(ts, handle) {
+      ts.uploadDirHandle = handle;
+      ts.refreshUploadFolder = async () => {
+        if (!ts.uploadDirHandle) return;
+        const out = [];
+        await docThuMuc(ts.uploadDirHandle, ts.uploadDirHandle.name + "/", out, 0);
+        const cu = (ts.uploadFolderFiles || []).map((f) => f.name).join("|");
+        ts.uploadFolderFiles = out;
+        if (cu !== out.map((f) => f.name).join("|")) veUploadState(out);
+      };
+      return ts.refreshUploadFolder();
+    }
     if (btnChonThuMuc && folderPickerEl) {
-      btnChonThuMuc.onclick = () => folderPickerEl.click();
+      btnChonThuMuc.onclick = async () => {
+        const ts = ProcessModule.getTopState();
+        if (ts && typeof window.showDirectoryPicker === "function") {
+          try {
+            const handle = await window.showDirectoryPicker({ mode: "read" });
+            await gachChanThuMuc(ts, handle);
+            return;
+          } catch (e) {
+            if (e && e.name === "AbortError") return;
+            console.log("[MPLIS Upload] showDirectoryPicker lỗi, dùng cách chọn thư mục thường:", e);
+          }
+        }
+        folderPickerEl.click();
+      };
       folderPickerEl.onchange = () => {
         const files = Array.from(folderPickerEl.files || []);
         const ts = ProcessModule.getTopState();
-        if (ts) ts.uploadFolderFiles = files;
+        if (ts) {
+          ts.uploadFolderFiles = files;
+          ts.uploadDirHandle = null;
+          ts.refreshUploadFolder = null;
+        }
         veUploadState(files);
         folderPickerEl.value = "";
+      };
+    }
+    const btnLamMoiThuMuc = document.getElementById("btn-lamoi-thu-muc");
+    if (btnLamMoiThuMuc) {
+      btnLamMoiThuMuc.onclick = async () => {
+        const ts = ProcessModule.getTopState();
+        if (ts && ts.refreshUploadFolder) {
+          try {
+            await ts.refreshUploadFolder();
+          } catch (e) {
+            console.log("[MPLIS Upload] Không đọc lại được thư mục:", e);
+          }
+        }
       };
     }
     if (btnXoaThuMuc) {
       btnXoaThuMuc.onclick = () => {
         const ts = ProcessModule.getTopState();
-        if (ts) ts.uploadFolderFiles = [];
+        if (ts) {
+          ts.uploadFolderFiles = [];
+          ts.uploadDirHandle = null;
+          ts.refreshUploadFolder = null;
+        }
         veUploadState(null);
       };
     }
