@@ -14,6 +14,7 @@ const K_CHAT = 'mplis_tg_chat';
 const K_SEEN = 'mplis_tg_seen';
 const K_BASE = 'mplis_tg_baseline';
 const K_SEC = 'mplis_tg_interval';
+const K_ALERT_ERR = 'mplis_tg_alert_error'; // gửi cảnh báo "Auto dừng vì lỗi" lên Telegram (mặc định bật)
 const SEEN_MAX = 600;
 const NOTIFY_URL = 'https://dla.mplis.gov.vn/dc/DangKyAjax/GetNotify';
 const WORK_URL = 'https://dla.mplis.gov.vn/dc/DangKyAjax/GetXuLyCongViec';
@@ -460,6 +461,16 @@ async function pollLenh() {
     } catch (e) { /* mạng lỗi thì lần sau hỏi lại */ } finally { dangHoi = false; }
 }
 
+// Cho module khác (process-module) báo Telegram khi auto tự dừng vì lỗi. Chỉ gửi khi đang bật
+// "Chế độ đi vắng" và đã nhập API Key + Chat ID; lỗi gửi thì nuốt, không làm hỏng việc dừng auto.
+if (window === window.top) {
+    topWin.MPLIS_TG_ALERT = (html) => {
+        if (ls.get(K_ALERT_ERR, 'true') === 'false') return;
+        if (!isOn() || !ls.get(K_TOKEN).trim() || !ls.get(K_CHAT).trim()) return;
+        sendTelegram(html).catch((e) => console.log('[MPLIS Notify] Không gửi được cảnh báo lỗi:', e.message));
+    };
+}
+
 let timer = false;
 function startTimer() {
     if (timer) return;
@@ -482,6 +493,10 @@ export const NotifyModule = {
             <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
                 <span id="tg-total" style="font-size:30px; font-weight:800; color:var(--mplis-accent-2); font-variant-numeric:tabular-nums;">—</span>
                 <span style="font-size:12px; color:var(--mplis-text-dim);">bộ đang chờ xử lý</span>
+            </div>
+            <div class="mplis-bypass-row" style="margin-top:6px; padding-bottom:0;">
+                <div class="mplis-bypass-row-label"><strong>Báo lỗi qua Telegram</strong><span>Tin "Auto dừng" kèm mã hồ sơ và nội dung lỗi</span></div>
+                <label class="mplis-toggle-sw"><input type="checkbox" id="tg-alert-err" ${ls.get(K_ALERT_ERR, 'true') !== 'false' ? 'checked' : ''}><span class="mplis-toggle-track"></span></label>
             </div>
             <div id="tg-recv" style="font-size:12px; color:var(--mplis-text); margin-top:2px;"></div>
             <div id="tg-msg" class="mplis-hint" style="margin:6px 0 0;"></div>
@@ -530,6 +545,11 @@ export const NotifyModule = {
             st.msg = e.target.checked ? 'Đã bật. Lần kiểm tra tới sẽ báo hồ sơ mới.' : 'Đã tắt, không gửi gì lên Telegram.';
             render();
             if (e.target.checked) tick(false);
+        };
+        el('tg-alert-err').onchange = (e) => {
+            ls.set(K_ALERT_ERR, e.target.checked ? 'true' : 'false');
+            st.msg = e.target.checked ? 'Đã bật báo lỗi qua Telegram.' : 'Đã tắt báo lỗi qua Telegram (hồ sơ mới vẫn báo bình thường).';
+            render();
         };
         el('tg-check').onclick = () => tick(true);
         el('tg-cfg-card').style.display = 'block';

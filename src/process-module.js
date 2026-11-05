@@ -1,4 +1,4 @@
-import { topWin, clickElement, isSystemLoading, querySelectorAllCustom } from './utils.js';
+import { topWin, clickElement, isSystemLoading, querySelectorAllCustom, findCurrentMaHS, escapeHtml } from './utils.js';
 import { createModuleRuntime } from './module-runtime.js';
 import { setFastInterval } from './bg-ticker.js';
 
@@ -33,6 +33,14 @@ import { setFastInterval } from './bg-ticker.js';
             const ep = e.ep || '';
             const ok = !!(e.res && (e.res.success === true || e.res.Success === true));
 
+            // Theo dõi hồ sơ đang làm từ chính request gửi lên server (hoSoTiepNhanId). Đổi sang hồ sơ khác thì
+            // xoá danh sách "tác vụ đã xử lý" của hồ sơ cũ, tránh coi nhầm hồ sơ mới là đã xong.
+            const mHoSo = typeof e.req === 'string' && /hoSoTiepNhanId"?\s*[:=]\s*"?([0-9a-fA-F-]{36})/.exec(e.req);
+            if (mHoSo && mHoSo[1] !== topState.hoSoIdHienTai) {
+                topState.hoSoIdHienTai = mHoSo[1];
+                topState.tacVuDaXuLy = null;
+            }
+
             // Upload file lỗi mạng (đứt kết nối, server không kịp trả lời): thử lại tối đa 2 lần,
             // vẫn lỗi thì dừng để upload tay - tránh Kết ISO khi hồ sơ còn thiếu file (Kết ISO xong không sửa được).
             if (ep.includes('UploadGiayToDinhKem')) {
@@ -57,11 +65,62 @@ import { setFastInterval } from './bg-ticker.js';
                 }
             }
 
+            // Phát hiện lỗi bằng PHẢN HỒI API thật (không đoán chữ trên hộp thoại): các lệnh ghi dữ liệu
+            // mà server trả success=false thì dừng ngay, ghi NGUYÊN VĂN phản hồi để biết lỗi gì.
+            // Mọi phản hồi của 2 lệnh pháp lý cũng được ghi lại để thấy server trả gì.
+            const laLenhGhi = /KiemTraCapNhatDuLieuPhapLy|CapNhatDuLieuPhapLy|ThucHienKetISO|executeCommand|UpdateHoSoQuet/i.test(ep);
+            if (laLenhGhi && !e.err) {
+                let raw = '';
+                try { raw = typeof e.res === 'string' ? e.res : JSON.stringify(e.res); } catch (x) { raw = String(e.res); }
+                raw = (raw || '').slice(0, 600);
+                if (/PhapLy/i.test(ep)) writeLog('API ' + ep + ' (' + (e.status || '?') + '): ' + raw);
+                let thatBai = !!(e.res && typeof e.res === 'object' && (e.res.success === false || e.res.Success === false));
+                // Theo log thật: lệnh ghi thành công trả {success:true, value:true}; value:false là thất bại.
+                if (e.res && typeof e.res === 'object' && e.res.success === true && e.res.value === false) thatBai = true;
+                // Kiểm tra trước khi cập nhật pháp lý (cấu trúc đo từ log thật, hồ sơ OK trả):
+                //   value.KiemTraNganChan.coNganChan=false, value.KiemTraGiayChungNhan=null, value.message=""
+                // Có ngăn chặn / có cảnh báo giấy chứng nhận / có message => MPLIS sẽ không cho cập nhật => dừng.
+                if (/KiemTraCapNhatDuLieuPhapLy/i.test(ep) && e.res && e.res.value && typeof e.res.value === 'object') {
+                    const v = e.res.value;
+                    if (v.success === false || (v.KiemTraNganChan && v.KiemTraNganChan.coNganChan === true)
+                        || (v.message && String(v.message).trim()) || v.KiemTraGiayChungNhan) thatBai = true;
+                }
+                if (thatBai) {
+                    writeLog('⚠️ Server từ chối ' + ep + ': ' + raw + ' — DỪNG AUTO.');
+                    baoLoiTelegram('Server từ chối ' + ep, '', raw);
+                    updateStatus('Server báo lỗi - Dừng', 'idle');
+                    if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function') topWin.MPLIS_AUTO_TOGGLE_FUNC('⚠️ LỖI: SERVER TỪ CHỐI ' + ep + ' — xem log');
+                    return;
+                }
+            }
+
+            // QT0: mốc API để biết lúc nào đóng bảng tệp đính kèm là an toàn (xem bước 'Cập nhật' tệp đính kèm)
+            if (topState.qt0Phase === 1) {
+                if (/CapNhatGiayToDinhKemHoSo/i.test(ep) && !e.err) {
+                    if (ok) { topState._qt0CapNhatOk = e.t || Date.now(); topState._qt0ListReloaded = false; writeLog('API đã lưu tệp đính kèm: ' + ((e.res && e.res.message) || 'thành công')); }
+                    else {
+                        writeLog('⚠️ Server không lưu được tệp đính kèm: ' + (typeof e.res === 'string' ? e.res : JSON.stringify(e.res)).slice(0, 400) + ' — DỪNG AUTO.');
+                        updateStatus('Lưu tệp đính kèm lỗi - Dừng', 'idle');
+                        if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function') topWin.MPLIS_AUTO_TOGGLE_FUNC('⚠️ LỖI: SERVER KHÔNG LƯU ĐƯỢC TỆP ĐÍNH KÈM — xem log');
+                        return;
+                    }
+                } else if (/GetDanhSachGiayToDinhKem/i.test(ep) && !e.err && topState._qt0CapNhatOk && (e.t || Date.now()) >= topState._qt0CapNhatOk) {
+                    topState._qt0ListReloaded = true;
+                }
+            }
+
+            // Server báo danh sách tác vụ ĐÃ xử lý của hồ sơ (VD ["CapNhatDuLieuPhapLy","KetISO"]) - ghi lại để dùng/đối chiếu.
+            if (/UpdateTacVuDaXuLy/i.test(ep) && e.res && Array.isArray(e.res.value)) {
+                topState.tacVuDaXuLy = e.res.value.slice();
+                writeLog('API tác vụ đã xử lý: ' + e.res.value.join(', '));
+            }
+
             // QT1: check trả về ok → chuẩn bị jconfirm xác nhận cập nhật pháp lý
             if (ep.includes('KiemTraCapNhatDuLieuPhapLy') && ok) topState.expectQT1Confirm = true;
 
-            // QT1: lưu pháp lý thành công → dọn cờ, reset đếm lặp
-            if (ep.includes('CapNhatDuLieuPhapLy') && ok) {
+            // QT1: lưu pháp lý THẬT (không tính lệnh Kiểm tra) thành công → dọn cờ, reset đếm lặp.
+            // Trước đây "KiemTra...CapNhat..." cũng khớp nên đếm lặp bị reset mỗi vòng -> lặp vô hạn.
+            if (ep.includes('CapNhatDuLieuPhapLy') && !ep.includes('KiemTra') && ok) {
                 topState.expectQT1Confirm = false;
                 topState.qt1ConfirmStreak = 0;
             }
@@ -75,6 +134,22 @@ import { setFastInterval } from './bg-ticker.js';
             // Scan ngay sau khi API phản hồi thay vì chờ tick 400ms kế tiếp
             setTimeout(scanAndExecute, 50);
         });
+
+        // Auto tự dừng vì thông báo lạ: gửi Telegram kèm mã hồ sơ + nguyên văn thông báo để biết ngay
+        // hồ sơ nào, lỗi gì (kể cả khi đang đi vắng). Chưa cấu hình Telegram thì bỏ qua êm.
+        function baoLoiTelegram(loai, tieuDe, noiDung) {
+            try {
+                if (typeof topWin.MPLIS_TG_ALERT !== 'function') return;
+                const ma = findCurrentMaHS() || '';
+                const cs = [
+                    '⛔ <b>Auto dừng: ' + escapeHtml(loai) + '</b>',
+                    ma ? 'Hồ sơ: <b>' + escapeHtml(ma) + '</b>' : '',
+                    (tieuDe || '').trim() ? 'Tiêu đề: ' + escapeHtml(tieuDe.trim()) : '',
+                    noiDung ? 'Nội dung: ' + escapeHtml(noiDung) : ''
+                ].filter(Boolean);
+                topWin.MPLIS_TG_ALERT(cs.join('\n'));
+            } catch (e) { }
+        }
 
         function getTaskText(tName) {
             if (tName === 'QT1') return 'cập nhật dữ liệu pháp lý';
@@ -105,6 +180,10 @@ import { setFastInterval } from './bg-ticker.js';
                             if (inputs.some(input => (input.value || '').toLowerCase().includes('đã xử lý'))) isDone = true;
                             // Nếu bot đã bấm "Xử lý tác vụ" cho hàng này rồi, coi như đã xong
                             if (row.getAttribute('data-mplis-processed') === 'true') isDone = true;
+                            // Nguồn chắc chắn nhất: server đã báo tác vụ này xong (UpdateTacVuDaXuLy).
+                            const maTacVuApi = { QT1: 'CapNhatDuLieuPhapLy', QT4: 'KetISO' }[tCode];
+                            const dsApi = (getTopState() || {}).tacVuDaXuLy;
+                            if (maTacVuApi && Array.isArray(dsApi) && dsApi.includes(maTacVuApi)) isDone = true;
 
                             // Nếu tác vụ này chưa làm, lập tức chọn nó
                             if (!isDone) {
@@ -186,7 +265,8 @@ import { setFastInterval } from './bg-ticker.js';
                             // LẦN 2 liên tiếp mà chưa bấm lại "Thực hiện", rất có thể đây là hộp CẢNH BÁO
                             // (VD: dữ liệu bất thường) chứ không phải xác nhận hợp lệ -> dừng để kiểm tra tay.
                             if (isQT1Confirm && (topState.qt1ConfirmStreak || 0) >= 1) {
-                                writeLog("⚠️ Hộp 'Đồng ý' cập nhật pháp lý xuất hiện LẦN 2 liên tiếp (tiêu đề: '" + jcTitle.trim() + "'). Có thể là cảnh báo. DỪNG AUTO để kiểm tra.");
+                                            writeLog("⚠️ Hộp 'Đồng ý' cập nhật pháp lý xuất hiện LẦN 2 liên tiếp (tiêu đề: '" + jcTitle.trim() + "'). Có thể là cảnh báo. DỪNG AUTO để kiểm tra.");
+                                baoLoiTelegram('Cập nhật pháp lý bị từ chối', jcTitle, (jcMessage || '').replace(/\s+/g, ' ').trim().slice(0, 400));
                                 updateStatus("Nghi cảnh báo - Dừng", "idle");
                                 if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function') topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LỖI: HỘP XÁC NHẬN CẬP NHẬT PHÁP LÝ LẶP LẠI LẦN 2!");
                                 return;
@@ -228,7 +308,9 @@ import { setFastInterval } from './bg-ticker.js';
                             }
 
                             // Hộp thoại lạ không mong đợi → DỪNG AUTO
-                            writeLog("⚠️ Hộp thoại không mong đợi: '" + jcTitle.trim() + "'. DỪNG AUTO.");
+                            const jcNoiDung = (jcMessage || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+                            writeLog("⚠️ Hộp thoại không mong đợi: '" + jcTitle.trim() + "' — " + (jcNoiDung || '(không có nội dung)') + ". DỪNG AUTO.");
+                            baoLoiTelegram('Hộp thoại lạ', jcTitle, jcNoiDung);
                             updateStatus("Hộp thoại lạ - Dừng", "idle");
                             if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function') topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LỖI: PHÁT HIỆN HỘP THOẠI LẠ!");
                             return;
@@ -256,7 +338,8 @@ import { setFastInterval } from './bg-ticker.js';
                 }
 
                 if (hasErrorWarning && visibleConfirmBtns.length > 0) {
-                    writeLog("⚠️ Phát hiện thông báo lỗi lạ/sai hồ sơ. DỪNG AUTO!");
+                    writeLog("⚠️ Phát hiện thông báo lỗi lạ/sai hồ sơ: " + errorText.replace(/\s+/g, ' ').trim().slice(0, 300) + " — DỪNG AUTO!");
+                    baoLoiTelegram('Thông báo lỗi', '', errorText.replace(/\s+/g, ' ').trim().slice(0, 400));
                     updateStatus("Lỗi - Dừng Auto", "idle");
                     if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function') topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LỖI: PHÁT HIỆN THÔNG BÁO LẠ!");
                     return;
@@ -552,6 +635,11 @@ import { setFastInterval } from './bg-ticker.js';
                             if (!btnUpdateAttactFile.hasAttribute('data-mplis-clicked')) {
                                 writeLog("Bấm 'Cập nhật' tệp đính kèm...");
                                 btnUpdateAttactFile.setAttribute('data-mplis-clicked', 'true');
+                                // Chờ đúng 2 phản hồi API rồi mới đóng: CapNhatGiayToDinhKemHoSo (lưu xong) rồi
+                                // GetDanhSachGiayToDinhKem (bảng nạp lại). Đóng sớm hơn thì bảng tự bật lại.
+                                topState._qt0ClickAt = now;
+                                topState._qt0CapNhatOk = 0;
+                                topState._qt0ListReloaded = false;
                                 clickElement(btnUpdateAttactFile);
                                 topState.qt0Phase = 1;
                                 setLastActionTime(now, 1000); // Đợi load file
@@ -565,6 +653,17 @@ import { setFastInterval } from './bg-ticker.js';
                                 return text.includes('NHẬP THÔNG TIN');
                             });
 
+                            // Sẵn sàng đóng khi server đã lưu (CapNhatGiayToDinhKemHoSo success) VÀ bảng đã nạp lại sau đó.
+                            // Dự phòng: không thấy lệnh lưu sau 10s (không có gì để lưu) hoặc lưu xong mà bảng không
+                            // nạp lại sau 30s thì mới đóng theo cách cũ, có ghi log.
+                            const sauClick = now - (topState._qt0ClickAt || now);
+                            const daLuu = topState._qt0CapNhatOk > 0, daNapLai = topState._qt0ListReloaded === true;
+                            const sanSangDong = (daLuu && daNapLai) || (!daLuu && sauClick > 10000) || (daLuu && sauClick > 30000);
+                            if (hasLoadedFiles && !sanSangDong) {
+                                updateStatus(daLuu ? "Đợi bảng nạp lại sau khi lưu..." : "Đợi server lưu tệp đính kèm...", "waiting");
+                                return;
+                            }
+                            if (hasLoadedFiles && !(daLuu && daNapLai)) writeLog("⚠️ Không thấy đủ phản hồi lưu/nạp lại tệp đính kèm sau " + Math.round(sauClick / 1000) + "s, đóng bảng theo cách dự phòng.");
                             if (hasLoadedFiles) {
                                 const btnDongList = Array.from(document.querySelectorAll('.modal-footer button, .panel-footer button')).filter(b => {
                                     try {
@@ -1359,7 +1458,8 @@ import { setFastInterval } from './bg-ticker.js';
                         if (execBtn.hasAttribute('data-mplis-clicked')) return;
                         setLastActionTime(now, topState.config.delayAction);
                         writeLog("Tìm thấy nút 'Thực hiện'. Đang click...");
-                        topState.qt1ConfirmStreak = 0;
+                        // KHÔNG reset qt1ConfirmStreak ở đây: chỉ reset khi server báo lưu pháp lý thành công
+                        // (xem listener API), để hộp "Đồng ý" lặp lại mà chưa lưu được thì dừng chứ không lặp vô hạn.
                         if (topState.currentTaskCode === 'QT4') topState.expectQT4Confirm = true;
                         else if (topState.currentTaskCode && topState.currentTaskCode !== 'QT1') topState.expectQT5Confirm = true;
                         execBtn.setAttribute('data-mplis-clicked', 'true');

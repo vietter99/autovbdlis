@@ -268,8 +268,24 @@ function daCoDong(ten) {
         .some(tr => (tr.textContent || '').replace(/\s+/g, '').toUpperCase().includes(gon));
 }
 
+// Tên vừa bấm "+" mà dòng chưa kịp hiện (cổng gọi ajax rồi mới dựng lại bảng). Không chặn thì
+// lượt tự thêm kế tiếp thấy "chưa có dòng" và bấm "+" lần nữa -> trùng dòng (hay trúng GT/PT vì
+// nó nằm cuối hàng đợi).
+const VUA_BAM_MS = 12000;
+const _vuaBam = new Map();
+
+function vuaBamRoi(ten) {
+    const khoa = ten.replace(/\s+/g, '').toUpperCase();
+    const luc = _vuaBam.get(khoa);
+    return !!luc && Date.now() - luc < VUA_BAM_MS;
+}
+
 function themDong(ten) {
     if (!ten) return;
+    if (vuaBamRoi(ten)) {
+        console.log('[MPLIS TenFile] "' + ten + '" vừa bấm "+" xong, đợi bảng cập nhật - không bấm lại.');
+        return;
+    }
     if (daCoDong(ten)) {
         console.log('[MPLIS TenFile] Bảng đã có dòng "' + ten + '" - không thêm nữa.');
         baoNhanh('Đã có dòng: ' + ten, '#b45309');
@@ -292,6 +308,7 @@ function themDong(ten) {
         o.dispatchEvent(new Event('input', { bubbles: true }));
         o.dispatchEvent(new Event('change', { bubbles: true }));
     }
+    _vuaBam.set(ten.replace(/\s+/g, '').toUpperCase(), Date.now());
     if (jq) jq(nut).click(); else nut.click();
 
     console.log('[MPLIS TenFile] Đã điền "' + ten + '" và bấm "+" để tạo dòng.');
@@ -303,7 +320,7 @@ function themDong(ten) {
 const THEM_DELAY_MS = 1200;
 
 function themNhieuDong(dsTen, imLang) {
-    const con = dsTen.filter(Boolean).filter(t => !daCoDong(t));
+    const con = dsTen.filter(Boolean).filter(t => !daCoDong(t) && !vuaBamRoi(t));
     if (!con.length) {
         console.log('[MPLIS TenFile] Mọi dòng cần thêm đều đã có trong bảng.');
         if (!imLang) baoNhanh('Bảng đã có đủ các dòng', '#b45309');
@@ -642,17 +659,35 @@ const TU_THEM_CHO_MS = 1500;
 let _bangThayLuc = 0;
 let _daTuThemCho = '';
 
+// Auto đang chạy (đã bấm "Xử lý") thì luôn tự tạo dòng để upload được, kể cả khi tắt công tắc.
+function autoDangChay() {
+    try {
+        const st = window.top.MPLIS_AUTO_STATE;
+        return !!(st && st.isRunning);
+    } catch (e) { return false; }
+}
+
 function tuThemBat() {
+    if (autoDangChay()) return true;
     try { return localStorage.getItem(TU_THEM_KEY) !== 'false'; } catch (e) { return true; }
 }
+
+let _bangMatLuc = 0;
+const BANG_MAT_RESET_MS = 5000;
 
 function tuThemDong() {
     const bang = Array.from(document.querySelectorAll(BANG_DINH_KEM_SELECTOR)).find(dangHien);
     if (!bang) {
-        _bangThayLuc = 0;
-        _daTuThemCho = '';
+        // Mỗi lần thêm dòng cổng dựng lại bảng nên bảng chớp mất 1 lúc. Chỉ coi là đóng thật khi
+        // mất đủ lâu, không là quên mất hồ sơ đã tự thêm và chạy lại -> tạo trùng dòng.
+        if (!_bangMatLuc) _bangMatLuc = Date.now();
+        if (Date.now() - _bangMatLuc > BANG_MAT_RESET_MS) {
+            _bangThayLuc = 0;
+            _daTuThemCho = '';
+        }
         return;
     }
+    _bangMatLuc = 0;
     if (!tuThemBat()) return;
     if (!_bangThayLuc) _bangThayLuc = Date.now();
     // Chờ bảng dựng xong các dòng cũ, không là thêm trùng.

@@ -594,6 +594,11 @@
       if (!topState || !topState.isRunning) return;
       const ep = e.ep || "";
       const ok = !!(e.res && (e.res.success === true || e.res.Success === true));
+      const mHoSo = typeof e.req === "string" && /hoSoTiepNhanId"?\s*[:=]\s*"?([0-9a-fA-F-]{36})/.exec(e.req);
+      if (mHoSo && mHoSo[1] !== topState.hoSoIdHienTai) {
+        topState.hoSoIdHienTai = mHoSo[1];
+        topState.tacVuDaXuLy = null;
+      }
       if (ep.includes("UploadGiayToDinhKem")) {
         const ten = topState._lastUploadName || "";
         topState._uploadRetry = topState._uploadRetry || {};
@@ -615,8 +620,52 @@
           delete topState._uploadRetry[ten];
         }
       }
+      const laLenhGhi = /KiemTraCapNhatDuLieuPhapLy|CapNhatDuLieuPhapLy|ThucHienKetISO|executeCommand|UpdateHoSoQuet/i.test(ep);
+      if (laLenhGhi && !e.err) {
+        let raw = "";
+        try {
+          raw = typeof e.res === "string" ? e.res : JSON.stringify(e.res);
+        } catch (x) {
+          raw = String(e.res);
+        }
+        raw = (raw || "").slice(0, 600);
+        if (/PhapLy/i.test(ep)) writeLog("API " + ep + " (" + (e.status || "?") + "): " + raw);
+        let thatBai = !!(e.res && typeof e.res === "object" && (e.res.success === false || e.res.Success === false));
+        if (e.res && typeof e.res === "object" && e.res.success === true && e.res.value === false) thatBai = true;
+        if (/KiemTraCapNhatDuLieuPhapLy/i.test(ep) && e.res && e.res.value && typeof e.res.value === "object") {
+          const v = e.res.value;
+          if (v.success === false || v.KiemTraNganChan && v.KiemTraNganChan.coNganChan === true || v.message && String(v.message).trim() || v.KiemTraGiayChungNhan) thatBai = true;
+        }
+        if (thatBai) {
+          writeLog("⚠️ Server từ chối " + ep + ": " + raw + " — DỪNG AUTO.");
+          baoLoiTelegram("Server từ chối " + ep, "", raw);
+          updateStatus("Server báo lỗi - Dừng", "idle");
+          if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LỖI: SERVER TỪ CHỐI " + ep + " — xem log");
+          return;
+        }
+      }
+      if (topState.qt0Phase === 1) {
+        if (/CapNhatGiayToDinhKemHoSo/i.test(ep) && !e.err) {
+          if (ok) {
+            topState._qt0CapNhatOk = e.t || Date.now();
+            topState._qt0ListReloaded = false;
+            writeLog("API đã lưu tệp đính kèm: " + (e.res && e.res.message || "thành công"));
+          } else {
+            writeLog("⚠️ Server không lưu được tệp đính kèm: " + (typeof e.res === "string" ? e.res : JSON.stringify(e.res)).slice(0, 400) + " — DỪNG AUTO.");
+            updateStatus("Lưu tệp đính kèm lỗi - Dừng", "idle");
+            if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LỖI: SERVER KHÔNG LƯU ĐƯỢC TỆP ĐÍNH KÈM — xem log");
+            return;
+          }
+        } else if (/GetDanhSachGiayToDinhKem/i.test(ep) && !e.err && topState._qt0CapNhatOk && (e.t || Date.now()) >= topState._qt0CapNhatOk) {
+          topState._qt0ListReloaded = true;
+        }
+      }
+      if (/UpdateTacVuDaXuLy/i.test(ep) && e.res && Array.isArray(e.res.value)) {
+        topState.tacVuDaXuLy = e.res.value.slice();
+        writeLog("API tác vụ đã xử lý: " + e.res.value.join(", "));
+      }
       if (ep.includes("KiemTraCapNhatDuLieuPhapLy") && ok) topState.expectQT1Confirm = true;
-      if (ep.includes("CapNhatDuLieuPhapLy") && ok) {
+      if (ep.includes("CapNhatDuLieuPhapLy") && !ep.includes("KiemTra") && ok) {
         topState.expectQT1Confirm = false;
         topState.qt1ConfirmStreak = 0;
       }
@@ -624,6 +673,20 @@
       if (ep.includes("executeCommand") && ok) topState.expectQT5Confirm = false;
       setTimeout(scanAndExecute, 50);
     });
+    function baoLoiTelegram(loai, tieuDe, noiDung) {
+      try {
+        if (typeof topWin.MPLIS_TG_ALERT !== "function") return;
+        const ma = findCurrentMaHS() || "";
+        const cs = [
+          "⛔ <b>Auto dừng: " + escapeHtml(loai) + "</b>",
+          ma ? "Hồ sơ: <b>" + escapeHtml(ma) + "</b>" : "",
+          (tieuDe || "").trim() ? "Tiêu đề: " + escapeHtml(tieuDe.trim()) : "",
+          noiDung ? "Nội dung: " + escapeHtml(noiDung) : ""
+        ].filter(Boolean);
+        topWin.MPLIS_TG_ALERT(cs.join("\n"));
+      } catch (e) {
+      }
+    }
     function getTaskText(tName) {
       if (tName === "QT1") return "cập nhật dữ liệu pháp lý";
       if (tName === "QT2") return "lưu kho hồ sơ quét";
@@ -649,6 +712,9 @@
               const inputs = Array.from(row.querySelectorAll('input[type="text"]'));
               if (inputs.some((input) => (input.value || "").toLowerCase().includes("đã xử lý"))) isDone = true;
               if (row.getAttribute("data-mplis-processed") === "true") isDone = true;
+              const maTacVuApi = { QT1: "CapNhatDuLieuPhapLy", QT4: "KetISO" }[tCode];
+              const dsApi = (getTopState() || {}).tacVuDaXuLy;
+              if (maTacVuApi && Array.isArray(dsApi) && dsApi.includes(maTacVuApi)) isDone = true;
               if (!isDone) {
                 const interactives = Array.from(row.querySelectorAll('a, button, [role="button"]'));
                 const targetBtn = interactives.find((el) => {
@@ -706,6 +772,7 @@
             if (isQT1Confirm || isQT4Confirm || isQT5Confirm) {
               if (isQT1Confirm && (topState.qt1ConfirmStreak || 0) >= 1) {
                 writeLog("⚠️ Hộp 'Đồng ý' cập nhật pháp lý xuất hiện LẦN 2 liên tiếp (tiêu đề: '" + jcTitle.trim() + "'). Có thể là cảnh báo. DỪNG AUTO để kiểm tra.");
+                baoLoiTelegram("Cập nhật pháp lý bị từ chối", jcTitle, (jcMessage || "").replace(/\s+/g, " ").trim().slice(0, 400));
                 updateStatus("Nghi cảnh báo - Dừng", "idle");
                 if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LỖI: HỘP XÁC NHẬN CẬP NHẬT PHÁP LÝ LẶP LẠI LẦN 2!");
                 return;
@@ -752,7 +819,9 @@
                   return;
                 }
               }
-              writeLog("⚠️ Hộp thoại không mong đợi: '" + jcTitle.trim() + "'. DỪNG AUTO.");
+              const jcNoiDung = (jcMessage || "").replace(/\s+/g, " ").trim().slice(0, 400);
+              writeLog("⚠️ Hộp thoại không mong đợi: '" + jcTitle.trim() + "' — " + (jcNoiDung || "(không có nội dung)") + ". DỪNG AUTO.");
+              baoLoiTelegram("Hộp thoại lạ", jcTitle, jcNoiDung);
               updateStatus("Hộp thoại lạ - Dừng", "idle");
               if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LỖI: PHÁT HIỆN HỘP THOẠI LẠ!");
               return;
@@ -779,7 +848,8 @@
           }
         }
         if (hasErrorWarning && visibleConfirmBtns.length > 0) {
-          writeLog("⚠️ Phát hiện thông báo lỗi lạ/sai hồ sơ. DỪNG AUTO!");
+          writeLog("⚠️ Phát hiện thông báo lỗi lạ/sai hồ sơ: " + errorText.replace(/\s+/g, " ").trim().slice(0, 300) + " — DỪNG AUTO!");
+          baoLoiTelegram("Thông báo lỗi", "", errorText.replace(/\s+/g, " ").trim().slice(0, 400));
           updateStatus("Lỗi - Dừng Auto", "idle");
           if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LỖI: PHÁT HIỆN THÔNG BÁO LẠ!");
           return;
@@ -1022,6 +1092,9 @@
               if (!btnUpdateAttactFile.hasAttribute("data-mplis-clicked")) {
                 writeLog("Bấm 'Cập nhật' tệp đính kèm...");
                 btnUpdateAttactFile.setAttribute("data-mplis-clicked", "true");
+                topState._qt0ClickAt = now2;
+                topState._qt0CapNhatOk = 0;
+                topState._qt0ListReloaded = false;
                 clickElement(btnUpdateAttactFile);
                 topState.qt0Phase = 1;
                 setLastActionTime(now2, 1e3);
@@ -1033,6 +1106,14 @@
                 const text = tr.textContent.toUpperCase();
                 return text.includes("NHẬP THÔNG TIN");
               });
+              const sauClick = now2 - (topState._qt0ClickAt || now2);
+              const daLuu = topState._qt0CapNhatOk > 0, daNapLai = topState._qt0ListReloaded === true;
+              const sanSangDong = daLuu && daNapLai || !daLuu && sauClick > 1e4 || daLuu && sauClick > 3e4;
+              if (hasLoadedFiles && !sanSangDong) {
+                updateStatus(daLuu ? "Đợi bảng nạp lại sau khi lưu..." : "Đợi server lưu tệp đính kèm...", "waiting");
+                return;
+              }
+              if (hasLoadedFiles && !(daLuu && daNapLai)) writeLog("⚠️ Không thấy đủ phản hồi lưu/nạp lại tệp đính kèm sau " + Math.round(sauClick / 1e3) + "s, đóng bảng theo cách dự phòng.");
               if (hasLoadedFiles) {
                 const btnDongList = Array.from(document.querySelectorAll(".modal-footer button, .panel-footer button")).filter((b) => {
                   try {
@@ -1805,7 +1886,6 @@
             if (execBtn.hasAttribute("data-mplis-clicked")) return;
             setLastActionTime(now2, topState.config.delayAction);
             writeLog("Tìm thấy nút 'Thực hiện'. Đang click...");
-            topState.qt1ConfirmStreak = 0;
             if (topState.currentTaskCode === "QT4") topState.expectQT4Confirm = true;
             else if (topState.currentTaskCode && topState.currentTaskCode !== "QT1") topState.expectQT5Confirm = true;
             execBtn.setAttribute("data-mplis-clicked", "true");
@@ -2936,7 +3016,7 @@
   }();
 
   // src/mplis-logger.js
-  var MAX = 100;
+  var MAX = 400;
   var _buf = [];
   var LOG_ENABLED_KEY = "mplis_log_enabled";
   function now() {
@@ -2997,7 +3077,7 @@
         }
         entry.reqKeys = keys;
       } else if (typeof body === "string") {
-        entry.req = body.slice(0, 300);
+        entry.req = body.slice(0, 2e3);
       }
       let res;
       try {
@@ -3013,7 +3093,7 @@
         try {
           entry.res = JSON.parse(txt);
         } catch {
-          entry.res = txt.slice(0, 500);
+          entry.res = txt.slice(0, 3e3);
         }
       } catch {
       }
@@ -3077,7 +3157,7 @@
     XMLHttpRequest.prototype.send = function(body) {
       const entry = { t: now(), type: "xhr", ep: epTag(this._mplisUrl || ""), method: this._mplisMethod || "GET" };
       if (body && typeof body === "string") {
-        entry.req = body.slice(0, 300);
+        entry.req = body.slice(0, 2e3);
         try {
           const top = window.top;
           top.__mplisLastReq = top.__mplisLastReq || {};
@@ -3092,7 +3172,7 @@
           try {
             entry.res = JSON.parse(this.responseText);
           } catch {
-            entry.res = (this.responseText || "").slice(0, 500);
+            entry.res = (this.responseText || "").slice(0, 3e3);
           }
         } else {
           entry.res = "(" + this.responseType + " " + (this.getResponseHeader("content-type") || "") + ")";
@@ -4204,6 +4284,7 @@
   var K_SEEN = "mplis_tg_seen";
   var K_BASE = "mplis_tg_baseline";
   var K_SEC = "mplis_tg_interval";
+  var K_ALERT_ERR = "mplis_tg_alert_error";
   var SEEN_MAX = 600;
   var NOTIFY_URL = "https://dla.mplis.gov.vn/dc/DangKyAjax/GetNotify";
   var WORK_URL = "https://dla.mplis.gov.vn/dc/DangKyAjax/GetXuLyCongViec";
@@ -4725,6 +4806,13 @@
       dangHoi = false;
     }
   }
+  if (window === window.top) {
+    topWin.MPLIS_TG_ALERT = (html) => {
+      if (ls.get(K_ALERT_ERR, "true") === "false") return;
+      if (!isOn() || !ls.get(K_TOKEN).trim() || !ls.get(K_CHAT).trim()) return;
+      sendTelegram(html).catch((e) => console.log("[MPLIS Notify] Không gửi được cảnh báo lỗi:", e.message));
+    };
+  }
   var timer = false;
   function startTimer() {
     if (timer) return;
@@ -4749,6 +4837,10 @@
             <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
                 <span id="tg-total" style="font-size:30px; font-weight:800; color:var(--mplis-accent-2); font-variant-numeric:tabular-nums;">—</span>
                 <span style="font-size:12px; color:var(--mplis-text-dim);">bộ đang chờ xử lý</span>
+            </div>
+            <div class="mplis-bypass-row" style="margin-top:6px; padding-bottom:0;">
+                <div class="mplis-bypass-row-label"><strong>Báo lỗi qua Telegram</strong><span>Tin "Auto dừng" kèm mã hồ sơ và nội dung lỗi</span></div>
+                <label class="mplis-toggle-sw"><input type="checkbox" id="tg-alert-err" ${ls.get(K_ALERT_ERR, "true") !== "false" ? "checked" : ""}><span class="mplis-toggle-track"></span></label>
             </div>
             <div id="tg-recv" style="font-size:12px; color:var(--mplis-text); margin-top:2px;"></div>
             <div id="tg-msg" class="mplis-hint" style="margin:6px 0 0;"></div>
@@ -4800,6 +4892,11 @@
         render();
         if (e.target.checked) tick(false);
       };
+      el("tg-alert-err").onchange = (e) => {
+        ls.set(K_ALERT_ERR, e.target.checked ? "true" : "false");
+        st.msg = e.target.checked ? "Đã bật báo lỗi qua Telegram." : "Đã tắt báo lỗi qua Telegram (hồ sơ mới vẫn báo bình thường).";
+        render();
+      };
       el("tg-check").onclick = () => tick(true);
       el("tg-cfg-card").style.display = "block";
       el("tg-test").onclick = async () => {
@@ -4850,6 +4947,8 @@
     } else {
       if (state.config.activeWorkflows.length === 0) return alert("Vui lòng chọn ít nhất 1 quy trình!");
       document.querySelectorAll('*[data-mplis-clicked="true"]').forEach((el) => el.removeAttribute("data-mplis-clicked"));
+      state.tacVuDaXuLy = null;
+      state.qt1ConfirmStreak = 0;
       state.isRunning = true;
       btn.textContent = "Tạm dừng Xử Lý";
       btn.classList.add("running");
@@ -6598,8 +6697,19 @@
     const gon = ten.replace(/\s+/g, "").toUpperCase();
     return Array.from(bang.querySelectorAll("tbody tr")).some((tr) => (tr.textContent || "").replace(/\s+/g, "").toUpperCase().includes(gon));
   }
+  var VUA_BAM_MS = 12e3;
+  var _vuaBam = /* @__PURE__ */ new Map();
+  function vuaBamRoi(ten) {
+    const khoa = ten.replace(/\s+/g, "").toUpperCase();
+    const luc = _vuaBam.get(khoa);
+    return !!luc && Date.now() - luc < VUA_BAM_MS;
+  }
   function themDong(ten) {
     if (!ten) return;
+    if (vuaBamRoi(ten)) {
+      console.log('[MPLIS TenFile] "' + ten + '" vừa bấm "+" xong, đợi bảng cập nhật - không bấm lại.');
+      return;
+    }
     if (daCoDong(ten)) {
       console.log('[MPLIS TenFile] Bảng đã có dòng "' + ten + '" - không thêm nữa.');
       baoNhanh("Đã có dòng: " + ten, "#b45309");
@@ -6619,6 +6729,7 @@
       o.dispatchEvent(new Event("input", { bubbles: true }));
       o.dispatchEvent(new Event("change", { bubbles: true }));
     }
+    _vuaBam.set(ten.replace(/\s+/g, "").toUpperCase(), Date.now());
     if (jq2) jq2(nut).click();
     else nut.click();
     console.log('[MPLIS TenFile] Đã điền "' + ten + '" và bấm "+" để tạo dòng.');
@@ -6626,7 +6737,7 @@
   }
   var THEM_DELAY_MS = 1200;
   function themNhieuDong(dsTen, imLang) {
-    const con = dsTen.filter(Boolean).filter((t) => !daCoDong(t));
+    const con = dsTen.filter(Boolean).filter((t) => !daCoDong(t) && !vuaBamRoi(t));
     if (!con.length) {
       console.log("[MPLIS TenFile] Mọi dòng cần thêm đều đã có trong bảng.");
       if (!imLang) baoNhanh("Bảng đã có đủ các dòng", "#b45309");
@@ -6903,20 +7014,35 @@
   var TU_THEM_CHO_MS = 1500;
   var _bangThayLuc = 0;
   var _daTuThemCho = "";
+  function autoDangChay() {
+    try {
+      const st2 = window.top.MPLIS_AUTO_STATE;
+      return !!(st2 && st2.isRunning);
+    } catch (e) {
+      return false;
+    }
+  }
   function tuThemBat() {
+    if (autoDangChay()) return true;
     try {
       return localStorage.getItem(TU_THEM_KEY) !== "false";
     } catch (e) {
       return true;
     }
   }
+  var _bangMatLuc = 0;
+  var BANG_MAT_RESET_MS = 5e3;
   function tuThemDong() {
     const bang = Array.from(document.querySelectorAll(BANG_DINH_KEM_SELECTOR)).find(dangHien2);
     if (!bang) {
-      _bangThayLuc = 0;
-      _daTuThemCho = "";
+      if (!_bangMatLuc) _bangMatLuc = Date.now();
+      if (Date.now() - _bangMatLuc > BANG_MAT_RESET_MS) {
+        _bangThayLuc = 0;
+        _daTuThemCho = "";
+      }
       return;
     }
+    _bangMatLuc = 0;
     if (!tuThemBat()) return;
     if (!_bangThayLuc) _bangThayLuc = Date.now();
     if (Date.now() - _bangThayLuc < TU_THEM_CHO_MS) return;

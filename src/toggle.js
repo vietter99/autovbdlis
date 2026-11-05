@@ -26,6 +26,8 @@ import { ReturnModule } from './return-module.js';
             // Xóa toàn bộ bộ nhớ click cũ để chuẩn bị cho hồ sơ mới
             document.querySelectorAll('*[data-mplis-clicked="true"]').forEach(el => el.removeAttribute('data-mplis-clicked'));
 
+            state.tacVuDaXuLy = null; // danh sách tác vụ đã xử lý sẽ do server báo lại cho lượt này
+            state.qt1ConfirmStreak = 0; // lượt mới thì xoá đếm lặp của lượt trước
             state.isRunning = true;
             btn.textContent = "Tạm dừng Xử Lý";
             btn.classList.add('running');

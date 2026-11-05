@@ -1,7 +1,7 @@
 /* jshint esversion: 11 */
 /* globals unsafeWindow, GM_xmlhttpRequest */
 
-const MAX = 100;
+const MAX = 400;
 const _buf = [];
 const LOG_ENABLED_KEY = 'mplis_log_enabled';
 
@@ -63,7 +63,7 @@ function installFetchLogger() {
             try { for (const [k] of body.entries()) keys.push(k); } catch {}
             entry.reqKeys = keys;
         } else if (typeof body === 'string') {
-            entry.req = body.slice(0, 300);
+            entry.req = body.slice(0, 2000);
         }
 
         let res;
@@ -79,7 +79,7 @@ function installFetchLogger() {
         try {
             const txt = await res.clone().text();
             // Thử parse JSON cho gọn; nếu không thì cắt 500 ký tự
-            try { entry.res = JSON.parse(txt); } catch { entry.res = txt.slice(0, 500); }
+            try { entry.res = JSON.parse(txt); } catch { entry.res = txt.slice(0, 3000); }
         } catch {}
 
         push(entry);
@@ -138,7 +138,7 @@ function installXhrLogger() {
     XMLHttpRequest.prototype.send = function(body) {
         const entry = { t: now(), type: 'xhr', ep: epTag(this._mplisUrl || ''), method: this._mplisMethod || 'GET' };
         if (body && typeof body === 'string') {
-            entry.req = body.slice(0, 300);
+            entry.req = body.slice(0, 2000);
             // Giữ nguyên body đầy đủ của lần gọi gần nhất để module thông báo gọi lại được (log chỉ lưu 300 ký tự).
             try {
                 const top = window.top;
@@ -150,7 +150,7 @@ function installXhrLogger() {
         this.addEventListener('load', function() {
             entry.status = this.status;
             if (this.responseType === '' || this.responseType === 'text') {
-                try { entry.res = JSON.parse(this.responseText); } catch { entry.res = (this.responseText || '').slice(0, 500); }
+                try { entry.res = JSON.parse(this.responseText); } catch { entry.res = (this.responseText || '').slice(0, 3000); }
             } else {
                 entry.res = '(' + this.responseType + ' ' + (this.getResponseHeader('content-type') || '') + ')';
             }
