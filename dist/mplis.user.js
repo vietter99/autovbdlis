@@ -16,6 +16,7 @@
 // @grant        GM_xmlhttpRequest
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
+// @connect      api.telegram.org
 // @run-at       document-end
 // @allFrames    true
 // ==/UserScript==
@@ -463,6 +464,10 @@
             console.log(logPrefix + text);
             const el = document.getElementById("mplis-step-log-" + domSuffix);
             if (el) el.textContent = text;
+            try {
+              if (localStorage.getItem("mplis_proc_log_enabled") === "false") return;
+            } catch (e) {
+            }
             const entry = { t: Date.now(), msg: text };
             this.logBuffer.push(entry);
             if (this.logBuffer.length > 300) this.logBuffer.shift();
@@ -528,6 +533,35 @@
       }
     }
     return { getTopState, writeLog, updateStatus, incrementSuccess, setLastActionTime, saveConfig };
+  }
+
+  // src/bg-ticker.js
+  function setFastInterval(fn, ms) {
+    try {
+      const src = "setInterval(function(){postMessage(0)}," + Number(ms) + ");";
+      const url = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
+      const w = new Worker(url);
+      URL.revokeObjectURL(url);
+      let fallback = null;
+      w.onmessage = () => {
+        try {
+          fn();
+        } catch (e) {
+          console.error("[MPLIS ticker]", e);
+        }
+      };
+      w.onerror = () => {
+        try {
+          w.terminate();
+        } catch (e) {
+        }
+        if (!fallback) fallback = setInterval(fn, ms);
+      };
+      return;
+    } catch (e) {
+      console.log("[MPLIS] Không tạo được Worker hẹn giờ, dùng setInterval thường:", e);
+    }
+    setInterval(fn, ms);
   }
 
   // src/process-module.js
@@ -1411,7 +1445,7 @@
             if (!chkSelectAll.hasAttribute("data-mplis-clicked")) {
               writeLog("Đang chọn đúng file của đơn này (SPH/gt/pt)...");
               chkSelectAll.setAttribute("data-mplis-clicked", "true");
-              const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+              const jq2 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
               const totalDons = document.querySelectorAll("#lstDonDangKy ul.dondangky-item").length;
               if (topState.config.qt2SelectAllFiles) writeLog("Đã tích hết bảng, giờ lọc bỏ file sai Số phát hành...");
               const fileRows = Array.from(document.querySelectorAll("#tbDanhSachGiayToDinhKem tbody tr"));
@@ -1438,11 +1472,11 @@
                   }
                 }
                 if (shouldKeep && !cb.checked) {
-                  if (jq) jq(cb).click();
+                  if (jq2) jq2(cb).click();
                   else cb.click();
                   writeLog("Chọn file: " + fileName);
                 } else if (!shouldKeep && cb.checked) {
-                  if (jq) jq(cb).click();
+                  if (jq2) jq2(cb).click();
                   else cb.click();
                   writeLog("Bỏ chọn file không thuộc đơn này: " + fileName);
                 }
@@ -1543,7 +1577,7 @@
                 return;
               }
             } else if (topState.qt2Phase === 2) {
-              const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+              const jq2 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
               const selects = Array.from(document.querySelectorAll('select[name="loaiHoSoQuet"]')).filter((el) => {
                 try {
                   return el.getBoundingClientRect().width > 0;
@@ -1555,7 +1589,7 @@
                 const selLoaiGiayTo = selects[selects.length - 1];
                 if (selLoaiGiayTo.value !== "1") {
                   selLoaiGiayTo.value = "1";
-                  if (jq) jq(selLoaiGiayTo).val("1").trigger("change");
+                  if (jq2) jq2(selLoaiGiayTo).val("1").trigger("change");
                   selLoaiGiayTo.dispatchEvent(new Event("change", { bubbles: true }));
                   writeLog("Đã đổi Loại giấy tờ thành 'Giấy chứng nhận'");
                   setLastActionTime(now2, 500);
@@ -1576,7 +1610,7 @@
                   const targetOpt = options.find((opt) => opt.textContent.replace(/\s+/g, "").toUpperCase().includes(topState.qt2EditingSph));
                   if (targetOpt && selMoTa.value !== targetOpt.value) {
                     selMoTa.value = targetOpt.value;
-                    if (jq) jq(selMoTa).val(targetOpt.value).trigger("change");
+                    if (jq2) jq2(selMoTa).val(targetOpt.value).trigger("change");
                     selMoTa.dispatchEvent(new Event("change", { bubbles: true }));
                     writeLog(`Đã gán Giấy chứng nhận: ${topState.qt2EditingSph}`);
                     setLastActionTime(now2, 200);
@@ -1661,10 +1695,10 @@
                 clickElement(unprocessedDon);
               }
               try {
-                const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-                if (jq) {
-                  jq(unprocessedDon).click();
-                  jq(unprocessedDon).trigger("click");
+                const jq2 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+                if (jq2) {
+                  jq2(unprocessedDon).click();
+                  jq2(unprocessedDon).trigger("click");
                 }
               } catch (e) {
               }
@@ -1913,7 +1947,7 @@
       };
       win.HTMLInputElement.prototype.__mplisUpload = true;
     })();
-    setInterval(scanAndExecute, 400);
+    setFastInterval(scanAndExecute, 400);
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) scanAndExecute();
     });
@@ -2282,7 +2316,7 @@
       if (!state.step) {
         state.step = "OPEN_SEARCH";
       }
-      const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+      const jq2 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
       switch (state.step) {
         case "OPEN_SEARCH":
           if (task.isGroup && state.groupSuccess[task.groupKey]) {
@@ -2294,7 +2328,7 @@
           const btnSearch = getVisibleElement("#btnChonDonDangKy");
           if (btnSearch) {
             writeLog("Bước 1: Bấm nút 'Tra cứu'...");
-            if (jq) jq(btnSearch).click();
+            if (jq2) jq2(btnSearch).click();
             else btnSearch.click();
             state.step = "WAIT_OPEN_SEARCH";
             state.lastOpenSearchTime = Date.now();
@@ -2305,7 +2339,7 @@
             const btnRefresh = getVisibleElement("#btnKhoiTaoTraCuuTinhHinhDangKyChiTiet");
             if (btnRefresh) {
               writeLog("Làm mới form tra cứu để xóa kết quả cũ...");
-              if (jq) jq(btnRefresh).click();
+              if (jq2) jq2(btnRefresh).click();
               else btnRefresh.click();
             }
             task.searchAttempt = task.searchAttempt || 0;
@@ -2329,7 +2363,7 @@
               inputSPH.dispatchEvent(new Event("input", { bubbles: true }));
               inputSPH.dispatchEvent(new Event("change", { bubbles: true }));
               setTimeout(() => {
-                if (jq) jq(btnSubmitSearch).click();
+                if (jq2) jq2(btnSubmitSearch).click();
                 else btnSubmitSearch.click();
                 state.step = "WAIT_SEARCH_RESULT";
                 state.lastSearchTime = Date.now();
@@ -2352,7 +2386,7 @@
               inputThuaCu.dispatchEvent(new Event("input", { bubbles: true }));
               inputThuaCu.dispatchEvent(new Event("change", { bubbles: true }));
               setTimeout(() => {
-                if (jq) jq(btnSubmitSearch2).click();
+                if (jq2) jq2(btnSubmitSearch2).click();
                 else btnSubmitSearch2.click();
                 state.step = "WAIT_SEARCH_RESULT";
                 state.lastSearchTime = Date.now();
@@ -2364,7 +2398,7 @@
             state.step = "NEXT_TASK";
             const btnCloseSearch2 = getVisibleElement("#TraCuuTinhHinhDangKy .close") || getVisibleElement('button[data-dismiss="modal"].close');
             if (btnCloseSearch2) {
-              if (jq) jq(btnCloseSearch2).click();
+              if (jq2) jq2(btnCloseSearch2).click();
               else btnCloseSearch2.click();
             }
           }
@@ -2384,7 +2418,7 @@
               inputThuaMacDinh.dispatchEvent(new Event("input", { bubbles: true }));
               inputThuaMacDinh.dispatchEvent(new Event("change", { bubbles: true }));
               setTimeout(() => {
-                if (jq) jq(btnSubmitSearch3).click();
+                if (jq2) jq2(btnSubmitSearch3).click();
                 else btnSubmitSearch3.click();
                 state.step = "WAIT_SEARCH_RESULT";
                 state.lastSearchTime = Date.now();
@@ -2396,7 +2430,7 @@
             state.step = "NEXT_TASK";
             const btnCloseSearch3 = getVisibleElement("#TraCuuTinhHinhDangKy .close") || getVisibleElement('button[data-dismiss="modal"].close');
             if (btnCloseSearch3) {
-              if (jq) jq(btnCloseSearch3).click();
+              if (jq2) jq2(btnCloseSearch3).click();
               else btnCloseSearch3.click();
             }
           }
@@ -2427,7 +2461,7 @@
               task.searchAttempt = 1;
               const btnRefresh = getVisibleElement("#btnKhoiTaoTraCuuTinhHinhDangKyChiTiet");
               if (btnRefresh) {
-                if (jq) jq(btnRefresh).click();
+                if (jq2) jq2(btnRefresh).click();
                 else btnRefresh.click();
               }
               state.step = "SEARCH_FALLBACK";
@@ -2436,7 +2470,7 @@
               task.searchAttempt = 2;
               const btnRefresh = getVisibleElement("#btnKhoiTaoTraCuuTinhHinhDangKyChiTiet");
               if (btnRefresh) {
-                if (jq) jq(btnRefresh).click();
+                if (jq2) jq2(btnRefresh).click();
                 else btnRefresh.click();
               }
               state.step = "SEARCH_FALLBACK_2";
@@ -2445,7 +2479,7 @@
               task.resultStatus = "Không tìm thấy đơn (thử cả 3 cách)";
               const btnCloseSearch = getVisibleElement("#TraCuuTinhHinhDangKy .close") || getVisibleElement('button[data-dismiss="modal"].close');
               if (btnCloseSearch) {
-                if (jq) jq(btnCloseSearch).click();
+                if (jq2) jq2(btnCloseSearch).click();
                 else btnCloseSearch.click();
               }
               state.step = "NEXT_TASK";
@@ -2461,7 +2495,7 @@
             task.resultStatus = `Trùng đơn (${rows.length} kết quả)`;
             const btnCloseSearch = getVisibleElement("#TraCuuTinhHinhDangKy .close") || getVisibleElement('button[data-dismiss="modal"].close');
             if (btnCloseSearch) {
-              if (jq) jq(btnCloseSearch).click();
+              if (jq2) jq2(btnCloseSearch).click();
               else btnCloseSearch.click();
             }
             state.step = "NEXT_TASK";
@@ -2471,10 +2505,10 @@
             const row = rows[0];
             writeLog("Bước 3: Tìm thấy Đơn. Tiến hành chọn đơn...");
             const cb = row.querySelector("td.select-checkbox");
-            if (jq) {
-              if (cb) jq(cb).click();
-              jq(row).click();
-              jq(row).addClass("selected");
+            if (jq2) {
+              if (cb) jq2(cb).click();
+              jq2(row).click();
+              jq2(row).addClass("selected");
             } else {
               if (cb) cb.click();
               row.click();
@@ -2482,7 +2516,7 @@
             }
             setTimeout(() => {
               writeLog("Bấm 'Đồng ý' chọn đơn...");
-              if (jq) jq(btnSelect).click();
+              if (jq2) jq2(btnSelect).click();
               else btnSelect.click();
             }, 800);
             state.step = "OPEN_PARCEL";
@@ -2513,14 +2547,14 @@
             if (targetAnchor) {
               writeLog(`🎯 Đã tìm thấy thửa cũ khớp trên cây tài sản! Đang chọn...`);
               if (!targetAnchor.classList.contains("jstree-clicked")) {
-                if (jq) jq(targetAnchor).click();
+                if (jq2) jq2(targetAnchor).click();
                 else targetAnchor.click();
               }
               const btnSua = document.getElementById("btnSuaTaiSan");
               if (btnSua) {
                 setTimeout(() => {
                   writeLog("Bấm nút 'Sửa' thửa đất...");
-                  if (jq) jq(btnSua).click();
+                  if (jq2) jq2(btnSua).click();
                   else btnSua.click();
                 }, 500);
                 state.step = "EDIT_PARCEL";
@@ -2574,7 +2608,7 @@
                 el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
                 el.dispatchEvent(new Event("change", { bubbles: true }));
                 el.blur();
-                if (jq) jq(el).val(val).trigger("input").trigger("change").trigger("keyup");
+                if (jq2) jq2(el).val(val).trigger("input").trigger("change").trigger("keyup");
               };
               fillInput(inputThua, task.newThua);
               fillInput(inputTo, task.newTo);
@@ -2582,7 +2616,7 @@
                 writeLog("🔁 Đang thử lại Thửa mới, bỏ qua kiểm tra Nguồn gốc đất.");
                 setTimeout(() => {
                   writeLog("💾 Bấm lưu Thửa Đất (Thử lại)...");
-                  if (jq) jq(btnSaveThua).click();
+                  if (jq2) jq2(btnSaveThua).click();
                   else btnSaveThua.click();
                   state.step = "WAIT_PARCEL_SAVE";
                   state.lastSaveTime = Date.now();
@@ -2603,11 +2637,11 @@
                   setTimeout(() => {
                     const stringWrapper = mdsdForm.querySelector(".string-wrapper");
                     if (stringWrapper) {
-                      if (jq) jq(stringWrapper).click();
+                      if (jq2) jq2(stringWrapper).click();
                       else stringWrapper.click();
                     }
-                    if (jq) {
-                      jq(mdsdForm).addClass("item-selected expanded");
+                    if (jq2) {
+                      jq2(mdsdForm).addClass("item-selected expanded");
                     } else {
                       mdsdForm.classList.add("item-selected", "expanded");
                     }
@@ -2631,8 +2665,8 @@
                       writeLog(`👉 MĐSD [${mdsdText}] thứ ${idx + 1} → Chọn Nguồn gốc '${targetName}'`);
                       selectNguonGoc.value = targetVal;
                       selectNguonGoc.dispatchEvent(new Event("change", { bubbles: true }));
-                      if (jq) {
-                        jq(selectNguonGoc).val(targetVal).trigger("change").trigger("change.select2");
+                      if (jq2) {
+                        jq2(selectNguonGoc).val(targetVal).trigger("change").trigger("change.select2");
                       }
                     }, 500);
                   }, mdsdDelay);
@@ -2640,7 +2674,7 @@
                 });
                 setTimeout(() => {
                   writeLog("💾 Bấm lưu Thửa Đất...");
-                  if (jq) jq(btnSaveThua).click();
+                  if (jq2) jq2(btnSaveThua).click();
                   else btnSaveThua.click();
                   state.step = "WAIT_PARCEL_SAVE";
                   state.lastSaveTime = Date.now();
@@ -2669,7 +2703,7 @@
               writeLog(`⚠️ Phát hiện: "${msgText}" → Thửa [${task.newThua}] bị trùng.`);
               const btnOk = errorConfirm.querySelector(".btn-orange");
               if (btnOk) {
-                if (jq) jq(btnOk).click();
+                if (jq2) jq2(btnOk).click();
                 else btnOk.click();
               }
               state.step = "WAIT_DIALOG_CLOSE";
@@ -2678,7 +2712,7 @@
             } else {
               const btnOk = errorConfirm.querySelector(".btn-orange");
               if (btnOk) {
-                if (jq) jq(btnOk).click();
+                if (jq2) jq2(btnOk).click();
                 else btnOk.click();
               }
               state.step = "WAIT_DIALOG_CLOSE";
@@ -2707,7 +2741,7 @@
           const btnCloseForm = document.querySelector('button.btn-blue[data-dismiss="modal"]');
           if (btnCloseForm) {
             writeLog("Bấm 'Đóng' form sửa thửa đất...");
-            if (jq) jq(btnCloseForm).click();
+            if (jq2) jq2(btnCloseForm).click();
             else btnCloseForm.click();
           }
           state.step = "REMOVE_DOSSIER";
@@ -2717,7 +2751,7 @@
           const btnSaveDangKy = document.getElementById("btnLuuDangKyThongTinDangKy");
           if (btnSaveDangKy) {
             writeLog("Bước 6: Bấm 'Lưu thông tin đăng ký'...");
-            if (jq) jq(btnSaveDangKy).click();
+            if (jq2) jq2(btnSaveDangKy).click();
             else btnSaveDangKy.click();
             state.step = "WAIT_REGISTRATION_SAVE";
             state.lastSaveRegTime = Date.now();
@@ -2737,7 +2771,7 @@
             const btnOk = regConfirm.querySelector(".btn-orange") || regConfirm.querySelector(".btn-blue");
             if (btnOk) {
               writeLog("Xác nhận 'Đồng ý' đã lưu thông tin đăng ký...");
-              if (jq) jq(btnOk).click();
+              if (jq2) jq2(btnOk).click();
               else btnOk.click();
             }
             state.step = "WAIT_DIALOG_CLOSE";
@@ -2754,7 +2788,7 @@
           const btnBoDon = document.getElementById("btnBoDonDangKy");
           if (btnBoDon) {
             writeLog("Bước 7: Bấm 'Bỏ đơn khỏi danh sách'...");
-            if (jq) jq(btnBoDon).click();
+            if (jq2) jq2(btnBoDon).click();
             else btnBoDon.click();
             state.step = "CONFIRM_REMOVE";
             state.lastRemoveTime = Date.now();
@@ -2771,7 +2805,7 @@
             const btnAgree = confirmBox.querySelector(".btn-orange");
             if (btnAgree) {
               writeLog("Xác nhận 'Đồng ý' bỏ đơn...");
-              if (jq) jq(btnAgree).click();
+              if (jq2) jq2(btnAgree).click();
               else btnAgree.click();
               state.step = "WAIT_DIALOG_CLOSE";
               state.nextStepAfterDialog = "NEXT_TASK";
@@ -3042,7 +3076,15 @@
     };
     XMLHttpRequest.prototype.send = function(body) {
       const entry = { t: now(), type: "xhr", ep: epTag(this._mplisUrl || ""), method: this._mplisMethod || "GET" };
-      if (body && typeof body === "string") entry.req = body.slice(0, 300);
+      if (body && typeof body === "string") {
+        entry.req = body.slice(0, 300);
+        try {
+          const top = window.top;
+          top.__mplisLastReq = top.__mplisLastReq || {};
+          top.__mplisLastReq[entry.ep] = body;
+        } catch (e) {
+        }
+      }
       entry.url = String(this._mplisUrl || "").slice(0, 300);
       this.addEventListener("load", function() {
         entry.status = this.status;
@@ -3544,7 +3586,7 @@
       }
       const tree = findTree(doc);
       const maHS = findCurrentMaHS(doc) || (doc !== document ? findCurrentMaHS(document) : "");
-      let loaiHS = "", nguoiNop = "", diaChi = "", rawTitle = "", titleStr = "";
+      let loaiHS = "", nguoiNop2 = "", diaChi = "", rawTitle = "", titleStr = "";
       if (maHS) {
         const trs = Array.from(doc.querySelectorAll('tr[role="row"]')).concat(doc !== document ? Array.from(document.querySelectorAll('tr[role="row"]')) : []);
         for (let tr of trs) {
@@ -3570,7 +3612,7 @@
             const col4 = tr.querySelector(".col-md-3:nth-child(4)");
             if (col4) {
               const bElements = col4.querySelectorAll("b");
-              if (bElements.length > 0) nguoiNop = bElements[0].textContent.trim().toUpperCase();
+              if (bElements.length > 0) nguoiNop2 = bElements[0].textContent.trim().toUpperCase();
             }
             break;
           }
@@ -3657,7 +3699,7 @@
               loaiHS,
               tenTTHCFull: tenTTHCDong,
               soBienNhan,
-              nguoiNop,
+              nguoiNop: nguoiNop2,
               diaChi,
               gcn,
               thua,
@@ -3851,13 +3893,13 @@
           if (bElements.length > 0) buocXl = bElements[0].textContent.trim();
         }
         const col4 = tr.querySelector(".col-md-3:nth-child(4)");
-        let nguoiNop = "";
+        let nguoiNop2 = "";
         if (col4) {
           const bElements = col4.querySelectorAll("b");
-          if (bElements.length > 0) nguoiNop = bElements[0].textContent.trim().toUpperCase();
+          if (bElements.length > 0) nguoiNop2 = bElements[0].textContent.trim().toUpperCase();
         }
         if (maHoSoFull) {
-          const dossier = { maHoSo: maHoSoFull, maHoSoRutGon, loaiHoSo, diaChi, tiepNhanStr, henTraStr, buocXl, nguoiNop, isPaused, isKetIso, element: tr };
+          const dossier = { maHoSo: maHoSoFull, maHoSoRutGon, loaiHoSo, diaChi, tiepNhanStr, henTraStr, buocXl, nguoiNop: nguoiNop2, isPaused, isKetIso, element: tr };
           state.allDossiers.push(dossier);
           tr.style.backgroundColor = "";
           tr.style.borderLeft = "";
@@ -3971,12 +4013,12 @@
   }
   function search(pattern) {
     return new Promise((resolve, reject) => {
-      const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-      if (!jq || !jq.ajax) {
+      const jq2 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+      if (!jq2 || !jq2.ajax) {
         reject(new Error("Trang chưa sẵn sàng (không có jQuery)"));
         return;
       }
-      jq.ajax({
+      jq2.ajax({
         url: "https://dla.mplis.gov.vn/dc/DangKyAjax/AdvancedSearchHoSoTiepNhan",
         method: "POST",
         data: {
@@ -4146,6 +4188,640 @@
       };
     }
   };
+  async function tenNguoiNop(maDayDu) {
+    const items = await search(buildPattern(maDayDu));
+    const it = items.find((x) => x.soBienNhan === maDayDu) || items[0];
+    return it ? extractApplicant(it).hoTen : "";
+  }
+  async function traCuuHoSo(raw) {
+    return search(buildPattern(raw));
+  }
+
+  // src/telegram-notify.js
+  var K_ON = "mplis_tg_enabled";
+  var K_TOKEN = "mplis_tg_token";
+  var K_CHAT = "mplis_tg_chat";
+  var K_SEEN = "mplis_tg_seen";
+  var K_BASE = "mplis_tg_baseline";
+  var K_SEC = "mplis_tg_interval";
+  var SEEN_MAX = 600;
+  var NOTIFY_URL = "https://dla.mplis.gov.vn/dc/DangKyAjax/GetNotify";
+  var WORK_URL = "https://dla.mplis.gov.vn/dc/DangKyAjax/GetXuLyCongViec";
+  var st = { items: [], total: null, working: null, lastCheck: 0, msg: "", busy: false, newIds: /* @__PURE__ */ new Set() };
+  var ls = {
+    get: (k, d = "") => {
+      try {
+        const v = localStorage.getItem(k);
+        return v === null ? d : v;
+      } catch (e) {
+        return d;
+      }
+    },
+    set: (k, v) => {
+      try {
+        localStorage.setItem(k, v);
+      } catch (e) {
+      }
+    }
+  };
+  var isOn = () => ls.get(K_ON) === "true";
+  var getSeen = () => {
+    try {
+      return new Set(JSON.parse(ls.get(K_SEEN, "[]")));
+    } catch (e) {
+      return /* @__PURE__ */ new Set();
+    }
+  };
+  function saveSeen(set) {
+    ls.set(K_SEEN, JSON.stringify(Array.from(set).slice(-SEEN_MAX)));
+  }
+  var jq = () => typeof unsafeWindow !== "undefined" && unsafeWindow.$ && unsafeWindow.$.ajax ? unsafeWindow.$ : null;
+  function aspDate(str) {
+    const m = /\/Date\((-?\d+)\)\//.exec(str || "");
+    return m ? new Date(parseInt(m[1], 10)) : null;
+  }
+  var p2 = (n) => String(n).padStart(2, "0");
+  var fmtTime = (d) => d ? p2(d.getHours()) + ":" + p2(d.getMinutes()) + " " + p2(d.getDate()) + "/" + p2(d.getMonth() + 1) : "";
+  function rutGon(ma) {
+    const parts = String(ma || "").split("-");
+    return parts.length >= 3 ? (parts[1].slice(-2) + "-" + parts[2]).toUpperCase() : String(ma || "");
+  }
+  var K_NAMES = "mplis_tg_names";
+  var getNames = () => {
+    try {
+      return JSON.parse(ls.get(K_NAMES, "{}"));
+    } catch (e) {
+      return {};
+    }
+  };
+  function nhoTen(list) {
+    const m = getNames();
+    let doi = false;
+    list.forEach((n) => {
+      const u = (n.UserNameChuyenTiep || "").trim().toLowerCase(), f = (n.FullNameNguoiChuyenTiep || "").trim();
+      if (u && f && m[u] !== f) {
+        m[u] = f;
+        doi = true;
+      }
+    });
+    if (doi) ls.set(K_NAMES, JSON.stringify(m));
+  }
+  var SUA_TEN = { "TRINH ĐÌNH THỞI": "Trịnh Đình Thởi" };
+  function chuanTen(raw) {
+    raw = (raw || "").trim();
+    const full = getNames()[raw.toLowerCase()];
+    if (full) raw = full;
+    if (SUA_TEN[raw.toUpperCase()]) return SUA_TEN[raw.toUpperCase()];
+    return raw && raw === raw.toUpperCase() ? raw.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : raw;
+  }
+  function tenNguoi(n) {
+    return chuanTen(n.FullNameNguoiChuyenTiep || n.UserNameChuyenTiep || "Không rõ");
+  }
+  var laTap = (n) => n.WarningType === 5;
+  function ajax(url, data, json) {
+    return new Promise((resolve, reject) => {
+      const $ = jq();
+      if (!$) {
+        reject(new Error("Trang chưa sẵn sàng"));
+        return;
+      }
+      const opt = { url, method: "POST", dataType: "json", global: false };
+      if (json) {
+        opt.contentType = "application/json; charset=utf-8";
+        opt.data = JSON.stringify(data);
+      } else opt.data = data;
+      $.ajax(opt).done(resolve).fail((x) => reject(new Error("Lỗi " + x.status)));
+    });
+  }
+  async function fetchNotify() {
+    const j = await ajax(NOTIFY_URL, { start: 0, length: 30 }, true);
+    return Array.isArray(j && j.Value) ? j.Value : [];
+  }
+  async function fetchWork() {
+    const body = topWin.__mplisLastReq && topWin.__mplisLastReq["DangKyAjax/GetXuLyCongViec"] || "draw=1&columns%5B0%5D%5Bdata%5D=stt&columns%5B0%5D%5Borderable%5D=false&columns%5B1%5D%5Bdata%5D=soBienNhan&columns%5B1%5D%5Borderable%5D=false&order%5B0%5D%5Bcolumn%5D=0&order%5B0%5D%5Bdir%5D=asc&start=0&length=100&search%5Bvalue%5D=&search%5Bregex%5D=false&query=&soNgayCanhBaoHoSoSapDenNgayTra=7&sortField=ngayhenTra&sortDirection=asc&filterBy=0";
+    const sp = new URLSearchParams(body);
+    sp.set("start", "0");
+    sp.set("length", "200");
+    const j = await ajax(WORK_URL, sp.toString(), false);
+    if (!j || j.success === false) return null;
+    return { total: j.recordsTotal, rows: Array.isArray(j.data) ? j.data : [] };
+  }
+  function sendTelegram(text) {
+    return new Promise((resolve, reject) => {
+      const token = ls.get(K_TOKEN).trim(), chat = ls.get(K_CHAT).trim();
+      if (!token || !chat) {
+        reject(new Error("Chưa nhập API Key hoặc Chat ID"));
+        return;
+      }
+      if (typeof GM_xmlhttpRequest === "undefined") {
+        reject(new Error("Thiếu GM_xmlhttpRequest"));
+        return;
+      }
+      GM_xmlhttpRequest({
+        method: "POST",
+        url: "https://api.telegram.org/bot" + token + "/sendMessage",
+        headers: { "Content-Type": "application/json" },
+        data: JSON.stringify({ chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true }),
+        onload: (res) => {
+          let b = null;
+          try {
+            b = JSON.parse(res.responseText);
+          } catch (e) {
+          }
+          if (b && b.ok) resolve();
+          else reject(new Error(b && b.description || "HTTP " + res.status));
+        },
+        onerror: () => reject(new Error("Lỗi kết nối Telegram")),
+        ontimeout: () => reject(new Error("Telegram quá thời gian")),
+        timeout: 15e3
+      });
+    });
+  }
+  var nguoiNop = {};
+  async function traNguoiNop(fresh) {
+    (st.working || []).forEach((r) => {
+      const t = docNguoiNop(r);
+      if (t && r.soBienNhan) nguoiNop[r.soBienNhan] = t;
+    });
+    await Promise.all(fresh.filter((n) => !laTap(n) && n.ObjectId && !nguoiNop[n.ObjectId]).map(async (n) => {
+      try {
+        const t = await tenNguoiNop(n.ObjectId);
+        if (t) nguoiNop[n.ObjectId] = t;
+      } catch (e) {
+      }
+    }));
+  }
+  function buildMessage(fresh) {
+    const byPerson = /* @__PURE__ */ new Map();
+    fresh.forEach((n) => {
+      const k = tenNguoi(n);
+      if (!byPerson.has(k)) byPerson.set(k, []);
+      byPerson.get(k).push(n);
+    });
+    const parts = [];
+    byPerson.forEach((list, who) => {
+      const soHS = list.filter((n) => !laTap(n)).length, soTap = list.filter(laTap).length;
+      const dem = [soHS ? soHS + " hồ sơ" : "", soTap ? soTap + " tập hồ sơ" : ""].filter(Boolean).join(" + ");
+      const lines = list.slice().reverse().map((n) => "• " + (laTap(n) ? "Tập " + escapeHtml(n.ObjectId) : "<b>" + escapeHtml(n.ObjectId) + "</b>") + (nguoiNop[n.ObjectId] ? " · " + escapeHtml(nguoiNop[n.ObjectId]) : "") + " · " + escapeHtml(fmtTime(aspDate(n.NgayTao))));
+      parts.push("📥 <b>" + escapeHtml(who) + "</b> chuyển " + dem + "\n" + lines.join("\n"));
+    });
+    let msg = parts.join("\n\n");
+    if (st.working) {
+      const tong = st.total !== null ? st.total : st.working.length;
+      const ds = Array.from(demTheoNguoi().entries()).sort((a, b) => b[1].n - a[1].n);
+      msg += "\n\n📊 <b>Tổng đang chờ xử lý: " + tong + " bộ</b>\n" + ds.map(([ten, o]) => "• " + escapeHtml(ten) + ": <b>" + o.n + "</b> bộ").join("\n");
+    } else if (st.total !== null) msg += "\n\n📊 Đang chờ xử lý: <b>" + st.total + "</b> bộ";
+    return msg;
+  }
+  async function tick(manual) {
+    if (st.busy) return;
+    if (!manual && !isOn()) return;
+    const run = topWin.MPLIS_AUTO_STATE;
+    if (run && run.isRunning) {
+      st.msg = "Auto đang chạy, tạm hoãn kiểm tra.";
+      render();
+      return;
+    }
+    st.busy = true;
+    try {
+      const list = await fetchNotify();
+      st.items = list;
+      nhoTen(list);
+      let conCho = null;
+      try {
+        const w = await fetchWork();
+        if (w) {
+          st.total = w.total;
+          st.working = w.rows;
+          conCho = maConCho(w.rows, w.total);
+        }
+      } catch (e) {
+      }
+      st.lastCheck = Date.now();
+      const seen = getSeen();
+      const conTrongDs = (n) => laTap(n) || !conCho || conCho.has(n.ObjectId);
+      list.forEach((n) => {
+        if (n.Id && !seen.has(n.Id) && !conTrongDs(n)) seen.add(n.Id);
+      });
+      saveSeen(seen);
+      const fresh = list.filter((n) => n.Id && !seen.has(n.Id));
+      st.newIds = new Set(fresh.map((n) => n.Id));
+      if (ls.get(K_BASE) !== "true") {
+        list.forEach((n) => n.Id && seen.add(n.Id));
+        saveSeen(seen);
+        ls.set(K_BASE, "true");
+        st.newIds = /* @__PURE__ */ new Set();
+        st.msg = "Đã ghi nhận mốc " + list.length + " thông báo cũ, từ giờ chỉ báo cái mới.";
+      } else if (isOn() && fresh.length) {
+        await traNguoiNop(fresh);
+        await sendTelegram(buildMessage(fresh));
+        fresh.forEach((n) => seen.add(n.Id));
+        saveSeen(seen);
+        st.msg = "✅ Đã gửi " + fresh.length + " thông báo mới lên Telegram.";
+      } else {
+        st.msg = fresh.length ? fresh.length + " thông báo mới (chưa gửi vì đang tắt)." : "Không có hồ sơ mới.";
+      }
+    } catch (e) {
+      st.msg = "❌ " + e.message + " (sẽ thử lại, không bỏ sót).";
+    } finally {
+      st.busy = false;
+      render();
+    }
+  }
+  function docNguoiChuyen(r) {
+    return chuanTen(r && (r.nguoiChuyenTiep || r.tenNguoiChuyenTiep) || "");
+  }
+  function docGioChuyen(r) {
+    return aspDate(r && r.ngayPhanCong);
+  }
+  function docNguoiNop(r) {
+    return String(r && r.nguoiNopDon && r.nguoiNopDon.hoTen || "").replace(/\s+/g, " ").trim();
+  }
+  var _daLogCot = false;
+  function maConCho(rows, total) {
+    if (!Array.isArray(rows)) return null;
+    if (typeof total === "number" && rows.length < total) return null;
+    return new Set(rows.map((r) => r && r.soBienNhan).filter(Boolean));
+  }
+  function demTheoNguoi() {
+    const m = /* @__PURE__ */ new Map();
+    (st.working || []).forEach((r) => {
+      const k = docNguoiChuyen(r) || "Chưa rõ người chuyển";
+      const o = m.get(k) || { n: 0, gio: null, ds: [] };
+      o.n++;
+      o.ds.push(r);
+      const g = docGioChuyen(r);
+      if (g && (!o.gio || g > o.gio)) o.gio = g;
+      m.set(k, o);
+    });
+    return m;
+  }
+  function renderSenders() {
+    const el = document.getElementById("qt-sender-list");
+    if (!el) return;
+    const dim = (t) => '<span style="font-size:11.5px; color:var(--mplis-text-dim);">' + t + "</span>";
+    if (!st.working) {
+      el.innerHTML = dim('Chưa có dữ liệu. Mở màn Xử lý công việc hoặc bấm "Kiểm tra ngay" ở tab chuông.');
+      return;
+    }
+    if (!_daLogCot && st.working.length) {
+      _daLogCot = true;
+      console.log("[MPLIS Notify] Các cột của 1 dòng GetXuLyCongViec:", Object.keys(st.working[0]), st.working[0]);
+    }
+    const tong = st.total !== null ? st.total : st.working.length;
+    const m = demTheoNguoi();
+    let html = '<div style="font-size:12px; margin-bottom:3px;">Đang chờ xử lý: <b style="color:var(--mplis-accent-2);">' + tong + "</b> bộ</div>";
+    html += Array.from(m.entries()).sort((a, b) => b[1].n - a[1].n).map(([ten, o]) => '<div class="mplis-lk-row" style="border-top:none; padding:3px 0;"><span style="color:var(--mplis-text);">' + escapeHtml(ten) + "</span><b>" + o.n + " bộ" + (o.gio ? " · " + escapeHtml(fmtTime(o.gio)) : "") + "</b></div>").join("");
+    el.innerHTML = html;
+  }
+  window.addEventListener("mplis:api", ({ detail: e }) => {
+    try {
+      const ep = e.ep || "";
+      if (ep.indexOf("GetXuLyCongViec") !== -1 && e.res && Array.isArray(e.res.data)) {
+        st.working = e.res.data;
+        st.total = typeof e.res.recordsTotal === "number" ? e.res.recordsTotal : e.res.data.length;
+        render();
+      } else if (ep.indexOf("GetNotify") !== -1 && e.res && Array.isArray(e.res.Value)) {
+        st.items = e.res.Value;
+        nhoTen(st.items);
+        render();
+      }
+    } catch (err) {
+    }
+  });
+  function render() {
+    renderSenders();
+    const box = document.getElementById("tg-list");
+    if (!box) return;
+    const cnt = document.getElementById("tg-total");
+    if (cnt) cnt.textContent = st.total === null ? "—" : String(st.total);
+    const sub = document.getElementById("tg-sub");
+    if (sub) sub.textContent = st.lastCheck ? "Kiểm tra lúc " + fmtTime(new Date(st.lastCheck)) : "Chưa kiểm tra";
+    const msg = document.getElementById("tg-msg");
+    if (msg) msg.textContent = st.msg;
+    const conCho = st.working ? maConCho(st.working, st.total) : null;
+    const dsHien = st.items.filter((n) => laTap(n) || !conCho || conCho.has(n.ObjectId));
+    const hs = dsHien.filter((n) => !laTap(n)).length, tap = dsHien.length - hs;
+    const head = document.getElementById("tg-recv");
+    if (head) head.textContent = "Vừa nhận: " + hs + " hồ sơ" + (tap ? " · " + tap + " tập" : "");
+    box.innerHTML = dsHien.length ? dsHien.map(
+      (n) => '<div class="mplis-lk-row"><span>' + escapeHtml(fmtTime(aspDate(n.NgayTao))) + (st.newIds.has(n.Id) ? " 🆕" : "") + "</span><b>" + (laTap(n) ? "Tập " + escapeHtml(n.ObjectId) : escapeHtml(rutGon(n.ObjectId))) + " ← " + escapeHtml(tenNguoi(n)) + "</b></div>"
+    ).join("") : "";
+  }
+  var K_OFFSET = "mplis_tg_offset";
+  function tgGoi(method, body) {
+    return new Promise((resolve, reject) => {
+      const token = ls.get(K_TOKEN).trim();
+      if (!token || typeof GM_xmlhttpRequest === "undefined") {
+        reject(new Error("Thiếu API Key"));
+        return;
+      }
+      GM_xmlhttpRequest({
+        method: "POST",
+        url: "https://api.telegram.org/bot" + token + "/" + method,
+        headers: { "Content-Type": "application/json" },
+        data: JSON.stringify(body || {}),
+        timeout: 15e3,
+        onload: (res) => {
+          try {
+            const b = JSON.parse(res.responseText);
+            b.ok ? resolve(b.result) : reject(new Error(b.description || "HTTP " + res.status));
+          } catch (e) {
+            reject(e);
+          }
+        },
+        onerror: () => reject(new Error("Lỗi kết nối Telegram")),
+        ontimeout: () => reject(new Error("Telegram quá thời gian"))
+      });
+    });
+  }
+  function tomTat(chiTiet) {
+    if (!st.working) return "Chưa có dữ liệu hồ sơ. Thử lại sau ít giây.";
+    const tong = st.total !== null ? st.total : st.working.length;
+    const ds = Array.from(demTheoNguoi().entries()).sort((a, b) => b[1].n - a[1].n);
+    if (!ds.length) return "📊 Không có hồ sơ nào đang chờ xử lý.";
+    let msg = "📊 <b>Tổng đang chờ xử lý: " + tong + " bộ</b>";
+    ds.forEach(([ten, o]) => {
+      msg += "\n\n👤 <b>" + escapeHtml(ten) + "</b>: " + o.n + " bộ" + (o.gio ? " · mới nhất " + fmtTime(o.gio) : "");
+      if (chiTiet) {
+        o.ds.slice().sort((a, b) => (docGioChuyen(b) || 0) - (docGioChuyen(a) || 0)).forEach((r) => {
+          const nn = docNguoiNop(r);
+          msg += "\n• <b>" + escapeHtml(r.soBienNhan) + "</b>" + (nn ? " · " + escapeHtml(nn) : "") + " · " + escapeHtml(fmtTime(docGioChuyen(r)));
+        });
+      }
+    });
+    msg += "\n\n🕒 Cập nhật " + fmtTime(new Date(st.lastCheck || Date.now()));
+    return msg;
+  }
+  function guiChia(chat, text) {
+    const parts = [];
+    let cur = "";
+    text.split("\n").forEach((line) => {
+      if ((cur + "\n" + line).length > 3800) {
+        parts.push(cur);
+        cur = line;
+      } else cur += (cur ? "\n" : "") + line;
+    });
+    if (cur) parts.push(cur);
+    return parts.reduce((p, t) => p.then(() => tgGoi("sendMessage", { chat_id: chat, text: t, parse_mode: "HTML", disable_web_page_preview: true })), Promise.resolve());
+  }
+  var HUONG_DAN = '🤖 <b>Hướng dẫn hỏi bot</b>\n\n📊 <b>/tong</b> — tổng số bộ đang chờ, mỗi người chuyển bao nhiêu\n📋 <b>/chitiet</b> — như trên, kèm từng hồ sơ (mã, người nộp, giờ chuyển)\n👤 <b>/ai thoi</b> — chỉ xem hồ sơ của người có tên chứa "thoi" (gõ không dấu cũng được)\n🔎 <b>/tracuu 0402</b> — hồ sơ đã đi tới đâu, ai đang giữ, hẹn trả khi nào\n      Gõ thẳng đuôi mã (VD: <b>0402</b> hoặc <b>9-0402</b>) cũng được, khỏi gõ /tracuu\n🔄 <b>/f5</b> — tải lại trang MPLIS trên máy (khi trang bị treo hoặc hết phiên)\n❓ <b>/help</b> — hiện bảng này\n\nGõ chữ khác bot sẽ hiện /tong. Chỉ trả lời khi bật "Chế độ đi vắng" trong tool.';
+  var boDau = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").toLowerCase();
+  function tomTatNguoi(tuKhoa) {
+    if (!st.working) return "Chưa có dữ liệu hồ sơ. Thử lại sau ít giây.";
+    const k = boDau(tuKhoa);
+    const ds = Array.from(demTheoNguoi().entries()).filter(([ten]) => boDau(ten).includes(k));
+    if (!ds.length) return '❌ Không thấy ai tên có "' + escapeHtml(tuKhoa) + '" trong danh sách đang chờ.';
+    let msg = "";
+    ds.forEach(([ten, o]) => {
+      msg += (msg ? "\n\n" : "") + "👤 <b>" + escapeHtml(ten) + "</b>: " + o.n + " bộ";
+      o.ds.slice().sort((a, b) => (docGioChuyen(b) || 0) - (docGioChuyen(a) || 0)).forEach((r) => {
+        const nn = docNguoiNop(r);
+        msg += "\n• <b>" + escapeHtml(r.soBienNhan) + "</b>" + (nn ? " · " + escapeHtml(nn) : "") + " · " + escapeHtml(fmtTime(docGioChuyen(r)));
+      });
+    });
+    return msg;
+  }
+  function moTaHoSo(it) {
+    const buoc = it.state && it.state.Title || "Đang xử lý";
+    const ap = extractApplicant(it);
+    const dong = [];
+    const row = (nhan, val) => dong.push(nhan + ": <b>" + escapeHtml(val || "—") + "</b>");
+    dong.push("🔎 <b>" + escapeHtml(it.soBienNhan) + "</b>");
+    dong.push("📍 <b>" + escapeHtml(buoc) + "</b>");
+    const chip2 = [];
+    if (it.daTra) chip2.push("✅ Đã trả " + parseAspNetDate(it.ngayTra));
+    if (it.daKetISO) chip2.push("🟦 Đã kết ISO");
+    if (it.daCapNhatDuLieuPhapLy) chip2.push("🟦 Đã cập nhật pháp lý");
+    if (it.choBoSung) chip2.push("⚠️ Chờ bổ sung");
+    if (chip2.length) dong.push(escapeHtml(chip2.join(" · ")));
+    row("Người đang xử lý", it.tenNguoiTiepNhan ? chuanTen(it.nguoiTiepNhan || it.tenNguoiTiepNhan) : "");
+    row("Người chuyển tiếp", it.tenNguoiChuyenTiep ? chuanTen(it.nguoiChuyenTiep || it.tenNguoiChuyenTiep) : "");
+    const hen = parseAspNetDate(it.ngayhenTra);
+    if (hen) row("Hẹn trả", hen);
+    dong.push("\n<b>THÔNG TIN NGƯỜI NỘP ĐƠN</b>");
+    row("Người nộp hồ sơ", ap.hoTen);
+    row("Số giấy tờ", ap.soGiayTo);
+    row("Số điện thoại", ap.sdt);
+    row("Phường/Xã", ap.phuongXa);
+    const docs = Array.isArray(it.giayToDinhKem) ? it.giayToDinhKem : [];
+    dong.push("\n<b>GIẤY TỜ ĐÍNH KÈM (" + docs.length + ")</b>");
+    if (!docs.length) dong.push("Chưa có giấy tờ đính kèm");
+    docs.forEach((g, i) => {
+      const ten = escapeHtml(g.tenGiayTo || g.Title || "(không tên)");
+      const nhan = g.tepDinhKem ? '<a href="https://dla.mplis.gov.vn/dc/PdfViewer?fileId=' + encodeURIComponent(g.tepDinhKem) + '">' + ten + "</a>" : ten;
+      dong.push(i + 1 + ". " + nhan + (g.laGiayToKySo ? " ✍️ ký số" : ""));
+    });
+    return dong.join("\n");
+  }
+  async function traCuuBot(tuKhoa) {
+    const q = String(tuKhoa || "").trim();
+    if (!/\d{2,}/.test(q)) return "Nhập ít nhất 2-3 số cuối mã hồ sơ. VD: <b>/tracuu 0402</b>";
+    let ds;
+    try {
+      ds = await traCuuHoSo(q);
+    } catch (e) {
+      return "❌ Tra cứu lỗi: " + escapeHtml(e.message);
+    }
+    if (!ds.length) return '❌ Không tìm thấy hồ sơ nào khớp "' + escapeHtml(q) + '".';
+    const toiDa = 5;
+    let msg = ds.slice(0, toiDa).map(moTaHoSo).join("\n\n");
+    if (ds.length > toiDa) msg += "\n\n… còn " + (ds.length - toiDa) + " hồ sơ khác, gõ thêm số cho gọn (VD: <b>9-0402</b>).";
+    return msg;
+  }
+  var daDatMenu = false;
+  async function datMenuBot() {
+    if (daDatMenu) return;
+    try {
+      await tgGoi("setMyCommands", { commands: [
+        { command: "tong", description: "Tổng hồ sơ đang chờ, ai chuyển bao nhiêu" },
+        { command: "chitiet", description: "Chi tiết từng hồ sơ" },
+        { command: "ai", description: "Xem hồ sơ của 1 người: /ai thoi" },
+        { command: "tracuu", description: "Hồ sơ đi tới đâu: /tracuu 0402" },
+        { command: "f5", description: "Tải lại trang MPLIS trên máy" },
+        { command: "help", description: "Hướng dẫn" }
+      ] });
+      daDatMenu = true;
+    } catch (e) {
+    }
+  }
+  async function lamMoiDuLieu() {
+    const run = topWin.MPLIS_AUTO_STATE;
+    if (run && run.isRunning) return;
+    try {
+      const w = await fetchWork();
+      if (w) {
+        st.total = w.total;
+        st.working = w.rows;
+        st.lastCheck = Date.now();
+        render();
+      }
+    } catch (e) {
+    }
+  }
+  var canTaiLai = false;
+  async function traLoi(text) {
+    const t = String(text || "").trim();
+    const m = /^\/?([a-zA-Z0-9_À-ỹ]+)(?:@\w+)?\s*(.*)$/s.exec(t);
+    const lenh = m ? boDau(m[1]) : "";
+    const doi = m ? m[2].trim() : "";
+    if (/^(start|help|huongdan|hd|trogiup)$/.test(lenh) || t === "?") return HUONG_DAN;
+    if (/^(f5|reload|taitrang|lammoi)$/.test(lenh)) {
+      const run = topWin.MPLIS_AUTO_STATE;
+      if (run && run.isRunning && !/ep|force/i.test(doi)) return "⚠️ Tool đang chạy quy trình, tải lại trang giữa chừng có thể làm hỏng bước đang làm.\nMuốn vẫn tải lại thì gõ <b>/f5 ep</b>.";
+      canTaiLai = true;
+      return "🔄 Đang tải lại trang (F5)...";
+    }
+    if (/^(tracuu|tc|tim|hoso)$/.test(lenh)) return traCuuBot(doi);
+    if (/\d{3,}/.test(t) && !/^\/(tong|chitiet|ai)\b/i.test(t)) return traCuuBot(t.replace(/^\/\S+\s*/, ""));
+    if (/^(ai|nguoi)$/.test(lenh)) {
+      if (!doi) return "Gõ kèm tên, VD: <b>/ai thoi</b>";
+      await lamMoiDuLieu();
+      return tomTatNguoi(doi);
+    }
+    await lamMoiDuLieu();
+    return tomTat(/^(chitiet|ct|ds|list)$/.test(lenh));
+  }
+  var dangHoi = false;
+  async function pollLenh() {
+    if (dangHoi || !isOn() || !ls.get(K_TOKEN).trim() || !ls.get(K_CHAT).trim()) return;
+    dangHoi = true;
+    try {
+      datMenuBot();
+      const raw = ls.get(K_OFFSET, "");
+      const dsCapNhat = await tgGoi("getUpdates", raw ? { offset: parseInt(raw, 10), timeout: 0, allowed_updates: ["message"] } : { timeout: 0, allowed_updates: ["message"] });
+      if (!dsCapNhat.length) {
+        if (!raw) ls.set(K_OFFSET, "0");
+        return;
+      }
+      ls.set(K_OFFSET, String(dsCapNhat[dsCapNhat.length - 1].update_id + 1));
+      if (!raw) return;
+      const chat = ls.get(K_CHAT).trim();
+      for (const u of dsCapNhat) {
+        const m = u.message;
+        if (!m || String(m.chat && m.chat.id) !== chat) continue;
+        if (!m.text) continue;
+        let tra;
+        try {
+          tra = await traLoi(m.text);
+        } catch (e) {
+          tra = "❌ Lỗi: " + escapeHtml(e.message);
+        }
+        await guiChia(chat, tra);
+        if (canTaiLai) {
+          canTaiLai = false;
+          setTimeout(() => {
+            try {
+              topWin.location.reload();
+            } catch (e) {
+              location.reload();
+            }
+          }, 800);
+          return;
+        }
+      }
+    } catch (e) {
+    } finally {
+      dangHoi = false;
+    }
+  }
+  var timer = false;
+  function startTimer() {
+    if (timer) return;
+    timer = true;
+    const run = () => {
+      const sec = Math.max(15, parseInt(ls.get(K_SEC, "30"), 10) || 30);
+      if (Date.now() - st.lastCheck >= sec * 1e3 - 500) tick(false);
+    };
+    setFastInterval(() => {
+      run();
+      pollLenh();
+    }, 5e3);
+  }
+  var NotifyModule = {
+    html() {
+      return `
+        <div class="mplis-card">
+            <div class="mplis-bypass-row" style="padding-top:0;">
+                <div class="mplis-bypass-row-label"><strong>Chế độ đi vắng · báo Telegram</strong><span id="tg-sub">Chưa kiểm tra</span></div>
+                <label class="mplis-toggle-sw"><input type="checkbox" id="tg-on" ${isOn() ? "checked" : ""}><span class="mplis-toggle-track"></span></label>
+            </div>
+            <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
+                <span id="tg-total" style="font-size:30px; font-weight:800; color:var(--mplis-accent-2); font-variant-numeric:tabular-nums;">—</span>
+                <span style="font-size:12px; color:var(--mplis-text-dim);">bộ đang chờ xử lý</span>
+            </div>
+            <div id="tg-recv" style="font-size:12px; color:var(--mplis-text); margin-top:2px;"></div>
+            <div id="tg-msg" class="mplis-hint" style="margin:6px 0 0;"></div>
+            <div style="display:flex; gap:6px; margin-top:8px;">
+                <button type="button" class="mplis-btn-primary" id="tg-check" style="flex:1; padding:8px;">Kiểm tra ngay</button>
+                <button type="button" class="mplis-btn-ghost" id="tg-test" style="padding:8px 12px;">Gửi thử</button>
+            </div>
+        </div>
+        <div class="mplis-card" id="tg-list" style="max-height:260px; overflow-y:auto;"></div>
+        <div class="mplis-card mplis-collapse" id="tg-cfg-card">
+            <button type="button" class="mplis-collapse-head" id="tg-cfg-toggle" aria-expanded="false">
+                <span class="mplis-section-label">Telegram API</span>
+                <span class="mplis-collapse-state" id="tg-cfg-state">${ls.get(K_TOKEN) && ls.get(K_CHAT) ? "Đã nhập" : "Chưa nhập"}</span>
+                <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="mplis-collapse-body">
+                <input type="text" id="tg-token" placeholder="API Key" autocomplete="off" spellcheck="false" style="width:100%; padding:8px; font-size:12px; margin-bottom:6px; color:#f0f4fc !important; -webkit-text-security:disc; text-security:disc;">
+                <input type="text" id="tg-chat" placeholder="Chat ID" autocomplete="off" spellcheck="false" style="width:100%; color:#f0f4fc !important; padding:8px; font-size:12px; margin-bottom:6px;">
+                <div style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--mplis-text-dim);">Kiểm tra mỗi
+                    <input type="number" id="tg-sec" min="15" step="5" style="width:64px; padding:5px; text-align:center;"> giây</div>
+                <button type="button" class="mplis-btn-ghost" id="tg-reset" style="margin-top:8px; padding:7px 12px; font-size:11.5px;">Xoá lịch sử đã gửi</button>
+            </div>
+        </div>`;
+    },
+    init() {
+      const el = (id) => document.getElementById(id);
+      if (!el("tab-notify")) return;
+      el("tab-notify").innerHTML = this.html();
+      el("tg-token").value = ls.get(K_TOKEN);
+      el("tg-chat").value = ls.get(K_CHAT);
+      el("tg-sec").value = ls.get(K_SEC, "30");
+      const card = el("tg-cfg-card");
+      el("tg-cfg-toggle").onclick = () => {
+        const o = card.classList.toggle("open");
+        el("tg-cfg-toggle").setAttribute("aria-expanded", o ? "true" : "false");
+      };
+      const saveCfg = () => {
+        ls.set(K_TOKEN, el("tg-token").value.trim());
+        ls.set(K_CHAT, el("tg-chat").value.trim());
+        ls.set(K_SEC, String(Math.max(15, parseInt(el("tg-sec").value, 10) || 30)));
+        el("tg-cfg-state").textContent = ls.get(K_TOKEN) && ls.get(K_CHAT) ? "Đã nhập" : "Chưa nhập";
+      };
+      ["tg-token", "tg-chat", "tg-sec"].forEach((id) => {
+        el(id).oninput = saveCfg;
+      });
+      el("tg-on").onchange = (e) => {
+        ls.set(K_ON, e.target.checked ? "true" : "false");
+        st.msg = e.target.checked ? "Đã bật. Lần kiểm tra tới sẽ báo hồ sơ mới." : "Đã tắt, không gửi gì lên Telegram.";
+        render();
+        if (e.target.checked) tick(false);
+      };
+      el("tg-check").onclick = () => tick(true);
+      el("tg-cfg-card").style.display = "block";
+      el("tg-test").onclick = async () => {
+        saveCfg();
+        try {
+          await sendTelegram("✅ MPLIS Auto: kết nối Telegram thành công.");
+          st.msg = "✅ Gửi thử thành công, kiểm tra Telegram.";
+        } catch (e) {
+          st.msg = "❌ Gửi thử lỗi: " + e.message;
+        }
+        render();
+      };
+      el("tg-reset").onclick = () => {
+        ls.set(K_SEEN, "[]");
+        ls.set(K_BASE, "false");
+        st.msg = "Đã xoá lịch sử. Lần kiểm tra tới ghi lại mốc, không gửi tin cũ.";
+        render();
+      };
+      render();
+      startTimer();
+    }
+  };
 
   // src/toggle.js
   function toggleProcess(customStopMessage) {
@@ -4220,6 +4896,7 @@
   var ICON_UPDATE = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>');
   var ICON_SETTINGS = svgIcon('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>');
   var ICON_SEARCH = svgIcon('<circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>');
+  var ICON_BELL = svgIcon('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>');
   var ICON_MORE = svgIcon('<circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle>');
   var ICON_LINK = svgIcon('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>', 16);
   var ICON_REFRESH = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"></path>', 16);
@@ -4302,6 +4979,7 @@
                     <button class="mplis-tab" data-tab="tab-alert" title="Nhắc nhở hồ sơ trễ hạn" aria-label="Nhắc nhở hồ sơ trễ hạn">${ICON_ALERT}</button>
                     <button class="mplis-tab" data-tab="tab-excel" title="Xuất dữ liệu Excel" aria-label="Xuất dữ liệu Excel">${ICON_EXCEL}</button>
                     <button class="mplis-tab" data-tab="tab-lookup" title="Tra cứu hồ sơ" aria-label="Tra cứu hồ sơ">${ICON_SEARCH}</button>
+                    <button class="mplis-tab" data-tab="tab-notify" title="Thông báo hồ sơ mới" aria-label="Thông báo hồ sơ mới">${ICON_BELL}</button>
                     <!-- ĐANG ẨN TẠM: 2 tab "Trả hồ sơ" và "Auto sửa Thửa/Tờ" (không dùng tới). Toàn bộ code
                          và phần nội dung 2 tab vẫn giữ nguyên bên dưới - muốn bật lại chỉ cần thêm lại 2 dòng:
                          <button class="mplis-tab mplis-tab-extra" data-tab="tab-return" title="Trả hồ sơ" aria-label="Trả hồ sơ" style="display:none;">ICON_RETURN</button>
@@ -4427,6 +5105,11 @@
                             </div>
                         </div>
 
+                        <div class="mplis-card" style="padding:8px 9px;">
+                            <span class="mplis-section-label" style="margin-bottom:4px;">Người chuyển hồ sơ</span>
+                            <div id="qt-sender-list"></div>
+                        </div>
+
                         <button class="mplis-btn-primary" id="btn-toggle-process">▶ Bắt đầu Xử Lý</button>
                         <div class="mplis-status-bar">
                             <div class="mplis-status-row">
@@ -4443,6 +5126,16 @@
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                             <div class="mplis-collapse-body" id="proc-log-body">
+                                <div class="mplis-bypass-row" style="padding-top:0;">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Ghi log chi tiết</strong>
+                                        <span>Tắt thì không ghi thêm dòng nào (dòng trạng thái vẫn chạy).</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-proc-log-enabled" ${localStorage.getItem("mplis_proc_log_enabled") !== "false" ? "checked" : ""}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
                                 <div id="mplis-log-area-process" style="max-height:180px; overflow-y:auto; font-family:'Consolas','Cascadia Code',monospace; font-size:11px; line-height:1.65; color:var(--mplis-text-dim); background:rgba(0,0,0,0.25); border-radius:6px; padding:6px 8px; word-break:break-all;"></div>
                                 <div style="display:flex; gap:6px; margin-top:6px;">
                                     <button type="button" id="btn-proc-log-copy" class="mplis-btn-ghost" style="flex:1; font-size:11.5px; padding:7px;">Copy log</button>
@@ -4518,6 +5211,9 @@
                         <div class="mplis-hint" id="lookup-info" style="margin:6px 0 8px;">Gõ một phần mã rồi Enter, tool tự thêm % phía trước.</div>
                         <div id="lookup-results"></div>
                     </div>
+
+                    <!-- TAB NOTIFY -->
+                    <div class="mplis-panel-body" id="tab-notify"></div>
 
                     <!-- TAB 4: RETURN -->
                     <div class="mplis-panel-body tab-return-color" id="tab-return">
@@ -4622,6 +5318,17 @@
                                     <button type="button" class="mplis-hauto-btn" data-hauto="PT" aria-checked="${hauToTenFile === "PT" ? "true" : "false"}" role="radio" style="flex:1; min-height:34px;">PT</button>
                                 </div>
                                 <div id="tenfile-hauto-state" style="margin-top:8px; font-size:11.5px; color:var(--mplis-text-dim); line-height:1.6;"></div>
+
+                                <div class="mplis-bypass-row" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Tự tạo đủ dòng GCN + GT/PT</strong>
+                                        <span>Mở bảng giấy tờ đính kèm là tự thêm hết dòng, khỏi bấm "Tạo đủ".</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-tenfile-tuthem" ${localStorage.getItem("mplis_tenfile_tu_them") !== "false" ? "checked" : ""}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
 
                                 <div class="mplis-bypass-row" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
                                     <div class="mplis-bypass-row-label">
@@ -4783,6 +5490,12 @@
         };
       });
       veHauTo(hauToTenFile);
+    }
+    const chkTenFileTuThem = document.getElementById("chk-tenfile-tuthem");
+    if (chkTenFileTuThem) {
+      chkTenFileTuThem.onchange = (e) => {
+        localStorage.setItem("mplis_tenfile_tu_them", e.target.checked ? "true" : "false");
+      };
     }
     const chkTenFileDongBo = document.getElementById("chk-tenfile-dongbo");
     if (chkTenFileDongBo) {
@@ -5117,6 +5830,21 @@
     }
     veUploadState(null);
     bindCollapse("proc-log-group", "proc-log-toggle", "mplis_proc_log_open");
+    const chkProcLog = document.getElementById("chk-proc-log-enabled");
+    const veProcLogBadge = () => {
+      const b = document.getElementById("proc-log-count-process");
+      const on = localStorage.getItem("mplis_proc_log_enabled") !== "false";
+      if (b && !on) b.textContent = "Tắt";
+    };
+    if (chkProcLog) {
+      chkProcLog.onchange = (e) => {
+        localStorage.setItem("mplis_proc_log_enabled", e.target.checked ? "true" : "false");
+        const b = document.getElementById("proc-log-count-process");
+        const ts = ProcessModule.getTopState();
+        if (b) b.textContent = e.target.checked ? String(ts && ts.logBuffer.length || 0) : "Tắt";
+      };
+      veProcLogBadge();
+    }
     document.getElementById("btn-proc-log-copy").onclick = () => {
       const ts = ProcessModule.getTopState();
       const lines = (ts && ts.logBuffer || []).map((e) => {
@@ -5241,6 +5969,7 @@
     document.getElementById("btn-toggle-process").onclick = toggleProcess;
     document.getElementById("btn-toggle-return").onclick = toggleReturn;
     LookupModule.init();
+    NotifyModule.init();
     AlertModule.init();
     ExcelModule.init();
     UpdateParcelModule.init();
@@ -5438,8 +6167,8 @@
       if (cb.hasAttribute(DONE_ATTR) || !isFormVisible(cb)) continue;
       cb.setAttribute(DONE_ATTR, "true");
       if (cb.checked) return;
-      const jq = getJq();
-      if (jq) jq(cb).click();
+      const jq2 = getJq();
+      if (jq2) jq2(cb).click();
       else cb.click();
       console.log('[MPLIS PhapLy] Đã tích "Chính thức có pháp lý".');
       return;
@@ -5454,9 +6183,9 @@
       if (!target) continue;
       sel.setAttribute(DONE_ATTR, "true");
       if (sel.value === target.value) return;
-      const jq = getJq();
+      const jq2 = getJq();
       sel.value = target.value;
-      if (jq) jq(sel).val(target.value).trigger("change");
+      if (jq2) jq2(sel).val(target.value).trigger("change");
       else sel.dispatchEvent(new Event("change", { bubbles: true }));
       console.log("[MPLIS PhapLy] Đã chọn Loại giấy chứng nhận:", target.textContent.trim());
       return;
@@ -5569,9 +6298,9 @@
     input.setAttribute(DONE_ATTR, "true");
     if (input.value.trim()) return;
     const name = NGUOI_KY_FIXES[raw.toUpperCase()] || vietHoaChuDau(raw);
-    const jq = getJq();
+    const jq2 = getJq();
     input.value = name;
-    if (jq) jq(input).val(name).trigger("input").trigger("change");
+    if (jq2) jq2(input).val(name).trigger("input").trigger("change");
     else {
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -5619,11 +6348,11 @@
     }
   }
   function dienNgayVaoO(input, ngay) {
-    const jq = getJq();
+    const jq2 = getJq();
     let daDien = "";
-    if (jq && jq.fn && jq.fn.datepicker && input.classList.contains("hasDatepicker")) {
+    if (jq2 && jq2.fn && jq2.fn.datepicker && input.classList.contains("hasDatepicker")) {
       try {
-        jq(input).datepicker("setDate", ngay);
+        jq2(input).datepicker("setDate", ngay);
         daDien = input.value.trim();
       } catch (e) {
       }
@@ -5631,7 +6360,7 @@
     if (!daDien) {
       daDien = dinhDangNgayVN(ngay);
       input.value = daDien;
-      if (jq) jq(input).val(daDien).trigger("input").trigger("change");
+      if (jq2) jq2(input).val(daDien).trigger("input").trigger("change");
       else {
         input.dispatchEvent(new Event("input", { bubbles: true }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -5883,24 +6612,24 @@
       baoNhanh("Không thấy ô thêm tài liệu trên trang", "#b91c1c");
       return;
     }
-    const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+    const jq2 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
     o.value = ten;
-    if (jq) jq(o).val(ten).trigger("input").trigger("change");
+    if (jq2) jq2(o).val(ten).trigger("input").trigger("change");
     else {
       o.dispatchEvent(new Event("input", { bubbles: true }));
       o.dispatchEvent(new Event("change", { bubbles: true }));
     }
-    if (jq) jq(nut).click();
+    if (jq2) jq2(nut).click();
     else nut.click();
     console.log('[MPLIS TenFile] Đã điền "' + ten + '" và bấm "+" để tạo dòng.');
     baoNhanh("Đã tạo dòng: " + ten, "#047857");
   }
   var THEM_DELAY_MS = 1200;
-  function themNhieuDong(dsTen) {
+  function themNhieuDong(dsTen, imLang) {
     const con = dsTen.filter(Boolean).filter((t) => !daCoDong(t));
     if (!con.length) {
       console.log("[MPLIS TenFile] Mọi dòng cần thêm đều đã có trong bảng.");
-      baoNhanh("Bảng đã có đủ các dòng", "#b45309");
+      if (!imLang) baoNhanh("Bảng đã có đủ các dòng", "#b45309");
       return;
     }
     console.log("[MPLIS TenFile] Thêm " + con.length + " dòng, cách nhau " + THEM_DELAY_MS + "ms: " + con.join(" | "));
@@ -5980,12 +6709,13 @@
         },
         true
       );
-    } else if (sphList.length > 1) {
+    } else {
+      const dsDay = sphList.map((x) => maHS + "-" + x + DUOI).concat(maHS + "-" + hauTo + DUOI);
       themNut(
-        "+ Tất cả (" + sphList.length + ")",
-        "#4f46e5",
-        "Tạo lần lượt " + sphList.length + " dòng: " + sphList.map((x) => maHS + "-" + x + DUOI).join(", "),
-        () => themNhieuDong(sphList.map(tenGiayChungNhan)),
+        "⚡ Tạo đủ (" + sphList.length + " GCN + " + hauTo + ")",
+        "#7c3aed",
+        "Tạo lần lượt " + dsDay.length + " dòng: " + dsDay.join(", ") + ". Dòng đã có trong bảng thì bỏ qua.",
+        () => themNhieuDong(sphList.map(tenGiayChungNhan).concat(tenGiayToKem())),
         !maHS
       );
     }
@@ -6139,8 +6869,8 @@
       if (tr.getAttribute(DA_TICH_ATTR) === (muon ? "tich" : "bo-tich")) continue;
       tr.setAttribute(DA_TICH_ATTR, muon ? "tich" : "bo-tich");
       if (cb.checked === muon) continue;
-      const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-      if (jq) jq(cb).click();
+      const jq2 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+      if (jq2) jq2(cb).click();
       else cb.click();
       console.log("[MPLIS TenFile] " + (muon ? "Đã TÍCH" : "Đã BỎ TÍCH") + ' ô "gửi về một cửa" cho: ' + ten + " (tìm ô theo: " + cach + ")");
     }
@@ -6169,10 +6899,41 @@
       d.cells[d.cells.length - 1].appendChild(btn);
     }
   }
+  var TU_THEM_KEY = "mplis_tenfile_tu_them";
+  var TU_THEM_CHO_MS = 1500;
+  var _bangThayLuc = 0;
+  var _daTuThemCho = "";
+  function tuThemBat() {
+    try {
+      return localStorage.getItem(TU_THEM_KEY) !== "false";
+    } catch (e) {
+      return true;
+    }
+  }
+  function tuThemDong() {
+    const bang = Array.from(document.querySelectorAll(BANG_DINH_KEM_SELECTOR)).find(dangHien2);
+    if (!bang) {
+      _bangThayLuc = 0;
+      _daTuThemCho = "";
+      return;
+    }
+    if (!tuThemBat()) return;
+    if (!_bangThayLuc) _bangThayLuc = Date.now();
+    if (Date.now() - _bangThayLuc < TU_THEM_CHO_MS) return;
+    const maHS = layMaHoSoDayDu();
+    if (!maHS || _daTuThemCho === maHS) return;
+    const sphList = Array.from(new Set(layDongGiayInMoi().map((d) => d.sph).concat(doclaiSph(maHS))));
+    if (!sphList.length) return;
+    if (!timODienTen()) return;
+    _daTuThemCho = maHS;
+    console.log("[MPLIS TenFile] Tự tạo đủ dòng cho hồ sơ " + maHS + " (" + sphList.length + " GCN + " + layHauTo() + ").");
+    themNhieuDong(sphList.map(tenGiayChungNhan).concat(tenGiayToKem()), true);
+  }
   var _thieuDaLog = false;
   setInterval(() => {
     try {
       ganNut();
+      tuThemDong();
       ganThanhNut();
       tuTichDongBo();
     } catch (e) {
@@ -6274,9 +7035,9 @@
     });
   }
   function checkOneStatus(maHS) {
-    const jq = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-    if (!jq || !jq.ajax) return;
-    jq.ajax({
+    const jq2 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
+    if (!jq2 || !jq2.ajax) return;
+    jq2.ajax({
       url: "https://dla.mplis.gov.vn/dc/DangKyAjax/AdvancedSearchHoSoTiepNhan",
       method: "POST",
       data: {
@@ -6358,9 +7119,9 @@
     }
   }
   function installAjaxPatch() {
-    const jq = typeof unsafeWindow !== "undefined" ? unsafeWindow.$ : null;
-    if (!jq || !jq.ajaxPrefilter) return;
-    jq.ajaxPrefilter((options) => {
+    const jq2 = typeof unsafeWindow !== "undefined" ? unsafeWindow.$ : null;
+    if (!jq2 || !jq2.ajaxPrefilter) return;
+    jq2.ajaxPrefilter((options) => {
       if (!isSpatialLinkBypassEnabled()) return;
       if (typeof options.url !== "string" || options.url.indexOf(ENDPOINT) === -1) return;
       if (typeof options.data === "string") {
@@ -6504,10 +7265,10 @@
   }
   function installAjaxPatch2() {
     const win = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
-    const jq = win.$;
-    if (!jq || !jq.ajaxPrefilter) return;
+    const jq2 = win.$;
+    if (!jq2 || !jq2.ajaxPrefilter) return;
     const FD = win.FormData;
-    jq.ajaxPrefilter((options) => {
+    jq2.ajaxPrefilter((options) => {
       if (!isBypassEnabled()) return;
       if (typeof options.url !== "string" || options.url.indexOf(ENDPOINT2) === -1) return;
       if (FD && options.data instanceof FD) {

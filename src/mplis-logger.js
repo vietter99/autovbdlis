@@ -137,7 +137,15 @@ function installXhrLogger() {
     };
     XMLHttpRequest.prototype.send = function(body) {
         const entry = { t: now(), type: 'xhr', ep: epTag(this._mplisUrl || ''), method: this._mplisMethod || 'GET' };
-        if (body && typeof body === 'string') entry.req = body.slice(0, 300);
+        if (body && typeof body === 'string') {
+            entry.req = body.slice(0, 300);
+            // Giữ nguyên body đầy đủ của lần gọi gần nhất để module thông báo gọi lại được (log chỉ lưu 300 ký tự).
+            try {
+                const top = window.top;
+                top.__mplisLastReq = top.__mplisLastReq || {};
+                top.__mplisLastReq[entry.ep] = body;
+            } catch (e) { }
+        }
         entry.url = String(this._mplisUrl || '').slice(0, 300);
         this.addEventListener('load', function() {
             entry.status = this.status;

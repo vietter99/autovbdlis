@@ -195,4 +195,16 @@ const LookupModule = {
     }
 };
 
-export { LookupModule };
+// Tên người nộp của 1 hồ sơ theo mã đầy đủ (dùng cho tin Telegram). Lỗi/không thấy thì trả chuỗi rỗng.
+async function tenNguoiNop(maDayDu) {
+    const items = await search(buildPattern(maDayDu));
+    const it = items.find((x) => x.soBienNhan === maDayDu) || items[0];
+    return it ? extractApplicant(it).hoTen : '';
+}
+
+// Tra theo đuôi mã hồ sơ (dùng cho bot Telegram): trả về danh sách hồ sơ khớp, tối đa MAX_RESULTS.
+async function traCuuHoSo(raw) {
+    return search(buildPattern(raw));
+}
+
+export { LookupModule, tenNguoiNop, traCuuHoSo, extractApplicant, parseAspNetDate };

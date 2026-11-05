@@ -1,5 +1,6 @@
 import { topWin, clickElement, isSystemLoading, querySelectorAllCustom } from './utils.js';
 import { createModuleRuntime } from './module-runtime.js';
+import { setFastInterval } from './bg-ticker.js';
 
     const ProcessModule = (function () {
         const defaultConfig = {
@@ -1492,7 +1493,7 @@ import { createModuleRuntime } from './module-runtime.js';
             win.HTMLInputElement.prototype.__mplisUpload = true;
         })();
 
-        setInterval(scanAndExecute, 400);
+        setFastInterval(scanAndExecute, 400);
         // Quét ngay khi chuyển lại tab, không phụ thuộc vào tick tiếp theo
         document.addEventListener('visibilitychange', () => { if (!document.hidden) scanAndExecute(); });
 

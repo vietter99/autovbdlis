@@ -16,6 +16,7 @@
 // @grant        GM_xmlhttpRequest
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
+// @connect      api.telegram.org
 // @run-at       document-end
 // @allFrames    true
 // ==/UserScript==

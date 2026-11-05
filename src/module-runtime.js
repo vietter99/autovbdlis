@@ -25,6 +25,8 @@ function createModuleRuntime({ globalStateKey, configStorageKey, defaultConfig, 
                     console.log(logPrefix + text);
                     const el = document.getElementById('mplis-step-log-' + domSuffix);
                     if (el) el.textContent = text;
+                    // Tắt "Log chi tiết" thì không lưu/ghi thêm dòng nào (dòng trạng thái ở trên vẫn cập nhật).
+                    try { if (localStorage.getItem('mplis_proc_log_enabled') === 'false') return; } catch (e) { }
                     const entry = { t: Date.now(), msg: text };
                     this.logBuffer.push(entry);
                     if (this.logBuffer.length > 300) this.logBuffer.shift();

@@ -4,6 +4,7 @@ import { UpdateParcelModule } from './update-parcel-module.js';
 import { ExcelModule } from './excel-module.js';
 import { AlertModule } from './alert-module.js';
 import { LookupModule } from './lookup-module.js';
+import { NotifyModule } from './telegram-notify.js';
 import { isAutoConfirmEnabled, escapeHtml } from './utils.js';
 import { toggleProcess, toggleReturn } from './toggle.js';
 import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from './mplis-logger.js';
@@ -20,6 +21,7 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
     const ICON_UPDATE = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>');
     const ICON_SETTINGS = svgIcon('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>');
     const ICON_SEARCH = svgIcon('<circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>');
+    const ICON_BELL = svgIcon('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>');
     const ICON_MORE =svgIcon('<circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle>');
     const ICON_LINK = svgIcon('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>', 16);
     const ICON_REFRESH = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"></path>', 16);
@@ -131,6 +133,7 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                     <button class="mplis-tab" data-tab="tab-alert" title="Nhắc nhở hồ sơ trễ hạn" aria-label="Nhắc nhở hồ sơ trễ hạn">${ICON_ALERT}</button>
                     <button class="mplis-tab" data-tab="tab-excel" title="Xuất dữ liệu Excel" aria-label="Xuất dữ liệu Excel">${ICON_EXCEL}</button>
                     <button class="mplis-tab" data-tab="tab-lookup" title="Tra cứu hồ sơ" aria-label="Tra cứu hồ sơ">${ICON_SEARCH}</button>
+                    <button class="mplis-tab" data-tab="tab-notify" title="Thông báo hồ sơ mới" aria-label="Thông báo hồ sơ mới">${ICON_BELL}</button>
                     <!-- ĐANG ẨN TẠM: 2 tab "Trả hồ sơ" và "Auto sửa Thửa/Tờ" (không dùng tới). Toàn bộ code
                          và phần nội dung 2 tab vẫn giữ nguyên bên dưới - muốn bật lại chỉ cần thêm lại 2 dòng:
                          <button class="mplis-tab mplis-tab-extra" data-tab="tab-return" title="Trả hồ sơ" aria-label="Trả hồ sơ" style="display:none;">ICON_RETURN</button>
@@ -256,6 +259,11 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                             </div>
                         </div>
 
+                        <div class="mplis-card" style="padding:8px 9px;">
+                            <span class="mplis-section-label" style="margin-bottom:4px;">Người chuyển hồ sơ</span>
+                            <div id="qt-sender-list"></div>
+                        </div>
+
                         <button class="mplis-btn-primary" id="btn-toggle-process">▶ Bắt đầu Xử Lý</button>
                         <div class="mplis-status-bar">
                             <div class="mplis-status-row">
@@ -272,6 +280,16 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                             <div class="mplis-collapse-body" id="proc-log-body">
+                                <div class="mplis-bypass-row" style="padding-top:0;">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Ghi log chi tiết</strong>
+                                        <span>Tắt thì không ghi thêm dòng nào (dòng trạng thái vẫn chạy).</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-proc-log-enabled" ${localStorage.getItem('mplis_proc_log_enabled') !== 'false' ? 'checked' : ''}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
                                 <div id="mplis-log-area-process" style="max-height:180px; overflow-y:auto; font-family:'Consolas','Cascadia Code',monospace; font-size:11px; line-height:1.65; color:var(--mplis-text-dim); background:rgba(0,0,0,0.25); border-radius:6px; padding:6px 8px; word-break:break-all;"></div>
                                 <div style="display:flex; gap:6px; margin-top:6px;">
                                     <button type="button" id="btn-proc-log-copy" class="mplis-btn-ghost" style="flex:1; font-size:11.5px; padding:7px;">Copy log</button>
@@ -347,6 +365,9 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                         <div class="mplis-hint" id="lookup-info" style="margin:6px 0 8px;">Gõ một phần mã rồi Enter, tool tự thêm % phía trước.</div>
                         <div id="lookup-results"></div>
                     </div>
+
+                    <!-- TAB NOTIFY -->
+                    <div class="mplis-panel-body" id="tab-notify"></div>
 
                     <!-- TAB 4: RETURN -->
                     <div class="mplis-panel-body tab-return-color" id="tab-return">
@@ -451,6 +472,17 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                                     <button type="button" class="mplis-hauto-btn" data-hauto="PT" aria-checked="${hauToTenFile === 'PT' ? 'true' : 'false'}" role="radio" style="flex:1; min-height:34px;">PT</button>
                                 </div>
                                 <div id="tenfile-hauto-state" style="margin-top:8px; font-size:11.5px; color:var(--mplis-text-dim); line-height:1.6;"></div>
+
+                                <div class="mplis-bypass-row" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
+                                    <div class="mplis-bypass-row-label">
+                                        <strong>Tự tạo đủ dòng GCN + GT/PT</strong>
+                                        <span>Mở bảng giấy tờ đính kèm là tự thêm hết dòng, khỏi bấm "Tạo đủ".</span>
+                                    </div>
+                                    <label class="mplis-toggle-sw">
+                                        <input type="checkbox" id="chk-tenfile-tuthem" ${localStorage.getItem('mplis_tenfile_tu_them') !== 'false' ? 'checked' : ''}>
+                                        <span class="mplis-toggle-track"></span>
+                                    </label>
+                                </div>
 
                                 <div class="mplis-bypass-row" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--mplis-border);">
                                     <div class="mplis-bypass-row-label">
@@ -628,6 +660,12 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
 
         // Tự tích ô "đồng bộ về một cửa". filename-copy.js đọc localStorage mỗi vòng quét nên đổi
         // là áp dụng ngay, không cần F5.
+        const chkTenFileTuThem = document.getElementById('chk-tenfile-tuthem');
+        if (chkTenFileTuThem) {
+            chkTenFileTuThem.onchange = (e) => {
+                localStorage.setItem('mplis_tenfile_tu_them', e.target.checked ? 'true' : 'false');
+            };
+        }
         const chkTenFileDongBo = document.getElementById('chk-tenfile-dongbo');
         if (chkTenFileDongBo) {
             chkTenFileDongBo.onchange = (e) => {
@@ -973,6 +1011,21 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
         veUploadState(null);
 
         bindCollapse('proc-log-group', 'proc-log-toggle', 'mplis_proc_log_open');
+        const chkProcLog = document.getElementById('chk-proc-log-enabled');
+        const veProcLogBadge = () => {
+            const b = document.getElementById('proc-log-count-process');
+            const on = localStorage.getItem('mplis_proc_log_enabled') !== 'false';
+            if (b && !on) b.textContent = 'Tắt';
+        };
+        if (chkProcLog) {
+            chkProcLog.onchange = (e) => {
+                localStorage.setItem('mplis_proc_log_enabled', e.target.checked ? 'true' : 'false');
+                const b = document.getElementById('proc-log-count-process');
+                const ts = ProcessModule.getTopState();
+                if (b) b.textContent = e.target.checked ? String((ts && ts.logBuffer.length) || 0) : 'Tắt';
+            };
+            veProcLogBadge();
+        }
 
         document.getElementById('btn-proc-log-copy').onclick = () => {
             const ts = ProcessModule.getTopState();
@@ -1091,6 +1144,7 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
         document.getElementById('btn-toggle-return').onclick = toggleReturn;
 
         LookupModule.init();
+        NotifyModule.init();
         AlertModule.init();
         ExcelModule.init();
         UpdateParcelModule.init();

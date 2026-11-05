@@ -302,11 +302,11 @@ function themDong(ten) {
 // lại bảng. Nên thêm từng tên một, cách nhau THEM_DELAY_MS, và bỏ qua tên đã có trong bảng.
 const THEM_DELAY_MS = 1200;
 
-function themNhieuDong(dsTen) {
+function themNhieuDong(dsTen, imLang) {
     const con = dsTen.filter(Boolean).filter(t => !daCoDong(t));
     if (!con.length) {
         console.log('[MPLIS TenFile] Mọi dòng cần thêm đều đã có trong bảng.');
-        baoNhanh('Bảng đã có đủ các dòng', '#b45309');
+        if (!imLang) baoNhanh('Bảng đã có đủ các dòng', '#b45309');
         return;
     }
     console.log('[MPLIS TenFile] Thêm ' + con.length + ' dòng, cách nhau ' + THEM_DELAY_MS + 'ms: '
@@ -412,10 +412,12 @@ function ganThanhNut() {
         themNut('+ Dòng giấy chứng nhận (chưa có Số phát hành)', '#4f46e5',
             'Chưa biết Số phát hành. Mở màn hình Cập nhật pháp lý giấy chứng nhận một lần để tool nhớ.',
             () => { }, true);
-    } else if (sphList.length > 1) {
-        themNut('+ Tất cả (' + sphList.length + ')', '#4f46e5',
-            'Tạo lần lượt ' + sphList.length + ' dòng: ' + sphList.map(x => maHS + '-' + x + DUOI).join(', '),
-            () => themNhieuDong(sphList.map(tenGiayChungNhan)), !maHS);
+    } else {
+        // 1 nút tạo đủ: mọi dòng giấy chứng nhận + dòng GT/PT đi kèm, khỏi bấm từng nút.
+        const dsDay = sphList.map(x => maHS + '-' + x + DUOI).concat(maHS + '-' + hauTo + DUOI);
+        themNut('⚡ Tạo đủ (' + sphList.length + ' GCN + ' + hauTo + ')', '#7c3aed',
+            'Tạo lần lượt ' + dsDay.length + ' dòng: ' + dsDay.join(', ') + '. Dòng đã có trong bảng thì bỏ qua.',
+            () => themNhieuDong(sphList.map(tenGiayChungNhan).concat(tenGiayToKem())), !maHS);
     }
 
     // Mỗi số phát hành 1 cặp nút: tạo dòng (có chữ) + copy tên (chỉ icon cho đỡ chiếm chỗ).
@@ -633,11 +635,46 @@ function ganNut() {
     }
 }
 
+// Tự tạo đủ dòng (mọi GCN + GT/PT) ngay khi bảng giấy tờ đính kèm mở ra, khỏi bấm "Tạo đủ".
+// Mỗi lần mở bảng cho 1 hồ sơ chỉ chạy 1 lần; đóng bảng rồi mở lại thì chạy lại (dòng đã có thì bỏ qua).
+const TU_THEM_KEY = 'mplis_tenfile_tu_them';
+const TU_THEM_CHO_MS = 1500;
+let _bangThayLuc = 0;
+let _daTuThemCho = '';
+
+function tuThemBat() {
+    try { return localStorage.getItem(TU_THEM_KEY) !== 'false'; } catch (e) { return true; }
+}
+
+function tuThemDong() {
+    const bang = Array.from(document.querySelectorAll(BANG_DINH_KEM_SELECTOR)).find(dangHien);
+    if (!bang) {
+        _bangThayLuc = 0;
+        _daTuThemCho = '';
+        return;
+    }
+    if (!tuThemBat()) return;
+    if (!_bangThayLuc) _bangThayLuc = Date.now();
+    // Chờ bảng dựng xong các dòng cũ, không là thêm trùng.
+    if (Date.now() - _bangThayLuc < TU_THEM_CHO_MS) return;
+
+    const maHS = layMaHoSoDayDu();
+    if (!maHS || _daTuThemCho === maHS) return;
+    const sphList = Array.from(new Set(layDongGiayInMoi().map(d => d.sph).concat(doclaiSph(maHS))));
+    if (!sphList.length) return;
+    if (!timODienTen()) return;
+
+    _daTuThemCho = maHS;
+    console.log('[MPLIS TenFile] Tự tạo đủ dòng cho hồ sơ ' + maHS + ' (' + sphList.length + ' GCN + ' + layHauTo() + ').');
+    themNhieuDong(sphList.map(tenGiayChungNhan).concat(tenGiayToKem()), true);
+}
+
 let _thieuDaLog = false;
 
 setInterval(() => {
     try {
         ganNut();
+        tuThemDong();
         ganThanhNut();
         tuTichDongBo();
     } catch (e) {
