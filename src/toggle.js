@@ -1,5 +1,6 @@
 import { ProcessModule } from './process-module.js';
 import { ReturnModule } from './return-module.js';
+import { findCurrentMaHS } from './utils.js';
 
     function toggleProcess(customStopMessage) {
         const state = ProcessModule.getTopState();
@@ -26,12 +27,15 @@ import { ReturnModule } from './return-module.js';
             // Xóa toàn bộ bộ nhớ click cũ để chuẩn bị cho hồ sơ mới
             document.querySelectorAll('*[data-mplis-clicked="true"]').forEach(el => el.removeAttribute('data-mplis-clicked'));
 
-            state.tacVuDaXuLy = null; // danh sách tác vụ đã xử lý sẽ do server báo lại cho lượt này
+            state._qt5Done = false; state.tacVuDaXuLy = null; // danh sách tác vụ đã xử lý sẽ do server báo lại cho lượt này
             state.qt1ConfirmStreak = 0; // lượt mới thì xoá đếm lặp của lượt trước
             state.isRunning = true;
             btn.textContent = "Tạm dừng Xử Lý";
             btn.classList.add('running');
             ProcessModule.getTopState().updateStatus("Đang chạy", "active");
+            let maHS = '';
+            try { maHS = findCurrentMaHS() || ''; } catch (e) { }
+            ProcessModule.getTopState().writeLog('▶ Bắt đầu xử lý hồ sơ' + (maHS ? ' ' + maHS : ''));
         }
     }
 

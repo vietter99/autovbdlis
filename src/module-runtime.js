@@ -1,4 +1,5 @@
 import { topWin } from './utils.js';
+import { thanThien } from './log-friendly.js';
 
 // Shared plumbing for the top-level automation modules (ProcessModule, ReturnModule):
 // per-module state lives on topWin (so every iframe reads/writes the same object),
@@ -23,25 +24,29 @@ function createModuleRuntime({ globalStateKey, configStorageKey, defaultConfig, 
                 logBuffer: [],
                 writeLog: function (text) {
                     console.log(logPrefix + text);
+                    // Bản dễ hiểu cho người dùng; null = thao tác nhỏ, không cần hiện.
+                    const nice = thanThien(text);
                     const el = document.getElementById('mplis-step-log-' + domSuffix);
-                    if (el) el.textContent = text;
+                    if (el && nice !== null) el.textContent = nice;
                     // Tắt "Log chi tiết" thì không lưu/ghi thêm dòng nào (dòng trạng thái ở trên vẫn cập nhật).
                     try { if (localStorage.getItem('mplis_proc_log_enabled') === 'false') return; } catch (e) { }
-                    const entry = { t: Date.now(), msg: text };
+                    const entry = { t: Date.now(), msg: text, nice };
                     this.logBuffer.push(entry);
                     if (this.logBuffer.length > 300) this.logBuffer.shift();
                     const area = document.getElementById('mplis-log-area-' + domSuffix);
                     if (area) {
-                        const line = document.createElement('div');
-                        const hh = new Date(entry.t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                        line.textContent = '[' + hh + '] ' + text;
-                        if (/⚠️|LỖI|lỗi|dừng|DỪNG/.test(text)) line.style.color = '#f87171';
-                        else if (/✅|Hoàn thành|Thành công/.test(text)) line.style.color = '#4ade80';
-                        area.appendChild(line);
-                        if (area.children.length > 300) area.removeChild(area.firstChild);
-                        area.scrollTop = area.scrollHeight;
+                        if (nice !== null) {
+                            const line = document.createElement('div');
+                            const hh = new Date(entry.t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                            line.textContent = '[' + hh + '] ' + nice;
+                            if (/⚠️|⛔|LỖI|lỗi|dừng|DỪNG/.test(nice)) line.style.color = '#f87171';
+                            else if (/✅|🎉|Hoàn thành|Thành công/.test(nice)) line.style.color = '#4ade80';
+                            area.appendChild(line);
+                            if (area.children.length > 300) area.removeChild(area.firstChild);
+                            area.scrollTop = area.scrollHeight;
+                        }
                         const badge = document.getElementById('proc-log-count-' + domSuffix);
-                        if (badge) badge.textContent = this.logBuffer.length;
+                        if (badge) badge.textContent = this.logBuffer.filter(x => x.nice !== null).length;
                     }
                 },
                 updateStatus: function (text, type) {

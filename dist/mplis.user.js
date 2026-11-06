@@ -437,6 +437,161 @@
     document.head.appendChild(s);
   }
 
+  // src/log-friendly.js
+  var HIDE = null;
+  function viet(s) {
+    let t = String(s || "").trim().toLowerCase();
+    if (!t) return t;
+    t = t.charAt(0).toUpperCase() + t.slice(1);
+    return t.replace(/\biso\b/gi, "ISO").replace(/\bqt(\d)\b/gi, "QT$1");
+  }
+  var LOAI_FILE = {
+    GCN: "file giấy chứng nhận",
+    PT: "file phụ trang",
+    GT: "file giấy tờ kèm"
+  };
+  var TEN_BUOC_API = [
+    [/KiemTraCapNhatDuLieuPhapLy/i, "kiểm tra cập nhật dữ liệu pháp lý"],
+    [/CapNhatDuLieuPhapLy/i, "lưu dữ liệu pháp lý"],
+    [/ThucHienKetISO/i, "Kết ISO"],
+    [/executeCommand/i, "chuyển tiếp hồ sơ"],
+    [/UpdateHoSoQuet/i, "lưu kho hồ sơ quét"]
+  ];
+  function tenBuocTuApi(ep) {
+    for (const [re, ten] of TEN_BUOC_API) if (re.test(ep)) return ten;
+    return "xử lý";
+  }
+  function lyDoTuServer(raw) {
+    const t = String(raw || "");
+    const m = /"noiDungNganChan":"([^"]+)"/.exec(t) || /"message":"([^"]+)"/.exec(t);
+    return m ? m[1].replace(/\\r|\\n/g, " ").replace(/\s+/g, " ").trim() : "";
+  }
+  function gonTen(s) {
+    const t = String(s || "").replace(/\s+/g, " ").trim();
+    return t.length > 70 ? t.slice(0, 67) + "..." : t;
+  }
+  var RULES = [
+    // ---- Bắt đầu / kết thúc ----
+    [/^Đã dừng hoạt động\.?$/, "⏸ Đã dừng theo yêu cầu"],
+    [/^🎉 ĐÃ CHUYỂN TIẾP VÀ HOÀN THÀNH!?$/, "🎉 Xong hồ sơ: đã xử lý và chuyển tiếp"],
+    [/^🎉 ĐÃ HOÀN THÀNH TẤT CẢ QUY TRÌNH!?$/, "🎉 Xong hồ sơ: đã làm hết các bước đã chọn"],
+    [/^Hoàn tất chuyển tiếp và các quy trình/, HIDE],
+    [/^Tất cả quy trình yêu cầu đã hoàn thành/, HIDE],
+    [/^Tìm thấy nút 'Xử lý hồ sơ' ở trang chính/, "Đang mở hồ sơ để xử lý..."],
+    // ---- QT0: tệp đính kèm ----
+    [/^Auto upload (GCN|GT|PT): (.+)$/i, (m) => "Đang tải lên " + (LOAI_FILE[m[1].toUpperCase()] || "file") + ": " + gonTen(m[2])],
+    [/^Bấm 'Cập nhật' tệp đính kèm/, "Đang lưu các file đính kèm vào hồ sơ..."],
+    [/^API đã lưu tệp đính kèm/, "✅ Đã lưu xong file đính kèm"],
+    [/^Bấm 'Đóng' bảng tệp đính kèm/, HIDE],
+    [/^Bấm 'Xử lý hồ sơ' chuyển bước/, "Chuyển sang bước xử lý các tác vụ"],
+    [/^Bấm 'Xử lý tác vụ' cho: (.+?)\.{0,3}$/, (m) => "▶ Bắt đầu: " + viet(m[1])],
+    // ---- QT1: pháp lý ----
+    [/^API DangKyAjax\/GetInfoCapNhatDuLieuPhapLy/, HIDE],
+    [/^Tìm thấy nút 'Thực hiện'/, HIDE],
+    [/^Phát hiện hộp thoại xác nhận cập nhật pháp lý/, "Xác nhận cập nhật dữ liệu pháp lý..."],
+    [/^API DangKyAjax\/KiemTraCapNhatDuLieuPhapLy/, (m, t) => /"success":true/.test(t) ? "✅ Hệ thống kiểm tra pháp lý: đạt" : HIDE],
+    [/^API DangKyAjax\/CapNhatDuLieuPhapLy/, (m, t) => /"value":true/.test(t) ? "✅ Đã lưu dữ liệu pháp lý" : HIDE],
+    [/^API \S+\/\S+ \(\d+\): /, HIDE],
+    [/^API tác vụ đã xử lý:/, HIDE],
+    // ---- QT2: lưu kho hồ sơ quét ----
+    [/^Bấm 'Thêm mới' hồ sơ quét/, "Đang mở bảng lưu kho hồ sơ quét..."],
+    [/^Đã ghi nhớ các số phát hành: (.+)$/, (m) => "Giấy chứng nhận của hồ sơ: " + m[1]],
+    [/^Bấm 'Chọn tập tin' để mở bảng chọn/, HIDE],
+    [/^Bấm 'Chọn tất cả'/, HIDE],
+    [/^Đang chọn đúng file của đơn này/, "Đang chọn các file thuộc hồ sơ..."],
+    [/^Đã tích hết bảng/, HIDE],
+    [/^Chọn file: (.+)$/, (m) => "Chọn file: " + gonTen(m[1])],
+    [/^Bỏ chọn file không thuộc đơn này: (.+)$/, (m) => "Bỏ chọn file không thuộc đơn này: " + gonTen(m[1])],
+    [/^Bấm 'Chọn tập tin'\.{0,3}$/, HIDE],
+    [/^Bấm 'Chỉnh sửa' file đính kèm(?: \(Gán: (.+?)\))?\.{0,3}$/, (m) => m[1] ? "Đang gắn file vào giấy chứng nhận " + m[1] + "..." : "Đang chỉnh thông tin file..."],
+    [/^Đã đổi Loại giấy tờ/, HIDE],
+    [/^Đã gán Giấy chứng nhận: (.+)$/, (m) => "Đã chọn đúng giấy chứng nhận " + m[1]],
+    [/^Bấm 'Lưu' chi tiết file/, HIDE],
+    [/^Bấm 'Cập nhật' lưu kho/, "Đang lưu kho hồ sơ quét..."],
+    [/^API đã lưu hồ sơ quét/, "✅ Đã lưu kho hồ sơ quét"],
+    [/^✅ Server xác nhận đủ (\d+) giấy chứng nhận đã gắn file: (.+)$/, (m) => "✅ Kiểm tra lại: " + m[1] + " giấy chứng nhận đã có file (" + m[2] + ")"],
+    [/^Đã xử lý hết Đơn đăng ký/, HIDE],
+    [/^Đang chọn đơn đăng ký thứ (\d+)/, (m) => "Đang chọn đơn đăng ký thứ " + m[1] + "..."],
+    [/^Bỏ qua file không khớp giấy chứng nhận nào \((.+?)\): (.+)$/, (m) => "ℹ️ Bỏ qua file không thuộc giấy chứng nhận nào: " + gonTen(m[2])],
+    // ---- QT3: sổ địa chính ----
+    [/^Đang click chọn dòng thửa đất/, "Đang chọn thửa đất..."],
+    [/^Đã chọn thửa, bấm 'Xem sổ địa chính'/, "Đang mở sổ địa chính..."],
+    [/^Bấm 'Cập nhật' sổ địa chính/, "Đang cập nhật sổ địa chính..."],
+    [/^API đã lưu sổ địa chính/, "✅ Đã lưu sổ địa chính"],
+    [/^Cập nhật xong\. Đóng bảng chi tiết/, HIDE],
+    [/^Đã xử lý hết các thửa đất/, "✅ Xong tất cả thửa đất"],
+    [/^Mạng chậm, huỷ chờ bảng chi tiết/, "Mạng chậm, đang quét lại..."],
+    // ---- QT4: Kết ISO ----
+    [/^Phát hiện hộp thoại kết ISO/, "Xác nhận Kết ISO..."],
+    // ---- QT5: chuyển tiếp ----
+    [/^Các QT đã xong, đang bấm nút 'Chuyển tiếp'/, "Các bước đã xong, đang chuyển hồ sơ cho người tiếp theo..."],
+    [/^Tìm thấy người nhận '(.+?)'/, (m) => "Chọn người nhận: " + m[1]],
+    [/^Bấm 'Thực hiện' chuyển tiếp/, HIDE],
+    [/^Phát hiện hộp thoại chuyển tiếp/, "Xác nhận chuyển tiếp..."],
+    [/^API chuyển tiếp xong(?: → (.+?))?\.?$/, (m) => m[1] ? '✅ Đã chuyển hồ sơ sang bước "' + m[1] + '"' : "✅ Đã chuyển tiếp hồ sơ"],
+    [/^Không thấy '(.+?)', tải lại danh sách/, (m) => 'Chưa thấy người nhận "' + m[1] + '", đang tải lại danh sách...'],
+    // ---- Hộp thoại chung ----
+    [/^Phát hiện popup xác nhận\. Tự động bấm 'Đồng ý'\.{0,3}(?: \[nội dung: (.+)\])?$/, (m) => m[1] ? 'Đồng ý hộp xác nhận: "' + gonTen(m[1]) + '"' : "Đồng ý hộp xác nhận của hệ thống"],
+    [/^Phát hiện hộp thoại báo Thành công/, HIDE],
+    // ---- Cảnh báo / lỗi (câu dễ hiểu, kèm hướng xử lý) ----
+    [/^⚠️ Server từ chối (\S+): (.*?) — DỪNG AUTO\.?$/, (m) => {
+      const ly = lyDoTuServer(m[2]);
+      return '⛔ Hệ thống không cho phép bước "' + tenBuocTuApi(m[1]) + '"' + (ly ? ": " + ly : "") + ". Tool đã dừng, bạn xem hồ sơ trên màn hình.";
+    }],
+    [/^⚠️ Hộp thoại không mong đợi: '(.*?)' — (.*?)\. DỪNG AUTO\.?$/, (m) => "⛔ Có hộp thông báo lạ" + (m[1] ? " «" + m[1] + "»" : "") + ": " + m[2] + ". Tool đã dừng, bạn xem màn hình rồi bấm xử lý lại."],
+    [/^⚠️ Phát hiện thông báo lỗi lạ\/sai hồ sơ: (.*?) — DỪNG AUTO!?$/, (m) => "⛔ Hệ thống báo lỗi: " + gonTen(m[1]) + ". Tool đã dừng, bạn xem màn hình."],
+    [/^⚠️ Hộp 'Đồng ý' cập nhật pháp lý xuất hiện LẦN 2/, "⛔ Hệ thống hỏi xác nhận pháp lý lần thứ 2, có thể đang có cảnh báo. Tool đã dừng, bạn xem màn hình."],
+    [/^⚠️ Không thấy đủ phản hồi lưu\/nạp lại tệp đính kèm sau (\d+)s/, (m) => "⚠️ Chờ " + m[1] + " giây mà chưa thấy hệ thống báo lưu xong file đính kèm nên tool tạm đóng bảng. Bạn kiểm tra lại file đính kèm của hồ sơ."],
+    [/^⚠️ Server không lưu được tệp đính kèm: (.*?) — DỪNG AUTO\.?$/, () => "⛔ Hệ thống không lưu được file đính kèm. Tool đã dừng, bạn thử lưu lại bằng tay."],
+    [/^⚠️ Upload (.+?) lỗi mạng, thử lại lần (\d)\/2/, (m) => "⚠️ Tải file " + gonTen(m[1]) + " bị lỗi mạng, đang thử lại (lần " + m[2] + "/2)..."],
+    [/^⚠️ Upload (.+?) lỗi mạng (\d+) lần liên tiếp\. DỪNG AUTO\.?$/, (m) => "⛔ Tải file " + gonTen(m[1]) + " lỗi mạng nhiều lần. Tool đã dừng, bạn tải file này lên bằng tay."],
+    [/^⚠️ Không tìm file (GCN|GT|PT)(?: \(suffix (.+?)\))?\. Dừng để upload tay\.?$/, (m) => "⚠️ Không tìm thấy " + (LOAI_FILE[m[1]] || "file") + " trong thư mục" + (m[2] ? " (đuôi " + m[2] + ")" : "") + ". Bạn tải file này lên bằng tay."],
+    [/^⚠️ Chưa đọc được số phát hành của hồ sơ/, "⚠️ Chưa đọc được số phát hành của hồ sơ nên tool không biết chọn file giấy chứng nhận nào. Tool đã dừng, bạn tải file lên bằng tay."],
+    [/^⚠️ Mã \.\.\.(\d+): có (\d+) file cùng khớp/, (m) => "⚠️ Có " + m[2] + " file cùng đuôi số " + m[1] + " trong thư mục, tool không biết chọn file nào. Bạn tải file lên bằng tay."],
+    [/^⚠️ Không có thửa đất nào\./, "⛔ Hồ sơ không có thửa đất nào để ký sổ. Tool đã dừng."],
+    [/^⚠️ LỖI: (SERVER TỪ CHỐI|SERVER KHÔNG LƯU)/, "⛔ Tool đã dừng vì hệ thống từ chối một bước (xem dòng ở trên)."],
+    [/^⚠️ LỖI: (.+?)(?: — xem log)?!?$/, (m) => "⛔ Tool đã dừng: " + viet(m[1])]
+  ];
+  function thanThien(text) {
+    const raw = String(text == null ? "" : text).trim();
+    if (!raw) return raw;
+    const canhBao = /⚠️|LỖI/.test(raw);
+    for (const [re, ket] of RULES) {
+      const m = re.exec(raw);
+      if (!m) continue;
+      const out = typeof ket === "function" ? ket(m, raw) : ket;
+      if (out === HIDE && canhBao) return raw;
+      return out;
+    }
+    return raw.replace(/\s*—?\s*DỪNG AUTO[.!]?/g, " Tool đã dừng.");
+  }
+  function moTaLoiTelegram(loai, tieuDe, noiDung) {
+    const nd = gonTen(noiDung || "").slice(0, 300);
+    const L = String(loai || "");
+    let m;
+    if (m = /^Server từ chối (\S+)/.exec(L)) {
+      const ly = lyDoTuServer(noiDung);
+      return {
+        lyDo: 'Hệ thống không cho phép bước "' + tenBuocTuApi(m[1]) + '"' + (ly ? ": " + ly : ""),
+        huongXuLy: "Vào hồ sơ xem thông báo của hệ thống, xử lý xong thì bấm chạy lại."
+      };
+    }
+    if (/^Hộp thoại lạ/.test(L)) {
+      return {
+        lyDo: "Có hộp thông báo lạ" + (tieuDe && tieuDe.trim() ? " «" + tieuDe.trim() + "»" : "") + (nd ? ": " + nd : ""),
+        huongXuLy: "Xem hộp thông báo trên màn hình, xử lý rồi bấm chạy lại."
+      };
+    }
+    if (/^Thông báo lỗi/.test(L)) return { lyDo: "Hệ thống báo lỗi" + (nd ? ": " + nd : ""), huongXuLy: "Xem thông báo trên màn hình rồi bấm chạy lại." };
+    if (/^Cập nhật pháp lý bị từ chối/.test(L)) {
+      return { lyDo: "Hệ thống từ chối cập nhật dữ liệu pháp lý" + (nd ? ": " + nd : ""), huongXuLy: "Kiểm tra dữ liệu pháp lý của hồ sơ (ngày vào sổ, số phát hành...) rồi chạy lại." };
+    }
+    if (m = /^QT2 · (.+)$/.exec(L)) {
+      return { lyDo: m[1] + (nd ? ": " + nd : ""), huongXuLy: "Kiểm tra tên file và giấy chứng nhận của hồ sơ rồi chạy lại." };
+    }
+    return { lyDo: L + (nd ? ": " + nd : ""), huongXuLy: "Xem hồ sơ trên màn hình rồi bấm chạy lại." };
+  }
+
   // src/module-runtime.js
   function createModuleRuntime({ globalStateKey, configStorageKey, defaultConfig, logPrefix, domSuffix }) {
     function loadConfig() {
@@ -462,27 +617,30 @@
           logBuffer: [],
           writeLog: function(text) {
             console.log(logPrefix + text);
+            const nice = thanThien(text);
             const el = document.getElementById("mplis-step-log-" + domSuffix);
-            if (el) el.textContent = text;
+            if (el && nice !== null) el.textContent = nice;
             try {
               if (localStorage.getItem("mplis_proc_log_enabled") === "false") return;
             } catch (e) {
             }
-            const entry = { t: Date.now(), msg: text };
+            const entry = { t: Date.now(), msg: text, nice };
             this.logBuffer.push(entry);
             if (this.logBuffer.length > 300) this.logBuffer.shift();
             const area = document.getElementById("mplis-log-area-" + domSuffix);
             if (area) {
-              const line = document.createElement("div");
-              const hh = new Date(entry.t).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-              line.textContent = "[" + hh + "] " + text;
-              if (/⚠️|LỖI|lỗi|dừng|DỪNG/.test(text)) line.style.color = "#f87171";
-              else if (/✅|Hoàn thành|Thành công/.test(text)) line.style.color = "#4ade80";
-              area.appendChild(line);
-              if (area.children.length > 300) area.removeChild(area.firstChild);
-              area.scrollTop = area.scrollHeight;
+              if (nice !== null) {
+                const line = document.createElement("div");
+                const hh = new Date(entry.t).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                line.textContent = "[" + hh + "] " + nice;
+                if (/⚠️|⛔|LỖI|lỗi|dừng|DỪNG/.test(nice)) line.style.color = "#f87171";
+                else if (/✅|🎉|Hoàn thành|Thành công/.test(nice)) line.style.color = "#4ade80";
+                area.appendChild(line);
+                if (area.children.length > 300) area.removeChild(area.firstChild);
+                area.scrollTop = area.scrollHeight;
+              }
               const badge = document.getElementById("proc-log-count-" + domSuffix);
-              if (badge) badge.textContent = this.logBuffer.length;
+              if (badge) badge.textContent = this.logBuffer.filter((x) => x.nice !== null).length;
             }
           },
           updateStatus: function(text, type) {
@@ -670,18 +828,63 @@
         topState.qt1ConfirmStreak = 0;
       }
       if (ep.includes("ThucHienKetISO")) topState.expectQT4Confirm = false;
-      if (ep.includes("executeCommand") && ok) topState.expectQT5Confirm = false;
+      if (/UpdateHoSoQuetExistFile/i.test(ep) && ok) {
+        writeLog("API đã lưu hồ sơ quét (QT2).");
+        try {
+          const ds = (topState.qt2SoPhatHanhList || []).map(chuanSph).filter(Boolean);
+          const dong = (((e.res || {}).Value || {}).ListFileHoSoQuet || {}).ListFileHoSoQuet;
+          if (ds.length && Array.isArray(dong)) {
+            const loi = [];
+            for (const sph of ds) {
+              const khop = dong.filter((f) => f && f.laGiayChungNhan && f.giayChungNhanId && chuanSph(f.moTa).includes(sph));
+              if (khop.length === 0) loi.push("giấy " + sph + " CHƯA có file nào gắn");
+              else if (khop.length > 1) loi.push("giấy " + sph + " bị gắn " + khop.length + " file");
+            }
+            if (!loi.length) writeLog("✅ Server xác nhận đủ " + ds.length + " giấy chứng nhận đã gắn file: " + ds.join(", "));
+            else if (ds.length >= 2) {
+              dungQT2("Gắn giấy chứng nhận lệch", "Sau khi lưu kho, server ghi nhận: " + loi.join("; "));
+              return;
+            } else writeLog("⚠️ Đối chiếu server (1 giấy, không chặn): " + loi.join("; "));
+          }
+        } catch (x) {
+          console.log("[MPLIS QT2] Lỗi đối chiếu phản hồi lưu kho:", x);
+        }
+      }
+      if (/CapNhatSoDiaChinh/i.test(ep) && ok) writeLog("API đã lưu sổ địa chính (QT3).");
+      if (ep.includes("executeCommand") && ok) {
+        topState.expectQT5Confirm = false;
+        const ns = e.res && e.res.newState;
+        topState._qt5Done = ns && (ns.Title || ns.State) || true;
+        writeLog("API chuyển tiếp xong" + (ns && ns.Title ? " → " + ns.Title : "") + ".");
+      }
       setTimeout(scanAndExecute, 50);
     });
+    function docSphTuTen(text) {
+      const m = /-\s*([A-ZĐ]{1,2})\s*(\d{5,})/.exec(String(text || "").toUpperCase());
+      return m ? m[1] + m[2] : "";
+    }
+    const chuanSph = (t) => String(t || "").replace(/\s+/g, "").toUpperCase();
+    function dungQT2(trangThai, noiDung) {
+      writeLog("⚠️ " + noiDung + " — DỪNG AUTO.");
+      baoLoiTelegram("QT2 · " + trangThai, "", noiDung);
+      updateStatus(trangThai + " - Dừng", "idle");
+      if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ LỖI: QT2 " + trangThai.toUpperCase() + " — xem log");
+    }
     function baoLoiTelegram(loai, tieuDe, noiDung) {
       try {
         if (typeof topWin.MPLIS_TG_ALERT !== "function") return;
         const ma = findCurrentMaHS() || "";
+        const { lyDo, huongXuLy } = moTaLoiTelegram(loai, tieuDe, noiDung);
+        const d = /* @__PURE__ */ new Date();
+        const p = (n) => String(n).padStart(2, "0");
+        const gio = p(d.getHours()) + ":" + p(d.getMinutes()) + " " + p(d.getDate()) + "/" + p(d.getMonth() + 1);
         const cs = [
-          "⛔ <b>Auto dừng: " + escapeHtml(loai) + "</b>",
-          ma ? "Hồ sơ: <b>" + escapeHtml(ma) + "</b>" : "",
-          (tieuDe || "").trim() ? "Tiêu đề: " + escapeHtml(tieuDe.trim()) : "",
-          noiDung ? "Nội dung: " + escapeHtml(noiDung) : ""
+          "⛔ <b>AUTO ĐÃ DỪNG</b>",
+          "━━━━━━━━━━━━━━",
+          ma ? "📄 Hồ sơ: <b>" + escapeHtml(ma) + "</b>" : "",
+          "❗ " + escapeHtml(lyDo),
+          "👉 " + escapeHtml(huongXuLy),
+          "🕒 " + gio
         ].filter(Boolean);
         topWin.MPLIS_TG_ALERT(cs.join("\n"));
       } catch (e) {
@@ -828,7 +1031,16 @@
             }
           }
         }
-        const confirmBtns = querySelectorAllCustom(topState.config.selectorConfirm);
+        const laNutXacNhanThat = (el) => {
+          try {
+            if (el.disabled || el.closest("#mplis-tenfile-toolbar")) return false;
+            const t = (el.textContent || el.value || "").replace(/\s+/g, " ").trim().toLowerCase();
+            return t.length <= 20 && /^(đồng ý|xác nhận|ok|có)\s*([,.!]|$)/.test(t);
+          } catch (e) {
+            return false;
+          }
+        };
+        const confirmBtns = querySelectorAllCustom(topState.config.selectorConfirm).filter(laNutXacNhanThat);
         const visibleConfirmBtns = confirmBtns.filter((el) => {
           try {
             return el.getBoundingClientRect().width > 0;
@@ -858,7 +1070,13 @@
           const confirmBtn = visibleConfirmBtns[visibleConfirmBtns.length - 1];
           if (!confirmBtn.hasAttribute("data-mplis-clicked")) {
             setLastActionTime(now2, topState.config.delayNext);
-            writeLog("Phát hiện popup xác nhận. Tự động bấm 'Đồng ý'...");
+            let noiDungPopup = "";
+            try {
+              const khung = confirmBtn.closest(".modal, .jconfirm-box, .k-window, .ui-dialog, .dx-popup-content");
+              noiDungPopup = (khung && khung.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160);
+            } catch (e) {
+            }
+            writeLog("Phát hiện popup xác nhận. Tự động bấm 'Đồng ý'..." + (noiDungPopup ? " [nội dung: " + noiDungPopup + "]" : ""));
             confirmBtn.setAttribute("data-mplis-clicked", "true");
             setTimeout(() => {
               try {
@@ -943,7 +1161,21 @@
             const sphNum = sphSrc.replace(/[^0-9]/g, "");
             const suffix = sphNum.slice(-soChuSo);
             const files = topState.uploadFolderFiles;
-            const _sameCodeFiles = files.filter((f) => {
+            if (!suffix && fileType === "GCN") {
+              if (!topState._chuaCoSphTu) topState._chuaCoSphTu = now2;
+              if (now2 - topState._chuaCoSphTu < 15e3) {
+                updateStatus("Đợi đọc số phát hành của hồ sơ...", "waiting");
+                return;
+              }
+              topState._chuaCoSphTu = 0;
+              writeLog("⚠️ Chưa đọc được số phát hành của hồ sơ nên không biết chọn file giấy chứng nhận nào. Dừng — upload thủ công.");
+              updateStatus("Không đọc được số phát hành - Dừng", "idle");
+              if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function")
+                topWin.MPLIS_AUTO_TOGGLE_FUNC("⚠️ Chưa đọc được số phát hành — upload file giấy chứng nhận bằng tay");
+              return;
+            }
+            if (suffix) topState._chuaCoSphTu = 0;
+            const _sameCodeFiles = !suffix ? [] : files.filter((f) => {
               const n = f.name.toUpperCase();
               if (/(GT|PT)\.PDF$/.test(n)) return false;
               return n.endsWith(suffix + ".PDF") || n.endsWith(suffix + "+.PDF");
@@ -1207,6 +1439,8 @@
                 const sBtn = submitBtns[submitBtns.length - 1];
                 if (!sBtn.hasAttribute("data-mplis-clicked")) {
                   writeLog("Bấm 'Thực hiện' chuyển tiếp...");
+                  topState._qt5ClickAt = now2;
+                  topState._qt5Done = false;
                   sBtn.setAttribute("data-mplis-clicked", "true");
                   clickElement(sBtn);
                   setTimeout(() => {
@@ -1629,19 +1863,40 @@
                 updateStatus("Đợi file tải lên...", "waiting");
                 return;
               }
+              const khoaDong = (tr) => (tr.textContent || "").replace(/\s+/g, " ").trim();
               let targetRow = rows.find((tr) => {
                 const t = tr.textContent.toUpperCase();
                 const isGtPt = /(?:GT|PT)\.PDF/.test(t) || /[\d+]-(?:GT|PT)(?![A-Z])/.test(t);
                 const coTenFile = t.includes(".PDF") || /\d{3,}\+?-[A-ZĐ]{1,2}\s*\d{5,}/.test(t);
+                if (topState.qt2BoQua && topState.qt2BoQua.has(khoaDong(tr))) return false;
                 return coTenFile && t.includes("GIẤY TỜ HỒ SƠ") && !isGtPt;
               });
               if (targetRow) {
                 const editBtn = targetRow.querySelector("#btnEditHoSoQuet");
                 if (editBtn && !editBtn.hasAttribute("data-mplis-clicked")) {
                   topState.qt2SphIndex = topState.qt2SphIndex || 0;
+                  const dsSph = topState.qt2SoPhatHanhList || [];
+                  const sphTuTen = docSphTuTen(targetRow.textContent);
                   let assignedSph = null;
-                  if (topState.qt2SoPhatHanhList && topState.qt2SphIndex < topState.qt2SoPhatHanhList.length) {
-                    assignedSph = topState.qt2SoPhatHanhList[topState.qt2SphIndex];
+                  if (dsSph.length >= 2) {
+                    if (sphTuTen && dsSph.includes(sphTuTen)) {
+                      if ((topState.qt2DaGan || []).includes(sphTuTen)) {
+                        dungQT2("Hai file cùng số phát hành", "Có từ 2 file cùng mang số phát hành " + sphTuTen + ", không biết file nào đúng. Xử lý tay.");
+                        return;
+                      }
+                      assignedSph = sphTuTen;
+                    } else {
+                      if (!topState.qt2BoQua) topState.qt2BoQua = /* @__PURE__ */ new Set();
+                      topState.qt2BoQua.add(khoaDong(targetRow));
+                      writeLog("Bỏ qua file không khớp giấy chứng nhận nào (" + (sphTuTen || "không đọc được số phát hành") + "): " + khoaDong(targetRow).slice(0, 120));
+                      setLastActionTime(now2, 200);
+                      return;
+                    }
+                  } else {
+                    if (topState.qt2SphIndex < dsSph.length) assignedSph = dsSph[topState.qt2SphIndex];
+                    if (assignedSph && sphTuTen && sphTuTen !== assignedSph) {
+                      writeLog("⚠️ Tên file mang số " + sphTuTen + " nhưng đơn chỉ có giấy " + assignedSph + "; vẫn gán " + assignedSph + ".");
+                    }
                   }
                   writeLog(`Bấm 'Chỉnh sửa' file đính kèm${assignedSph ? " (Gán: " + assignedSph + ")" : ""}...`);
                   editBtn.setAttribute("data-mplis-clicked", "true");
@@ -1650,10 +1905,19 @@
                   if (oldBtnLuu) oldBtnLuu.removeAttribute("data-mplis-clicked");
                   topState.qt2Phase = 2;
                   topState.qt2EditingSph = assignedSph;
+                  topState._qt2P2Start = now2;
                   setLastActionTime(now2, 500);
                   return;
                 }
               } else {
+                const dsCan = topState.qt2SoPhatHanhList || [];
+                if (dsCan.length >= 2) {
+                  const chuaCo = dsCan.filter((x) => !(topState.qt2DaGan || []).includes(x));
+                  if (chuaCo.length) {
+                    dungQT2("Thiếu file giấy chứng nhận", "Giấy chứng nhận " + chuaCo.join(", ") + " không có file nào khớp số phát hành trong bảng. Kiểm tra tên file rồi chạy lại.");
+                    return;
+                  }
+                }
                 topState.qt2Phase = 3;
                 return;
               }
@@ -1685,18 +1949,30 @@
                     return false;
                   }
                 });
+                let daChonDung = false;
                 if (selMoTaList.length > 0) {
                   const selMoTa = selMoTaList[selMoTaList.length - 1];
                   const options = Array.from(selMoTa.options);
                   const targetOpt = options.find((opt) => opt.textContent.replace(/\s+/g, "").toUpperCase().includes(topState.qt2EditingSph));
-                  if (targetOpt && selMoTa.value !== targetOpt.value) {
-                    selMoTa.value = targetOpt.value;
-                    if (jq2) jq2(selMoTa).val(targetOpt.value).trigger("change");
-                    selMoTa.dispatchEvent(new Event("change", { bubbles: true }));
-                    writeLog(`Đã gán Giấy chứng nhận: ${topState.qt2EditingSph}`);
-                    setLastActionTime(now2, 200);
-                    return;
+                  if (targetOpt) {
+                    if (selMoTa.value !== targetOpt.value) {
+                      selMoTa.value = targetOpt.value;
+                      if (jq2) jq2(selMoTa).val(targetOpt.value).trigger("change");
+                      selMoTa.dispatchEvent(new Event("change", { bubbles: true }));
+                      writeLog(`Đã gán Giấy chứng nhận: ${topState.qt2EditingSph}`);
+                      setLastActionTime(now2, 200);
+                      return;
+                    }
+                    daChonDung = true;
                   }
+                }
+                if (!daChonDung && (topState.qt2SoPhatHanhList || []).length >= 2) {
+                  if (now2 - (topState._qt2P2Start || now2) > 8e3) {
+                    dungQT2("Không chọn được giấy chứng nhận", "Không thấy giấy " + topState.qt2EditingSph + " trong ô chọn giấy chứng nhận của form sửa file.");
+                  } else {
+                    updateStatus("Đợi ô chọn giấy chứng nhận...", "waiting");
+                  }
+                  return;
                 }
               }
               const btnLuuSub = document.querySelector("#btnLuuHoSoQuet");
@@ -1706,6 +1982,8 @@
                 clickElement(btnLuuSub);
                 if (topState.qt2EditingSph) {
                   topState.qt2SphIndex = (topState.qt2SphIndex || 0) + 1;
+                  if (!topState.qt2DaGan) topState.qt2DaGan = [];
+                  if (!topState.qt2DaGan.includes(topState.qt2EditingSph)) topState.qt2DaGan.push(topState.qt2EditingSph);
                 }
                 topState.qt2Phase = 1;
                 setLastActionTime(now2, topState.config.delayAction);
@@ -1801,6 +2079,8 @@
                   topState.currentDonIndex = donIndex;
                   topState.qt2Phase = 0;
                   topState.qt2SphIndex = 0;
+                  topState.qt2DaGan = [];
+                  topState.qt2BoQua = /* @__PURE__ */ new Set();
                   topState.qt2SoPhatHanhList = [];
                   const activeTreeContainer = Array.from(document.querySelectorAll("#treeThongTinDangKy, #treeGiayChungNhan")).find((el) => {
                     try {
@@ -1941,6 +2221,12 @@
                   }
                 })()) {
                 } else if (btnChuyenTiep && btnChuyenTiep.hasAttribute("data-mplis-clicked")) {
+                  const choQT5 = now2 - (topState._qt5ClickAt || now2);
+                  if (!topState._qt5Done && choQT5 < 2e4) {
+                    updateStatus("Đợi server xác nhận chuyển tiếp...", "waiting");
+                    return;
+                  }
+                  if (!topState._qt5Done) writeLog("⚠️ Không thấy phản hồi chuyển tiếp từ server sau 20s, kết thúc theo cách dự phòng - kiểm tra lại hồ sơ.");
                   writeLog("Hoàn tất chuyển tiếp và các quy trình. DỪNG AUTO.");
                   if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC("🎉 ĐÃ CHUYỂN TIẾP VÀ HOÀN THÀNH!");
                   return;
@@ -4323,6 +4609,13 @@
   }
   var p2 = (n) => String(n).padStart(2, "0");
   var fmtTime = (d) => d ? p2(d.getHours()) + ":" + p2(d.getMinutes()) + " " + p2(d.getDate()) + "/" + p2(d.getMonth() + 1) : "";
+  var gioNgan = (d) => {
+    if (!d) return "";
+    const now2 = /* @__PURE__ */ new Date();
+    const homNay = d.getDate() === now2.getDate() && d.getMonth() === now2.getMonth() && d.getFullYear() === now2.getFullYear();
+    return homNay ? p2(d.getHours()) + ":" + p2(d.getMinutes()) : fmtTime(d);
+  };
+  var KE = "━━━━━━━━━━━━━━";
   function rutGon(ma) {
     const parts = String(ma || "").split("-");
     return parts.length >= 3 ? (parts[1].slice(-2) + "-" + parts[2]).toUpperCase() : String(ma || "");
@@ -4443,15 +4736,15 @@
     byPerson.forEach((list, who) => {
       const soHS = list.filter((n) => !laTap(n)).length, soTap = list.filter(laTap).length;
       const dem = [soHS ? soHS + " hồ sơ" : "", soTap ? soTap + " tập hồ sơ" : ""].filter(Boolean).join(" + ");
-      const lines = list.slice().reverse().map((n) => "• " + (laTap(n) ? "Tập " + escapeHtml(n.ObjectId) : "<b>" + escapeHtml(n.ObjectId) + "</b>") + (nguoiNop[n.ObjectId] ? " · " + escapeHtml(nguoiNop[n.ObjectId]) : "") + " · " + escapeHtml(fmtTime(aspDate(n.NgayTao))));
-      parts.push("📥 <b>" + escapeHtml(who) + "</b> chuyển " + dem + "\n" + lines.join("\n"));
+      const lines = list.slice().reverse().map((n) => "  ▸ " + (laTap(n) ? "Tập <b>" + escapeHtml(n.ObjectId) + "</b>" : "<b>" + escapeHtml(rutGon(n.ObjectId)) + "</b>") + (nguoiNop[n.ObjectId] ? " · " + escapeHtml(nguoiNop[n.ObjectId]) : "") + " · " + escapeHtml(gioNgan(aspDate(n.NgayTao))));
+      parts.push("👤 <b>" + escapeHtml(who) + "</b> chuyển <b>" + dem + "</b>\n" + lines.join("\n"));
     });
-    let msg = parts.join("\n\n");
+    let msg = "📥 <b>HỒ SƠ MỚI</b>\n" + KE + "\n" + parts.join("\n\n");
     if (st.working) {
       const tong = st.total !== null ? st.total : st.working.length;
       const ds = Array.from(demTheoNguoi().entries()).sort((a, b) => b[1].n - a[1].n);
-      msg += "\n\n📊 <b>Tổng đang chờ xử lý: " + tong + " bộ</b>\n" + ds.map(([ten, o]) => "• " + escapeHtml(ten) + ": <b>" + o.n + "</b> bộ").join("\n");
-    } else if (st.total !== null) msg += "\n\n📊 Đang chờ xử lý: <b>" + st.total + "</b> bộ";
+      msg += "\n" + KE + "\n📊 <b>Đang chờ xử lý: " + tong + " bộ</b>\n" + ds.map(([ten, o]) => "  • " + escapeHtml(ten) + " — <b>" + o.n + "</b> bộ").join("\n");
+    } else if (st.total !== null) msg += "\n" + KE + "\n📊 Đang chờ xử lý: <b>" + st.total + "</b> bộ";
     return msg;
   }
   async function tick(manual) {
@@ -4616,22 +4909,26 @@
       });
     });
   }
+  function dongHoSo(r) {
+    const nn = docNguoiNop(r);
+    return "  ▸ <b>" + escapeHtml(rutGon(r.soBienNhan)) + "</b>" + (nn ? " · " + escapeHtml(nn) : "") + " · " + escapeHtml(gioNgan(docGioChuyen(r)));
+  }
   function tomTat(chiTiet) {
     if (!st.working) return "Chưa có dữ liệu hồ sơ. Thử lại sau ít giây.";
     const tong = st.total !== null ? st.total : st.working.length;
     const ds = Array.from(demTheoNguoi().entries()).sort((a, b) => b[1].n - a[1].n);
-    if (!ds.length) return "📊 Không có hồ sơ nào đang chờ xử lý.";
-    let msg = "📊 <b>Tổng đang chờ xử lý: " + tong + " bộ</b>";
+    if (!ds.length) return "📊 <b>Không có hồ sơ nào đang chờ xử lý.</b>";
+    let msg = "📊 <b>ĐANG CHỜ XỬ LÝ: " + tong + " bộ</b>\n" + KE;
     ds.forEach(([ten, o]) => {
-      msg += "\n\n👤 <b>" + escapeHtml(ten) + "</b>: " + o.n + " bộ" + (o.gio ? " · mới nhất " + fmtTime(o.gio) : "");
+      msg += "\n👤 <b>" + escapeHtml(ten) + "</b> — " + o.n + " bộ" + (o.gio ? " (mới nhất " + escapeHtml(gioNgan(o.gio)) + ")" : "");
       if (chiTiet) {
         o.ds.slice().sort((a, b) => (docGioChuyen(b) || 0) - (docGioChuyen(a) || 0)).forEach((r) => {
-          const nn = docNguoiNop(r);
-          msg += "\n• <b>" + escapeHtml(r.soBienNhan) + "</b>" + (nn ? " · " + escapeHtml(nn) : "") + " · " + escapeHtml(fmtTime(docGioChuyen(r)));
+          msg += "\n" + dongHoSo(r);
         });
+        msg += "\n";
       }
     });
-    msg += "\n\n🕒 Cập nhật " + fmtTime(new Date(st.lastCheck || Date.now()));
+    msg += "\n" + KE + "\n🕒 Cập nhật " + fmtTime(new Date(st.lastCheck || Date.now()));
     return msg;
   }
   function guiChia(chat, text) {
@@ -4646,7 +4943,7 @@
     if (cur) parts.push(cur);
     return parts.reduce((p, t) => p.then(() => tgGoi("sendMessage", { chat_id: chat, text: t, parse_mode: "HTML", disable_web_page_preview: true })), Promise.resolve());
   }
-  var HUONG_DAN = '🤖 <b>Hướng dẫn hỏi bot</b>\n\n📊 <b>/tong</b> — tổng số bộ đang chờ, mỗi người chuyển bao nhiêu\n📋 <b>/chitiet</b> — như trên, kèm từng hồ sơ (mã, người nộp, giờ chuyển)\n👤 <b>/ai thoi</b> — chỉ xem hồ sơ của người có tên chứa "thoi" (gõ không dấu cũng được)\n🔎 <b>/tracuu 0402</b> — hồ sơ đã đi tới đâu, ai đang giữ, hẹn trả khi nào\n      Gõ thẳng đuôi mã (VD: <b>0402</b> hoặc <b>9-0402</b>) cũng được, khỏi gõ /tracuu\n🔄 <b>/f5</b> — tải lại trang MPLIS trên máy (khi trang bị treo hoặc hết phiên)\n❓ <b>/help</b> — hiện bảng này\n\nGõ chữ khác bot sẽ hiện /tong. Chỉ trả lời khi bật "Chế độ đi vắng" trong tool.';
+  var HUONG_DAN = "🤖 <b>BOT MPLIS — CÁCH HỎI</b>\n" + KE + '\n📊 <b>/tong</b> — tổng số bộ đang chờ, mỗi người chuyển bao nhiêu\n📋 <b>/chitiet</b> — như trên, kèm từng hồ sơ (mã, người nộp, giờ chuyển)\n👤 <b>/ai thoi</b> — hồ sơ của người có tên chứa "thoi" (gõ không dấu cũng được)\n🔎 <b>/tracuu 0402</b> — hồ sơ đi tới đâu, ai đang giữ, hẹn trả khi nào\n      Gõ thẳng đuôi mã (VD: <b>0402</b> hoặc <b>9-0402</b>) cũng được\n🔄 <b>/f5</b> — tải lại trang MPLIS trên máy (khi trang treo hoặc hết phiên)\n❓ <b>/help</b> — hiện bảng này\n' + KE + '\nGõ chữ khác bot sẽ hiện /tong. Bot chỉ trả lời khi bật "Chế độ đi vắng" trong tool.';
   var boDau = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").toLowerCase();
   function tomTatNguoi(tuKhoa) {
     if (!st.working) return "Chưa có dữ liệu hồ sơ. Thử lại sau ít giây.";
@@ -4655,10 +4952,9 @@
     if (!ds.length) return '❌ Không thấy ai tên có "' + escapeHtml(tuKhoa) + '" trong danh sách đang chờ.';
     let msg = "";
     ds.forEach(([ten, o]) => {
-      msg += (msg ? "\n\n" : "") + "👤 <b>" + escapeHtml(ten) + "</b>: " + o.n + " bộ";
+      msg += (msg ? "\n\n" : "") + "👤 <b>" + escapeHtml(ten) + "</b> — " + o.n + " bộ\n" + KE;
       o.ds.slice().sort((a, b) => (docGioChuyen(b) || 0) - (docGioChuyen(a) || 0)).forEach((r) => {
-        const nn = docNguoiNop(r);
-        msg += "\n• <b>" + escapeHtml(r.soBienNhan) + "</b>" + (nn ? " · " + escapeHtml(nn) : "") + " · " + escapeHtml(fmtTime(docGioChuyen(r)));
+        msg += "\n" + dongHoSo(r);
       });
     });
     return msg;
@@ -4667,31 +4963,35 @@
     const buoc = it.state && it.state.Title || "Đang xử lý";
     const ap = extractApplicant(it);
     const dong = [];
-    const row = (nhan, val) => dong.push(nhan + ": <b>" + escapeHtml(val || "—") + "</b>");
+    const row = (icon, nhan, val) => dong.push(icon + " " + nhan + ": <b>" + escapeHtml(val || "—") + "</b>");
+    const row2 = (nhan, val) => dong.push("  " + nhan + ": <b>" + escapeHtml(val || "—") + "</b>");
     dong.push("🔎 <b>" + escapeHtml(it.soBienNhan) + "</b>");
-    dong.push("📍 <b>" + escapeHtml(buoc) + "</b>");
+    dong.push("📍 Đang ở bước: <b>" + escapeHtml(buoc) + "</b>");
     const chip2 = [];
     if (it.daTra) chip2.push("✅ Đã trả " + parseAspNetDate(it.ngayTra));
     if (it.daKetISO) chip2.push("🟦 Đã kết ISO");
     if (it.daCapNhatDuLieuPhapLy) chip2.push("🟦 Đã cập nhật pháp lý");
     if (it.choBoSung) chip2.push("⚠️ Chờ bổ sung");
     if (chip2.length) dong.push(escapeHtml(chip2.join(" · ")));
-    row("Người đang xử lý", it.tenNguoiTiepNhan ? chuanTen(it.nguoiTiepNhan || it.tenNguoiTiepNhan) : "");
-    row("Người chuyển tiếp", it.tenNguoiChuyenTiep ? chuanTen(it.nguoiChuyenTiep || it.tenNguoiChuyenTiep) : "");
+    dong.push(KE);
+    row("🧑‍💼", "Người đang xử lý", it.tenNguoiTiepNhan ? chuanTen(it.nguoiTiepNhan || it.tenNguoiTiepNhan) : "");
+    row("📤", "Người chuyển tiếp", it.tenNguoiChuyenTiep ? chuanTen(it.nguoiChuyenTiep || it.tenNguoiChuyenTiep) : "");
     const hen = parseAspNetDate(it.ngayhenTra);
-    if (hen) row("Hẹn trả", hen);
-    dong.push("\n<b>THÔNG TIN NGƯỜI NỘP ĐƠN</b>");
-    row("Người nộp hồ sơ", ap.hoTen);
-    row("Số giấy tờ", ap.soGiayTo);
-    row("Số điện thoại", ap.sdt);
-    row("Phường/Xã", ap.phuongXa);
+    if (hen) row("⏰", "Hẹn trả", hen);
+    dong.push(KE);
+    dong.push("🙍 <b>Người nộp đơn</b>");
+    row2("Họ tên", ap.hoTen);
+    row2("Số giấy tờ", ap.soGiayTo);
+    row2("Điện thoại", ap.sdt);
+    row2("Phường/Xã", ap.phuongXa);
     const docs = Array.isArray(it.giayToDinhKem) ? it.giayToDinhKem : [];
-    dong.push("\n<b>GIẤY TỜ ĐÍNH KÈM (" + docs.length + ")</b>");
-    if (!docs.length) dong.push("Chưa có giấy tờ đính kèm");
+    dong.push(KE);
+    dong.push("📎 <b>Giấy tờ đính kèm (" + docs.length + ")</b>");
+    if (!docs.length) dong.push("  Chưa có giấy tờ đính kèm");
     docs.forEach((g, i) => {
       const ten = escapeHtml(g.tenGiayTo || g.Title || "(không tên)");
       const nhan = g.tepDinhKem ? '<a href="https://dla.mplis.gov.vn/dc/PdfViewer?fileId=' + encodeURIComponent(g.tepDinhKem) + '">' + ten + "</a>" : ten;
-      dong.push(i + 1 + ". " + nhan + (g.laGiayToKySo ? " ✍️ ký số" : ""));
+      dong.push("  " + (i + 1) + ". " + nhan + (g.laGiayToKySo ? " ✍️" : ""));
     });
     return dong.join("\n");
   }
@@ -4947,12 +5247,19 @@
     } else {
       if (state.config.activeWorkflows.length === 0) return alert("Vui lòng chọn ít nhất 1 quy trình!");
       document.querySelectorAll('*[data-mplis-clicked="true"]').forEach((el) => el.removeAttribute("data-mplis-clicked"));
+      state._qt5Done = false;
       state.tacVuDaXuLy = null;
       state.qt1ConfirmStreak = 0;
       state.isRunning = true;
       btn.textContent = "Tạm dừng Xử Lý";
       btn.classList.add("running");
       ProcessModule.getTopState().updateStatus("Đang chạy", "active");
+      let maHS = "";
+      try {
+        maHS = findCurrentMaHS() || "";
+      } catch (e) {
+      }
+      ProcessModule.getTopState().writeLog("▶ Bắt đầu xử lý hồ sơ" + (maHS ? " " + maHS : ""));
     }
   }
   function toggleReturn(customStopMessage) {
@@ -5220,14 +5527,14 @@
 
                         <div class="mplis-card mplis-collapse" id="proc-log-group" style="margin-top:8px;">
                             <button type="button" class="mplis-collapse-head" id="proc-log-toggle" aria-expanded="false" aria-controls="proc-log-body">
-                                <span class="mplis-section-label">Log chi tiết</span>
+                                <span class="mplis-section-label">Nhật ký xử lý</span>
                                 <span class="mplis-collapse-state" id="proc-log-count-process" style="font-variant-numeric:tabular-nums;">0</span>
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                             <div class="mplis-collapse-body" id="proc-log-body">
                                 <div class="mplis-bypass-row" style="padding-top:0;">
                                     <div class="mplis-bypass-row-label">
-                                        <strong>Ghi log chi tiết</strong>
+                                        <strong>Ghi nhật ký</strong>
                                         <span>Tắt thì không ghi thêm dòng nào (dòng trạng thái vẫn chạy).</span>
                                     </div>
                                     <label class="mplis-toggle-sw">
@@ -5237,7 +5544,8 @@
                                 </div>
                                 <div id="mplis-log-area-process" style="max-height:180px; overflow-y:auto; font-family:'Consolas','Cascadia Code',monospace; font-size:11px; line-height:1.65; color:var(--mplis-text-dim); background:rgba(0,0,0,0.25); border-radius:6px; padding:6px 8px; word-break:break-all;"></div>
                                 <div style="display:flex; gap:6px; margin-top:6px;">
-                                    <button type="button" id="btn-proc-log-copy" class="mplis-btn-ghost" style="flex:1; font-size:11.5px; padding:7px;">Copy log</button>
+                                    <button type="button" id="btn-proc-log-copy" class="mplis-btn-ghost" style="flex:1; font-size:11.5px; padding:7px;" title="Copy nhật ký dễ đọc">Copy nhật ký</button>
+                                    <button type="button" id="btn-proc-log-copy-raw" class="mplis-btn-ghost" style="flex:1; font-size:11.5px; padding:7px;" title="Bản đầy đủ cho người dò lỗi - gửi bản này khi cần hỗ trợ">Copy log kỹ thuật</button>
                                     <button type="button" id="btn-proc-log-clear" class="mplis-btn-ghost" style="padding:7px 14px; font-size:11.5px;">Xóa</button>
                                 </div>
                             </div>
@@ -5944,11 +6252,11 @@
       };
       veProcLogBadge();
     }
-    document.getElementById("btn-proc-log-copy").onclick = () => {
+    const copyNhatKy = (btnId, laBanGoc) => {
       const ts = ProcessModule.getTopState();
-      const lines = (ts && ts.logBuffer || []).map((e) => {
+      const lines = (ts && ts.logBuffer || []).filter((e) => laBanGoc || e.nice !== null).map((e) => {
         const hh = new Date(e.t).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-        return "[" + hh + "] " + e.msg;
+        return "[" + hh + "] " + (laBanGoc ? e.msg : e.nice);
       }).join("\n");
       if (!lines) return;
       try {
@@ -5961,13 +6269,15 @@
         document.execCommand("copy");
         ta.remove();
       }
-      const btn = document.getElementById("btn-proc-log-copy");
+      const btn = document.getElementById(btnId);
       if (btn) {
         const old = btn.textContent;
         btn.textContent = "Đã copy!";
         setTimeout(() => btn.textContent = old, 1800);
       }
     };
+    document.getElementById("btn-proc-log-copy").onclick = () => copyNhatKy("btn-proc-log-copy", false);
+    document.getElementById("btn-proc-log-copy-raw").onclick = () => copyNhatKy("btn-proc-log-copy-raw", true);
     document.getElementById("btn-proc-log-clear").onclick = () => {
       const ts = ProcessModule.getTopState();
       if (ts) ts.logBuffer = [];

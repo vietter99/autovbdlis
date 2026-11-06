@@ -1,5 +1,6 @@
 import { topWin, clickElement, isSystemLoading, querySelectorAllCustom, findCurrentMaHS, escapeHtml } from './utils.js';
 import { createModuleRuntime } from './module-runtime.js';
+import { moTaLoiTelegram } from './log-friendly.js';
 import { setFastInterval } from './bg-ticker.js';
 
     const ProcessModule = (function () {
@@ -128,8 +129,35 @@ import { setFastInterval } from './bg-ticker.js';
             // QT4: kết ISO phản hồi (dù thành công hay lỗi) → dọn cờ
             if (ep.includes('ThucHienKetISO')) topState.expectQT4Confirm = false;
 
-            // QT5: executeCommand thành công → dọn cờ
-            if (ep.includes('executeCommand') && ok) topState.expectQT5Confirm = false;
+            // QT2: server đã lưu hồ sơ quét / QT3: server đã lưu sổ địa chính (chỉ để ghi nhận tiến độ)
+            if (/UpdateHoSoQuetExistFile/i.test(ep) && ok) {
+                writeLog('API đã lưu hồ sơ quét (QT2).');
+                // Đối chiếu: mỗi giấy chứng nhận của đơn phải có ĐÚNG 1 file gắn đúng giấy đó (theo ghi nhận của server).
+                try {
+                    const ds = (topState.qt2SoPhatHanhList || []).map(chuanSph).filter(Boolean);
+                    const dong = (((e.res || {}).Value || {}).ListFileHoSoQuet || {}).ListFileHoSoQuet;
+                    if (ds.length && Array.isArray(dong)) {
+                        const loi = [];
+                        for (const sph of ds) {
+                            const khop = dong.filter(f => f && f.laGiayChungNhan && f.giayChungNhanId && chuanSph(f.moTa).includes(sph));
+                            if (khop.length === 0) loi.push('giấy ' + sph + ' CHƯA có file nào gắn');
+                            else if (khop.length > 1) loi.push('giấy ' + sph + ' bị gắn ' + khop.length + ' file');
+                        }
+                        if (!loi.length) writeLog('✅ Server xác nhận đủ ' + ds.length + ' giấy chứng nhận đã gắn file: ' + ds.join(', '));
+                        else if (ds.length >= 2) { dungQT2('Gắn giấy chứng nhận lệch', 'Sau khi lưu kho, server ghi nhận: ' + loi.join('; ')); return; }
+                        else writeLog('⚠️ Đối chiếu server (1 giấy, không chặn): ' + loi.join('; '));
+                    }
+                } catch (x) { console.log('[MPLIS QT2] Lỗi đối chiếu phản hồi lưu kho:', x); }
+            }
+            if (/CapNhatSoDiaChinh/i.test(ep) && ok) writeLog('API đã lưu sổ địa chính (QT3).');
+
+            // QT5: executeCommand thành công → dọn cờ, ghi nhận bước mới server trả về
+            if (ep.includes('executeCommand') && ok) {
+                topState.expectQT5Confirm = false;
+                const ns = e.res && e.res.newState;
+                topState._qt5Done = (ns && (ns.Title || ns.State)) || true;
+                writeLog('API chuyển tiếp xong' + (ns && ns.Title ? ' → ' + ns.Title : '') + '.');
+            }
 
             // Scan ngay sau khi API phản hồi thay vì chờ tick 400ms kế tiếp
             setTimeout(scanAndExecute, 50);
@@ -137,19 +165,40 @@ import { setFastInterval } from './bg-ticker.js';
 
         // Auto tự dừng vì thông báo lạ: gửi Telegram kèm mã hồ sơ + nguyên văn thông báo để biết ngay
         // hồ sơ nào, lỗi gì (kể cả khi đang đi vắng). Chưa cấu hình Telegram thì bỏ qua êm.
-        function baoLoiTelegram(loai, tieuDe, noiDung) {
-            try {
-                if (typeof topWin.MPLIS_TG_ALERT !== 'function') return;
-                const ma = findCurrentMaHS() || '';
-                const cs = [
-                    '⛔ <b>Auto dừng: ' + escapeHtml(loai) + '</b>',
-                    ma ? 'Hồ sơ: <b>' + escapeHtml(ma) + '</b>' : '',
-                    (tieuDe || '').trim() ? 'Tiêu đề: ' + escapeHtml(tieuDe.trim()) : '',
-                    noiDung ? 'Nội dung: ' + escapeHtml(noiDung) : ''
-                ].filter(Boolean);
-                topWin.MPLIS_TG_ALERT(cs.join('\n'));
-            } catch (e) { }
-        }
+        // QT2: đọc Số phát hành (VD "AA09124748") từ tên file, trả '' nếu tên không có.
+    function docSphTuTen(text) {
+        const m = /-\s*([A-ZĐ]{1,2})\s*(\d{5,})/.exec(String(text || '').toUpperCase());
+        return m ? m[1] + m[2] : '';
+    }
+    const chuanSph = (t) => String(t || '').replace(/\s+/g, '').toUpperCase();
+
+    // QT2: dừng auto vì lỗi gán giấy chứng nhận - ghi log, báo Telegram, dừng.
+    function dungQT2(trangThai, noiDung) {
+        writeLog('⚠️ ' + noiDung + ' — DỪNG AUTO.');
+        baoLoiTelegram('QT2 · ' + trangThai, '', noiDung);
+        updateStatus(trangThai + ' - Dừng', 'idle');
+        if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function') topWin.MPLIS_AUTO_TOGGLE_FUNC('⚠️ LỖI: QT2 ' + trangThai.toUpperCase() + ' — xem log');
+    }
+
+    function baoLoiTelegram(loai, tieuDe, noiDung) {
+        try {
+            if (typeof topWin.MPLIS_TG_ALERT !== 'function') return;
+            const ma = findCurrentMaHS() || '';
+            const { lyDo, huongXuLy } = moTaLoiTelegram(loai, tieuDe, noiDung);
+            const d = new Date();
+            const p = (n) => String(n).padStart(2, '0');
+            const gio = p(d.getHours()) + ':' + p(d.getMinutes()) + ' ' + p(d.getDate()) + '/' + p(d.getMonth() + 1);
+            const cs = [
+                '⛔ <b>AUTO ĐÃ DỪNG</b>',
+                '━━━━━━━━━━━━━━',
+                ma ? '📄 Hồ sơ: <b>' + escapeHtml(ma) + '</b>' : '',
+                '❗ ' + escapeHtml(lyDo),
+                '👉 ' + escapeHtml(huongXuLy),
+                '🕒 ' + gio
+            ].filter(Boolean);
+            topWin.MPLIS_TG_ALERT(cs.join('\n'));
+        } catch (e) { }
+    }
 
         function getTaskText(tName) {
             if (tName === 'QT1') return 'cập nhật dữ liệu pháp lý';
@@ -319,7 +368,14 @@ import { setFastInterval } from './bg-ticker.js';
                 }
 
                 // --- KIỂM TRA POPUP XÁC NHẬN LƯU (ĐỒNG Ý/XÁC NHẬN) ƯU TIÊN CAO NHẤT ---
-                const confirmBtns = querySelectorAllCustom(topState.config.selectorConfirm);
+                const laNutXacNhanThat = (el) => {
+                    try {
+                        if (el.disabled || el.closest('#mplis-tenfile-toolbar')) return false;
+                        const t = (el.textContent || el.value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+                        return t.length <= 20 && /^(đồng ý|xác nhận|ok|có)\s*([,.!]|$)/.test(t);
+                    } catch (e) { return false; }
+                };
+                const confirmBtns = querySelectorAllCustom(topState.config.selectorConfirm).filter(laNutXacNhanThat);
                 const visibleConfirmBtns = confirmBtns.filter(el => {
                     try { return el.getBoundingClientRect().width > 0; } catch (e) { return false; }
                 });
@@ -349,7 +405,12 @@ import { setFastInterval } from './bg-ticker.js';
                     const confirmBtn = visibleConfirmBtns[visibleConfirmBtns.length - 1];
                     if (!confirmBtn.hasAttribute('data-mplis-clicked')) {
                         setLastActionTime(now, topState.config.delayNext);
-                        writeLog("Phát hiện popup xác nhận. Tự động bấm 'Đồng ý'...");
+                        let noiDungPopup = '';
+                        try {
+                            const khung = confirmBtn.closest('.modal, .jconfirm-box, .k-window, .ui-dialog, .dx-popup-content');
+                            noiDungPopup = ((khung && khung.textContent) || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+                        } catch (e) { }
+                        writeLog("Phát hiện popup xác nhận. Tự động bấm 'Đồng ý'..." + (noiDungPopup ? ' [nội dung: ' + noiDungPopup + ']' : ''));
 
                         confirmBtn.setAttribute('data-mplis-clicked', 'true');
                         setTimeout(() => { try { confirmBtn.removeAttribute('data-mplis-clicked'); } catch (e) { } }, 3000); // Thử lại sau 3s
@@ -435,8 +496,23 @@ import { setFastInterval } from './bg-ticker.js';
                         const sphNum = sphSrc.replace(/[^0-9]/g, '');
                         const suffix = sphNum.slice(-soChuSo);
                         const files = topState.uploadFolderFiles;
+                        // Chưa đọc được số phát hành (bảng đang dựng lại / dòng giấy chứng nhận chưa tạo xong) → ĐỢI, đừng đoán.
+                        if (!suffix && fileType === 'GCN') {
+                            if (!topState._chuaCoSphTu) topState._chuaCoSphTu = now;
+                            if (now - topState._chuaCoSphTu < 15000) {
+                                updateStatus("Đợi đọc số phát hành của hồ sơ...", "waiting");
+                                return;
+                            }
+                            topState._chuaCoSphTu = 0;
+                            writeLog('⚠️ Chưa đọc được số phát hành của hồ sơ nên không biết chọn file giấy chứng nhận nào. Dừng — upload thủ công.');
+                            updateStatus('Không đọc được số phát hành - Dừng', 'idle');
+                            if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function')
+                                topWin.MPLIS_AUTO_TOGGLE_FUNC('⚠️ Chưa đọc được số phát hành — upload file giấy chứng nhận bằng tay');
+                            return;
+                        }
+                        if (suffix) topState._chuaCoSphTu = 0;
                         // Nếu mã đang xử lý khớp 2+ file → 2 GCN cùng số → dừng upload thủ công
-                        const _sameCodeFiles = files.filter(f => {
+                        const _sameCodeFiles = !suffix ? [] : files.filter(f => {
                             const n = f.name.toUpperCase();
                             if (/(GT|PT)\.PDF$/.test(n)) return false;
                             return n.endsWith(suffix + '.PDF') || n.endsWith(suffix + '+.PDF');
@@ -755,6 +831,7 @@ import { setFastInterval } from './bg-ticker.js';
                                 const sBtn = submitBtns[submitBtns.length - 1];
                                 if (!sBtn.hasAttribute('data-mplis-clicked')) {
                                     writeLog("Bấm 'Thực hiện' chuyển tiếp...");
+                                    topState._qt5ClickAt = now; topState._qt5Done = false;
                                     sBtn.setAttribute('data-mplis-clicked', 'true');
                                     clickElement(sBtn);
                                     setTimeout(() => { try { sBtn.removeAttribute('data-mplis-clicked'); } catch (e) { } }, 5000); // Retry sau 5s
@@ -1176,21 +1253,45 @@ import { setFastInterval } from './bg-ticker.js';
                                 return;
                             }
 
+                            const khoaDong = (tr) => (tr.textContent || '').replace(/\s+/g, ' ').trim();
                             let targetRow = rows.find(tr => {
                                 const t = tr.textContent.toUpperCase();
                                 const isGtPt = /(?:GT|PT)\.PDF/.test(t) || /[\d+]-(?:GT|PT)(?![A-Z])/.test(t);
                                 const coTenFile = t.includes('.PDF') || /\d{3,}\+?-[A-ZĐ]{1,2}\s*\d{5,}/.test(t);
+                                if (topState.qt2BoQua && topState.qt2BoQua.has(khoaDong(tr))) return false;
                                 return coTenFile && t.includes('GIẤY TỜ HỒ SƠ') && !isGtPt;
                             });
 
                             if (targetRow) {
                                 const editBtn = targetRow.querySelector('#btnEditHoSoQuet');
                                 if (editBtn && !editBtn.hasAttribute('data-mplis-clicked')) {
-                                    // Lấy Số phát hành tiếp theo để gán cho file này
+                                    // Xác định Số phát hành cho file này: ĐỌC TỪ TÊN FILE, đối chiếu danh sách giấy của đơn.
+                                    // Đơn chỉ có 1 giấy thì giữ cách cũ (chỉ có 1 số để gán). Đơn từ 2 giấy: chỉ gán file khớp tên.
                                     topState.qt2SphIndex = topState.qt2SphIndex || 0;
+                                    const dsSph = topState.qt2SoPhatHanhList || [];
+                                    const sphTuTen = docSphTuTen(targetRow.textContent);
                                     let assignedSph = null;
-                                    if (topState.qt2SoPhatHanhList && topState.qt2SphIndex < topState.qt2SoPhatHanhList.length) {
-                                        assignedSph = topState.qt2SoPhatHanhList[topState.qt2SphIndex];
+                                    if (dsSph.length >= 2) {
+                                        if (sphTuTen && dsSph.includes(sphTuTen)) {
+                                            if ((topState.qt2DaGan || []).includes(sphTuTen)) {
+                                                dungQT2('Hai file cùng số phát hành', 'Có từ 2 file cùng mang số phát hành ' + sphTuTen + ', không biết file nào đúng. Xử lý tay.');
+                                                return;
+                                            }
+                                            assignedSph = sphTuTen;
+                                        } else {
+                                            // Không đọc được / không khớp giấy nào: để nguyên, không gán bừa.
+                                            if (!topState.qt2BoQua) topState.qt2BoQua = new Set();
+                                            topState.qt2BoQua.add(khoaDong(targetRow));
+                                            writeLog('Bỏ qua file không khớp giấy chứng nhận nào (' + (sphTuTen || 'không đọc được số phát hành') + '): ' + khoaDong(targetRow).slice(0, 120));
+                                            setLastActionTime(now, 200);
+                                            return;
+                                        }
+                                    } else {
+                                        // Giữ đúng cách cũ (theo chỉ số) để hồ sơ 1 giấy chạy y như trước.
+                                        if (topState.qt2SphIndex < dsSph.length) assignedSph = dsSph[topState.qt2SphIndex];
+                                        if (assignedSph && sphTuTen && sphTuTen !== assignedSph) {
+                                            writeLog('⚠️ Tên file mang số ' + sphTuTen + ' nhưng đơn chỉ có giấy ' + assignedSph + '; vẫn gán ' + assignedSph + '.');
+                                        }
                                     }
 
                                     writeLog(`Bấm 'Chỉnh sửa' file đính kèm${assignedSph ? ' (Gán: ' + assignedSph + ')' : ''}...`);
@@ -1203,11 +1304,20 @@ import { setFastInterval } from './bg-ticker.js';
 
                                     topState.qt2Phase = 2; // Sang bước sửa sub-form
                                     topState.qt2EditingSph = assignedSph; // Lưu lại Số phát hành đang được gán
+                                    topState._qt2P2Start = now;
                                     setLastActionTime(now, 500);
                                     return;
                                 }
                             } else {
-                                // Khi không còn file nào cần sửa, mới đi thẳng đến bước Cập nhật bảng lớn
+                                // Khi không còn file nào cần sửa: đơn từ 2 giấy thì mỗi giấy phải đã có file được gán
+                                const dsCan = topState.qt2SoPhatHanhList || [];
+                                if (dsCan.length >= 2) {
+                                    const chuaCo = dsCan.filter(x => !(topState.qt2DaGan || []).includes(x));
+                                    if (chuaCo.length) {
+                                        dungQT2('Thiếu file giấy chứng nhận', 'Giấy chứng nhận ' + chuaCo.join(', ') + ' không có file nào khớp số phát hành trong bảng. Kiểm tra tên file rồi chạy lại.');
+                                        return;
+                                    }
+                                }
                                 topState.qt2Phase = 3;
                                 return;
                             }
@@ -1237,19 +1347,32 @@ import { setFastInterval } from './bg-ticker.js';
                                 const selMoTaList = Array.from(document.querySelectorAll('select[name="giayChungNhanId"]')).filter(el => {
                                     try { return el.getBoundingClientRect().width > 0; } catch (e) { return false; }
                                 });
+                                let daChonDung = false;
                                 if (selMoTaList.length > 0) {
                                     const selMoTa = selMoTaList[selMoTaList.length - 1];
                                     const options = Array.from(selMoTa.options);
                                     const targetOpt = options.find(opt => opt.textContent.replace(/\s+/g, '').toUpperCase().includes(topState.qt2EditingSph));
-                                    if (targetOpt && selMoTa.value !== targetOpt.value) {
-                                        selMoTa.value = targetOpt.value;
-                                        if (jq) jq(selMoTa).val(targetOpt.value).trigger("change");
-                                        selMoTa.dispatchEvent(new Event('change', { bubbles: true }));
-                                        writeLog(`Đã gán Giấy chứng nhận: ${topState.qt2EditingSph}`);
+                                    if (targetOpt) {
+                                        if (selMoTa.value !== targetOpt.value) {
+                                            selMoTa.value = targetOpt.value;
+                                            if (jq) jq(selMoTa).val(targetOpt.value).trigger("change");
+                                            selMoTa.dispatchEvent(new Event('change', { bubbles: true }));
+                                            writeLog(`Đã gán Giấy chứng nhận: ${topState.qt2EditingSph}`);
 
-                                        setLastActionTime(now, 200); // Đợi thêm 1 nhịp nhẹ
-                                        return;
+                                            setLastActionTime(now, 200); // Đợi thêm 1 nhịp nhẹ
+                                            return;
+                                        }
+                                        daChonDung = true;
                                     }
+                                }
+                                // Đơn từ 2 giấy: KHÔNG được Lưu khi chưa chọn đúng giấy (lưu thiếu là sai dữ liệu).
+                                if (!daChonDung && (topState.qt2SoPhatHanhList || []).length >= 2) {
+                                    if (now - (topState._qt2P2Start || now) > 8000) {
+                                        dungQT2('Không chọn được giấy chứng nhận', 'Không thấy giấy ' + topState.qt2EditingSph + ' trong ô chọn giấy chứng nhận của form sửa file.');
+                                    } else {
+                                        updateStatus("Đợi ô chọn giấy chứng nhận...", "waiting");
+                                    }
+                                    return;
                                 }
                             }
 
@@ -1262,6 +1385,8 @@ import { setFastInterval } from './bg-ticker.js';
                                 // Tăng chỉ số để gán file tiếp theo cho SPH tiếp theo
                                 if (topState.qt2EditingSph) {
                                     topState.qt2SphIndex = (topState.qt2SphIndex || 0) + 1;
+                                    if (!topState.qt2DaGan) topState.qt2DaGan = [];
+                                    if (!topState.qt2DaGan.includes(topState.qt2EditingSph)) topState.qt2DaGan.push(topState.qt2EditingSph);
                                 }
 
                                 // Lưu xong file này, quay lại vòng lặp Phase 1 để xem CÒN FILE NÀO KHÁC cần sửa không!
@@ -1371,6 +1496,8 @@ import { setFastInterval } from './bg-ticker.js';
                                     topState.currentDonIndex = donIndex;
                                     topState.qt2Phase = 0; // Bắt đầu lại quy trình 4 bước của Thêm mới
                                     topState.qt2SphIndex = 0; // Reset bộ đếm gán Giấy chứng nhận
+                                    topState.qt2DaGan = [];
+                                    topState.qt2BoQua = new Set();
 
                                     // Đọc và ghi nhớ danh sách Số phát hành của đơn đăng ký này
                                     topState.qt2SoPhatHanhList = [];
@@ -1499,7 +1626,13 @@ import { setFastInterval } from './bg-ticker.js';
                                 } else if (fwdTable && (() => { try { return fwdTable.getBoundingClientRect().width > 0; } catch (e) { return false; } })()) {
                                     // Đang ở bảng chuyển tiếp, để logic phía trên xử lý
                                 } else if (btnChuyenTiep && btnChuyenTiep.hasAttribute('data-mplis-clicked')) {
-                                    // Bảng đã đóng xong
+                                    // Bảng đã đóng xong - đợi server xác nhận executeCommand (dự phòng 20s)
+                                    const choQT5 = now - (topState._qt5ClickAt || now);
+                                    if (!topState._qt5Done && choQT5 < 20000) {
+                                        updateStatus("Đợi server xác nhận chuyển tiếp...", "waiting");
+                                        return;
+                                    }
+                                    if (!topState._qt5Done) writeLog("⚠️ Không thấy phản hồi chuyển tiếp từ server sau 20s, kết thúc theo cách dự phòng - kiểm tra lại hồ sơ.");
                                     writeLog("Hoàn tất chuyển tiếp và các quy trình. DỪNG AUTO.");
                                     if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function') topWin.MPLIS_AUTO_TOGGLE_FUNC("🎉 ĐÃ CHUYỂN TIẾP VÀ HOÀN THÀNH!");
                                     return;

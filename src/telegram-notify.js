@@ -36,6 +36,14 @@ function aspDate(str) {
 }
 const p2 = (n) => String(n).padStart(2, '0');
 const fmtTime = (d) => d ? p2(d.getHours()) + ':' + p2(d.getMinutes()) + ' ' + p2(d.getDate()) + '/' + p2(d.getMonth() + 1) : '';
+// Hôm nay chỉ hiện giờ; ngày khác mới kèm ngày/tháng cho gọn.
+const gioNgan = (d) => {
+    if (!d) return '';
+    const now = new Date();
+    const homNay = d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    return homNay ? p2(d.getHours()) + ':' + p2(d.getMinutes()) : fmtTime(d);
+};
+const KE = '━━━━━━━━━━━━━━';
 function rutGon(ma) {
     const parts = String(ma || '').split('-');
     return parts.length >= 3 ? (parts[1].slice(-2) + '-' + parts[2]).toUpperCase() : String(ma || '');
@@ -138,18 +146,18 @@ function buildMessage(fresh) {
         const soHS = list.filter((n) => !laTap(n)).length, soTap = list.filter(laTap).length;
         const dem = [soHS ? soHS + ' hồ sơ' : '', soTap ? soTap + ' tập hồ sơ' : ''].filter(Boolean).join(' + ');
         const lines = list.slice().reverse().map((n) =>
-            '• ' + (laTap(n) ? 'Tập ' + escapeHtml(n.ObjectId) : '<b>' + escapeHtml(n.ObjectId) + '</b>') +
+            '  ▸ ' + (laTap(n) ? 'Tập <b>' + escapeHtml(n.ObjectId) + '</b>' : '<b>' + escapeHtml(rutGon(n.ObjectId)) + '</b>') +
             (nguoiNop[n.ObjectId] ? ' · ' + escapeHtml(nguoiNop[n.ObjectId]) : '') +
-            ' · ' + escapeHtml(fmtTime(aspDate(n.NgayTao))));
-        parts.push('📥 <b>' + escapeHtml(who) + '</b> chuyển ' + dem + '\n' + lines.join('\n'));
+            ' · ' + escapeHtml(gioNgan(aspDate(n.NgayTao))));
+        parts.push('👤 <b>' + escapeHtml(who) + '</b> chuyển <b>' + dem + '</b>\n' + lines.join('\n'));
     });
-    let msg = parts.join('\n\n');
+    let msg = '📥 <b>HỒ SƠ MỚI</b>\n' + KE + '\n' + parts.join('\n\n');
     if (st.working) {
         const tong = st.total !== null ? st.total : st.working.length;
         const ds = Array.from(demTheoNguoi().entries()).sort((a, b) => b[1].n - a[1].n);
-        msg += '\n\n📊 <b>Tổng đang chờ xử lý: ' + tong + ' bộ</b>\n' +
-            ds.map(([ten, o]) => '• ' + escapeHtml(ten) + ': <b>' + o.n + '</b> bộ').join('\n');
-    } else if (st.total !== null) msg += '\n\n📊 Đang chờ xử lý: <b>' + st.total + '</b> bộ';
+        msg += '\n' + KE + '\n📊 <b>Đang chờ xử lý: ' + tong + ' bộ</b>\n' +
+            ds.map(([ten, o]) => '  • ' + escapeHtml(ten) + ' — <b>' + o.n + '</b> bộ').join('\n');
+    } else if (st.total !== null) msg += '\n' + KE + '\n📊 Đang chờ xử lý: <b>' + st.total + '</b> bộ';
     return msg;
 }
 
@@ -298,22 +306,24 @@ function tgGoi(method, body) {
         });
     });
 }
+function dongHoSo(r) {
+    const nn = docNguoiNop(r);
+    return '  ▸ <b>' + escapeHtml(rutGon(r.soBienNhan)) + '</b>' + (nn ? ' · ' + escapeHtml(nn) : '') + ' · ' + escapeHtml(gioNgan(docGioChuyen(r)));
+}
 function tomTat(chiTiet) {
     if (!st.working) return 'Chưa có dữ liệu hồ sơ. Thử lại sau ít giây.';
     const tong = st.total !== null ? st.total : st.working.length;
     const ds = Array.from(demTheoNguoi().entries()).sort((a, b) => b[1].n - a[1].n);
-    if (!ds.length) return '📊 Không có hồ sơ nào đang chờ xử lý.';
-    let msg = '📊 <b>Tổng đang chờ xử lý: ' + tong + ' bộ</b>';
+    if (!ds.length) return '📊 <b>Không có hồ sơ nào đang chờ xử lý.</b>';
+    let msg = '📊 <b>ĐANG CHỜ XỬ LÝ: ' + tong + ' bộ</b>\n' + KE;
     ds.forEach(([ten, o]) => {
-        msg += '\n\n👤 <b>' + escapeHtml(ten) + '</b>: ' + o.n + ' bộ' + (o.gio ? ' · mới nhất ' + fmtTime(o.gio) : '');
+        msg += '\n👤 <b>' + escapeHtml(ten) + '</b> — ' + o.n + ' bộ' + (o.gio ? ' (mới nhất ' + escapeHtml(gioNgan(o.gio)) + ')' : '');
         if (chiTiet) {
-            o.ds.slice().sort((a, b) => (docGioChuyen(b) || 0) - (docGioChuyen(a) || 0)).forEach((r) => {
-                const nn = docNguoiNop(r);
-                msg += '\n• <b>' + escapeHtml(r.soBienNhan) + '</b>' + (nn ? ' · ' + escapeHtml(nn) : '') + ' · ' + escapeHtml(fmtTime(docGioChuyen(r)));
-            });
+            o.ds.slice().sort((a, b) => (docGioChuyen(b) || 0) - (docGioChuyen(a) || 0)).forEach((r) => { msg += '\n' + dongHoSo(r); });
+            msg += '\n';
         }
     });
-    msg += '\n\n🕒 Cập nhật ' + fmtTime(new Date(st.lastCheck || Date.now()));
+    msg += '\n' + KE + '\n🕒 Cập nhật ' + fmtTime(new Date(st.lastCheck || Date.now()));
     return msg;
 }
 function guiChia(chat, text) {
@@ -322,15 +332,15 @@ function guiChia(chat, text) {
     if (cur) parts.push(cur);
     return parts.reduce((p, t) => p.then(() => tgGoi('sendMessage', { chat_id: chat, text: t, parse_mode: 'HTML', disable_web_page_preview: true })), Promise.resolve());
 }
-const HUONG_DAN = '🤖 <b>Hướng dẫn hỏi bot</b>\n\n' +
+const HUONG_DAN = '🤖 <b>BOT MPLIS — CÁCH HỎI</b>\n' + KE + '\n' +
     '📊 <b>/tong</b> — tổng số bộ đang chờ, mỗi người chuyển bao nhiêu\n' +
     '📋 <b>/chitiet</b> — như trên, kèm từng hồ sơ (mã, người nộp, giờ chuyển)\n' +
-    '👤 <b>/ai thoi</b> — chỉ xem hồ sơ của người có tên chứa "thoi" (gõ không dấu cũng được)\n' +
-    '🔎 <b>/tracuu 0402</b> — hồ sơ đã đi tới đâu, ai đang giữ, hẹn trả khi nào\n' +
-    '      Gõ thẳng đuôi mã (VD: <b>0402</b> hoặc <b>9-0402</b>) cũng được, khỏi gõ /tracuu\n' +
-    '🔄 <b>/f5</b> — tải lại trang MPLIS trên máy (khi trang bị treo hoặc hết phiên)\n' +
-    '❓ <b>/help</b> — hiện bảng này\n\n' +
-    'Gõ chữ khác bot sẽ hiện /tong. Chỉ trả lời khi bật "Chế độ đi vắng" trong tool.';
+    '👤 <b>/ai thoi</b> — hồ sơ của người có tên chứa "thoi" (gõ không dấu cũng được)\n' +
+    '🔎 <b>/tracuu 0402</b> — hồ sơ đi tới đâu, ai đang giữ, hẹn trả khi nào\n' +
+    '      Gõ thẳng đuôi mã (VD: <b>0402</b> hoặc <b>9-0402</b>) cũng được\n' +
+    '🔄 <b>/f5</b> — tải lại trang MPLIS trên máy (khi trang treo hoặc hết phiên)\n' +
+    '❓ <b>/help</b> — hiện bảng này\n' + KE + '\n' +
+    'Gõ chữ khác bot sẽ hiện /tong. Bot chỉ trả lời khi bật "Chế độ đi vắng" trong tool.';
 
 // Bỏ dấu + chữ thường để gõ "thoi" vẫn khớp "Thởi".
 const boDau = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase();
@@ -342,46 +352,46 @@ function tomTatNguoi(tuKhoa) {
     if (!ds.length) return '❌ Không thấy ai tên có "' + escapeHtml(tuKhoa) + '" trong danh sách đang chờ.';
     let msg = '';
     ds.forEach(([ten, o]) => {
-        msg += (msg ? '\n\n' : '') + '👤 <b>' + escapeHtml(ten) + '</b>: ' + o.n + ' bộ';
-        o.ds.slice().sort((a, b) => (docGioChuyen(b) || 0) - (docGioChuyen(a) || 0)).forEach((r) => {
-            const nn = docNguoiNop(r);
-            msg += '\n• <b>' + escapeHtml(r.soBienNhan) + '</b>' + (nn ? ' · ' + escapeHtml(nn) : '') + ' · ' + escapeHtml(fmtTime(docGioChuyen(r)));
-        });
+        msg += (msg ? '\n\n' : '') + '👤 <b>' + escapeHtml(ten) + '</b> — ' + o.n + ' bộ\n' + KE;
+        o.ds.slice().sort((a, b) => (docGioChuyen(b) || 0) - (docGioChuyen(a) || 0)).forEach((r) => { msg += '\n' + dongHoSo(r); });
     });
     return msg;
 }
 
 // Hồ sơ đi tới đâu: bước hiện tại, ai đang giữ, ai chuyển, hẹn trả, đã kết ISO/trả chưa.
 function moTaHoSo(it) {
-    // Cùng bố cục với thẻ ở tab Tra cứu của tool.
     const buoc = (it.state && it.state.Title) || 'Đang xử lý';
     const ap = extractApplicant(it);
     const dong = [];
-    const row = (nhan, val) => dong.push(nhan + ': <b>' + escapeHtml(val || '—') + '</b>');
+    const row = (icon, nhan, val) => dong.push(icon + ' ' + nhan + ': <b>' + escapeHtml(val || '—') + '</b>');
+    const row2 = (nhan, val) => dong.push('  ' + nhan + ': <b>' + escapeHtml(val || '—') + '</b>');
     dong.push('🔎 <b>' + escapeHtml(it.soBienNhan) + '</b>');
-    dong.push('📍 <b>' + escapeHtml(buoc) + '</b>');
+    dong.push('📍 Đang ở bước: <b>' + escapeHtml(buoc) + '</b>');
     const chip = [];
     if (it.daTra) chip.push('✅ Đã trả ' + parseAspNetDate(it.ngayTra));
     if (it.daKetISO) chip.push('🟦 Đã kết ISO');
     if (it.daCapNhatDuLieuPhapLy) chip.push('🟦 Đã cập nhật pháp lý');
     if (it.choBoSung) chip.push('⚠️ Chờ bổ sung');
     if (chip.length) dong.push(escapeHtml(chip.join(' · ')));
-    row('Người đang xử lý', it.tenNguoiTiepNhan ? chuanTen(it.nguoiTiepNhan || it.tenNguoiTiepNhan) : '');
-    row('Người chuyển tiếp', it.tenNguoiChuyenTiep ? chuanTen(it.nguoiChuyenTiep || it.tenNguoiChuyenTiep) : '');
+    dong.push(KE);
+    row('🧑‍💼', 'Người đang xử lý', it.tenNguoiTiepNhan ? chuanTen(it.nguoiTiepNhan || it.tenNguoiTiepNhan) : '');
+    row('📤', 'Người chuyển tiếp', it.tenNguoiChuyenTiep ? chuanTen(it.nguoiChuyenTiep || it.tenNguoiChuyenTiep) : '');
     const hen = parseAspNetDate(it.ngayhenTra);
-    if (hen) row('Hẹn trả', hen);
-    dong.push('\n<b>THÔNG TIN NGƯỜI NỘP ĐƠN</b>');
-    row('Người nộp hồ sơ', ap.hoTen);
-    row('Số giấy tờ', ap.soGiayTo);
-    row('Số điện thoại', ap.sdt);
-    row('Phường/Xã', ap.phuongXa);
+    if (hen) row('⏰', 'Hẹn trả', hen);
+    dong.push(KE);
+    dong.push('🙍 <b>Người nộp đơn</b>');
+    row2('Họ tên', ap.hoTen);
+    row2('Số giấy tờ', ap.soGiayTo);
+    row2('Điện thoại', ap.sdt);
+    row2('Phường/Xã', ap.phuongXa);
     const docs = Array.isArray(it.giayToDinhKem) ? it.giayToDinhKem : [];
-    dong.push('\n<b>GIẤY TỜ ĐÍNH KÈM (' + docs.length + ')</b>');
-    if (!docs.length) dong.push('Chưa có giấy tờ đính kèm');
+    dong.push(KE);
+    dong.push('📎 <b>Giấy tờ đính kèm (' + docs.length + ')</b>');
+    if (!docs.length) dong.push('  Chưa có giấy tờ đính kèm');
     docs.forEach((g, i) => {
         const ten = escapeHtml(g.tenGiayTo || g.Title || '(không tên)');
         const nhan = g.tepDinhKem ? '<a href="https://dla.mplis.gov.vn/dc/PdfViewer?fileId=' + encodeURIComponent(g.tepDinhKem) + '">' + ten + '</a>' : ten;
-        dong.push((i + 1) + '. ' + nhan + (g.laGiayToKySo ? ' ✍️ ký số' : ''));
+        dong.push('  ' + (i + 1) + '. ' + nhan + (g.laGiayToKySo ? ' ✍️' : ''));
     });
     return dong.join('\n');
 }
@@ -430,6 +440,7 @@ async function traLoi(text) {
         canTaiLai = true;
         return '🔄 Đang tải lại trang (F5)...';
     }
+
     if (/^(tracuu|tc|tim|hoso)$/.test(lenh)) return traCuuBot(doi);
     if (/\d{3,}/.test(t) && !/^\/(tong|chitiet|ai)\b/i.test(t)) return traCuuBot(t.replace(/^\/\S+\s*/, ''));
     if (/^(ai|nguoi)$/.test(lenh)) { if (!doi) return 'Gõ kèm tên, VD: <b>/ai thoi</b>'; await lamMoiDuLieu(); return tomTatNguoi(doi); }

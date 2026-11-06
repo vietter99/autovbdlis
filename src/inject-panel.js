@@ -275,14 +275,14 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
 
                         <div class="mplis-card mplis-collapse" id="proc-log-group" style="margin-top:8px;">
                             <button type="button" class="mplis-collapse-head" id="proc-log-toggle" aria-expanded="false" aria-controls="proc-log-body">
-                                <span class="mplis-section-label">Log chi tiết</span>
+                                <span class="mplis-section-label">Nhật ký xử lý</span>
                                 <span class="mplis-collapse-state" id="proc-log-count-process" style="font-variant-numeric:tabular-nums;">0</span>
                                 <svg class="mplis-collapse-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                             <div class="mplis-collapse-body" id="proc-log-body">
                                 <div class="mplis-bypass-row" style="padding-top:0;">
                                     <div class="mplis-bypass-row-label">
-                                        <strong>Ghi log chi tiết</strong>
+                                        <strong>Ghi nhật ký</strong>
                                         <span>Tắt thì không ghi thêm dòng nào (dòng trạng thái vẫn chạy).</span>
                                     </div>
                                     <label class="mplis-toggle-sw">
@@ -292,7 +292,8 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                                 </div>
                                 <div id="mplis-log-area-process" style="max-height:180px; overflow-y:auto; font-family:'Consolas','Cascadia Code',monospace; font-size:11px; line-height:1.65; color:var(--mplis-text-dim); background:rgba(0,0,0,0.25); border-radius:6px; padding:6px 8px; word-break:break-all;"></div>
                                 <div style="display:flex; gap:6px; margin-top:6px;">
-                                    <button type="button" id="btn-proc-log-copy" class="mplis-btn-ghost" style="flex:1; font-size:11.5px; padding:7px;">Copy log</button>
+                                    <button type="button" id="btn-proc-log-copy" class="mplis-btn-ghost" style="flex:1; font-size:11.5px; padding:7px;" title="Copy nhật ký dễ đọc">Copy nhật ký</button>
+                                    <button type="button" id="btn-proc-log-copy-raw" class="mplis-btn-ghost" style="flex:1; font-size:11.5px; padding:7px;" title="Bản đầy đủ cho người dò lỗi - gửi bản này khi cần hỗ trợ">Copy log kỹ thuật</button>
                                     <button type="button" id="btn-proc-log-clear" class="mplis-btn-ghost" style="padding:7px 14px; font-size:11.5px;">Xóa</button>
                                 </div>
                             </div>
@@ -1027,20 +1028,23 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
             veProcLogBadge();
         }
 
-        document.getElementById('btn-proc-log-copy').onclick = () => {
+        // 2 bản: "nhật ký" (dễ đọc, đã lọc) và "log kỹ thuật" (nguyên văn, đầy đủ - gửi khi cần dò lỗi).
+        const copyNhatKy = (btnId, laBanGoc) => {
             const ts = ProcessModule.getTopState();
-            const lines = (ts && ts.logBuffer || []).map(e => {
+            const lines = (ts && ts.logBuffer || []).filter(e => laBanGoc || e.nice !== null).map(e => {
                 const hh = new Date(e.t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                return '[' + hh + '] ' + e.msg;
+                return '[' + hh + '] ' + (laBanGoc ? e.msg : e.nice);
             }).join('\n');
             if (!lines) return;
             try { GM_setClipboard(lines); } catch (e) {
                 const ta = document.createElement('textarea'); ta.value = lines;
                 document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
             }
-            const btn = document.getElementById('btn-proc-log-copy');
+            const btn = document.getElementById(btnId);
             if (btn) { const old = btn.textContent; btn.textContent = 'Đã copy!'; setTimeout(() => btn.textContent = old, 1800); }
         };
+        document.getElementById('btn-proc-log-copy').onclick = () => copyNhatKy('btn-proc-log-copy', false);
+        document.getElementById('btn-proc-log-copy-raw').onclick = () => copyNhatKy('btn-proc-log-copy-raw', true);
 
         document.getElementById('btn-proc-log-clear').onclick = () => {
             const ts = ProcessModule.getTopState();
