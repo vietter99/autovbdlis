@@ -148,7 +148,8 @@ function buildMessage(fresh) {
         const lines = list.slice().reverse().map((n) =>
             '  ▸ ' + (laTap(n) ? 'Tập <b>' + escapeHtml(n.ObjectId) + '</b>' : '<b>' + escapeHtml(rutGon(n.ObjectId)) + '</b>') +
             (nguoiNop[n.ObjectId] ? ' · ' + escapeHtml(nguoiNop[n.ObjectId]) : '') +
-            ' · ' + escapeHtml(gioNgan(aspDate(n.NgayTao))));
+            ' · ' + escapeHtml(gioNgan(aspDate(n.NgayTao))) +
+            (laTap(n) ? '' : dongPhu((st.working || []).find((r) => r && r.soBienNhan === n.ObjectId))));
         parts.push('👤 <b>' + escapeHtml(who) + '</b> chuyển <b>' + dem + '</b>\n' + lines.join('\n'));
     });
     let msg = '📥 <b>HỒ SƠ MỚI</b>\n' + KE + '\n' + parts.join('\n\n');
@@ -306,9 +307,29 @@ function tgGoi(method, body) {
         });
     });
 }
+// Loại hồ sơ = tên quy trình, bỏ mã đầu ("2026.CN.11.1. Trường hợp đăng ký biến động..." -> "Đăng ký biến động...").
+function loaiHoSoNgan(item) {
+    let t = String((item && item.quytrinh && item.quytrinh.SchemaName) || '').replace(/\s+/g, ' ').trim();
+    if (!t) return '';
+    t = t.replace(/^[\w.]+\.\s+/, '').replace(/^trường hợp\s+/i, '');
+    t = t.charAt(0).toUpperCase() + t.slice(1);
+    return t.length > 90 ? t.slice(0, 87) + '...' : t;
+}
+// Hẹn trả kèm ngày giờ đầy đủ; quá hạn thì đánh dấu để nhìn là biết.
+function henTraNgan(item) {
+    const d = aspDate(item && item.ngayhenTra);
+    if (!d) return '';
+    const s = p2(d.getHours()) + ':' + p2(d.getMinutes()) + ' ' + p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear();
+    return d.getTime() < Date.now() ? s + ' ⚠️ quá hạn' : s;
+}
+// Hai dòng phụ dưới mỗi hồ sơ: loại hồ sơ + hẹn trả (bỏ dòng nào không có dữ liệu).
+function dongPhu(item) {
+    const loai = loaiHoSoNgan(item), hen = henTraNgan(item);
+    return (loai ? '\n      📋 ' + escapeHtml(loai) : '') + (hen ? '\n      ⏰ Hẹn trả: <b>' + escapeHtml(hen) + '</b>' : '');
+}
 function dongHoSo(r) {
     const nn = docNguoiNop(r);
-    return '  ▸ <b>' + escapeHtml(rutGon(r.soBienNhan)) + '</b>' + (nn ? ' · ' + escapeHtml(nn) : '') + ' · ' + escapeHtml(gioNgan(docGioChuyen(r)));
+    return '  ▸ <b>' + escapeHtml(rutGon(r.soBienNhan)) + '</b>' + (nn ? ' · ' + escapeHtml(nn) : '') + ' · ' + escapeHtml(gioNgan(docGioChuyen(r))) + dongPhu(r);
 }
 function tomTat(chiTiet) {
     if (!st.working) return 'Chưa có dữ liệu hồ sơ. Thử lại sau ít giây.';
@@ -367,6 +388,8 @@ function moTaHoSo(it) {
     const row2 = (nhan, val) => dong.push('  ' + nhan + ': <b>' + escapeHtml(val || '—') + '</b>');
     dong.push('🔎 <b>' + escapeHtml(it.soBienNhan) + '</b>');
     dong.push('📍 Đang ở bước: <b>' + escapeHtml(buoc) + '</b>');
+    const loaiHS = loaiHoSoNgan(it);
+    if (loaiHS) dong.push('📋 Loại hồ sơ: <b>' + escapeHtml(loaiHS) + '</b>');
     const chip = [];
     if (it.daTra) chip.push('✅ Đã trả ' + parseAspNetDate(it.ngayTra));
     if (it.daKetISO) chip.push('🟦 Đã kết ISO');
