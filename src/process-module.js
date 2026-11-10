@@ -275,7 +275,13 @@ import { setFastInterval } from './bg-ticker.js';
 
 
 
+        let _dangQuetTu = 0;
         async function scanAndExecute() {
+            if (_dangQuetTu && Date.now() - _dangQuetTu < 20000) return; // đã có vòng quét đang chạy
+            _dangQuetTu = Date.now();
+            try { await scanVong(); } finally { _dangQuetTu = 0; }
+        }
+        async function scanVong() {
             try {
                 const topState = getTopState();
                 if (!topState || !topState.isRunning) return;

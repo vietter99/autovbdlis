@@ -5,6 +5,7 @@ import { findCurrentMaHS } from './utils.js';
     function toggleProcess(customStopMessage) {
         const state = ProcessModule.getTopState();
         const btn = document.getElementById('btn-toggle-process');
+        if (!state.isRunning && typeof customStopMessage === 'string') return;
         if (state.isRunning) {
             state.isRunning = false;
             btn.textContent = "Bắt đầu Xử Lý";
