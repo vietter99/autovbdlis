@@ -5,7 +5,8 @@
   "description": "Tampermonkey userscript automating MPLIS/VBDLIS land-registry dossier processing.",
   "type": "module",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "test": "node --test"
   },
   "devDependencies": {
     "esbuild": "^0.24.0"
