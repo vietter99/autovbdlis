@@ -20,6 +20,7 @@
 // Tool chỉ tạo/copy tên; việc tích ô đồng bộ vẫn do người dùng (chưa biết id ô đó trên cổng).
 
 import { fallbackCopyTextToClipboard } from './utils.js';
+import { giuMoiNhat } from './gioi-han.js';
 
 const SCAN_INTERVAL_MS = 1000;
 const BTN_CLASS = 'mplis-btn-copy-tenfile';
@@ -89,12 +90,14 @@ function layMaHoSoDayDu() {
 
 // Các dòng "Giấy in mới" đang hiện, kèm Số phát hành đọc được trong dòng đó.
 function layDongGiayInMoi() {
-    return Array.from(document.querySelectorAll('tr'))
+    return Array.from(document.getElementsByTagName('tr'))
         .map(tr => {
-            const cells = Array.from(tr.querySelectorAll('td'));
-            if (!cells.length) return null;
-            const loaiText = cells[0].textContent || '';
+            // Chỉ đọc ô đầu trước; chỉ dòng trúng mới lấy đủ các ô (bảng hồ sơ có hàng trăm dòng).
+            const dau = tr.querySelector('td');
+            if (!dau) return null;
+            const loaiText = dau.textContent || '';
             if (!GIAY_RE.test(loaiText)) return null;
+            const cells = Array.from(tr.querySelectorAll('td'));
             const loai = GIAY_THU_HOI_RE.test(loaiText) ? 'THU HỒI' : 'IN MỚI';
 
             // Số phát hành: ô đầu tiên trong dòng khớp dạng "AA 09122325". Không bám cứng cột 3
@@ -125,7 +128,7 @@ function nhoLoaiGiay(maHS, dong) {
         }
         if (!doi) return;
         stored[maHS] = cuaHoSo;
-        localStorage.setItem(LOAI_GIAY_KEY, JSON.stringify(stored));
+        localStorage.setItem(LOAI_GIAY_KEY, JSON.stringify(giuMoiNhat(stored, 300)));
         console.log('[MPLIS TenFile] Ghi nhớ loại giấy của hồ sơ ' + maHS + ': '
             + dong.map(d => d.sph + '=' + d.loai).join(', '));
     } catch (e) { }
@@ -196,7 +199,7 @@ function nhoSph(maHS, sphList) {
         const stored = JSON.parse(localStorage.getItem(SPH_NHO_KEY) || '{}');
         if (JSON.stringify(stored[maHS]) === JSON.stringify(sphList)) return;
         stored[maHS] = sphList;
-        localStorage.setItem(SPH_NHO_KEY, JSON.stringify(stored));
+        localStorage.setItem(SPH_NHO_KEY, JSON.stringify(giuMoiNhat(stored, 300)));
     } catch (e) { }
 }
 

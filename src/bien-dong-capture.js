@@ -1,4 +1,5 @@
 import { findCurrentMaHS } from './utils.js';
+import { giuMoiNhat } from './gioi-han.js';
 
 // #lbThongTinBienDong chỉ hiện lúc đang ở màn QT1 (cập nhật pháp lý), trong khi ExcelModule
 // lại cần thông tin này lúc quét ở QT3 (thời điểm khác). Nên bắt và "nhớ" lại ngay lúc thấy,
@@ -12,7 +13,7 @@ function saveBienDongCode(maHS, code) {
     try {
         const stored = JSON.parse(localStorage.getItem('mplis_bien_dong_codes') || '{}');
         stored[maHS] = code;
-        localStorage.setItem('mplis_bien_dong_codes', JSON.stringify(stored));
+        localStorage.setItem('mplis_bien_dong_codes', JSON.stringify(giuMoiNhat(stored, 300)));
     } catch (e) { }
 }
 

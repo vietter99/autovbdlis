@@ -1,4 +1,5 @@
 import { findCurrentMaHS } from './utils.js';
+import { giuMoiNhat } from './gioi-han.js';
 
 // Tự điền 2 mặc định ở màn hình "Cập nhật pháp lý giấy chứng nhận":
 //   1. Tích ô "Chính thức có pháp lý"  (#chkdaCongNhanPhapLy, name="daCongNhanPhapLy")
@@ -313,7 +314,7 @@ function saveStoredAutoDate(maHS, value) {
     try {
         const stored = JSON.parse(localStorage.getItem(AUTO_DATE_KEY) || '{}');
         stored[maHS] = value;
-        localStorage.setItem(AUTO_DATE_KEY, JSON.stringify(stored));
+        localStorage.setItem(AUTO_DATE_KEY, JSON.stringify(giuMoiNhat(stored, 300)));
     } catch (e) { }
 }
 

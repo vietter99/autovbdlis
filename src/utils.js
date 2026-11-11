@@ -59,12 +59,17 @@
 
     try {
         if (typeof unsafeWindow !== 'undefined' && isAutoConfirmEnabled()) {
+            const gocConfirm = unsafeWindow.confirm, gocAlert = unsafeWindow.alert;
+            // Chỉ tự trả lời khi auto đang chạy; lúc người dùng tự thao tác vẫn hiện hộp thoại gốc để họ quyết định.
+            const autoDangChay = () => { try { return !!(topWin.MPLIS_AUTO_STATE && topWin.MPLIS_AUTO_STATE.isRunning); } catch (e) { return false; } };
             unsafeWindow.confirm = function (message) {
-                console.log("[MPLIS Auto] Tự động chấp nhận confirm mặc định: " + message);
+                if (!autoDangChay()) return gocConfirm.call(unsafeWindow, message);
+                console.log('[MPLIS Auto] Tự động chấp nhận confirm mặc định: ' + message);
                 return true;
             };
             unsafeWindow.alert = function (message) {
-                console.log("[MPLIS Auto] Tự động bỏ qua alert: " + message);
+                if (!autoDangChay()) return gocAlert.call(unsafeWindow, message);
+                console.log('[MPLIS Auto] Tự động bỏ qua alert: ' + message);
                 return true;
             };
         }

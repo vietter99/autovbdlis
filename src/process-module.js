@@ -7,9 +7,10 @@ import { setFastInterval } from './bg-ticker.js';
         const defaultConfig = {
             activeWorkflows: ["QT0", "QT1", "QT2", "QT3"],
             isQT5: false,
-            // QT2 - bảng chọn file hồ sơ quét. Lọc theo Số phát hành/gt/pt LUÔN chạy ở cả 2 giá trị.
-            // true = tích thêm cả file mà bộ lọc không nhận và không gỡ tích file nào - dùng khi tên
-            // file đặt sai nên quy tắc lọc bỏ sót. false (mặc định) = chỉ giữ file bộ lọc nhận.
+            // QT2 - bảng chọn file hồ sơ quét.
+            // true = tích hết mọi file trong bảng, không gỡ tích file nào; khi gắn giấy chứng nhận thì
+            // chỉ gắn file có số phát hành trong tên khớp giấy của đơn. false (mặc định) = chỉ tích
+            // file khớp Số phát hành của đơn + file gt/pt dùng chung.
             qt2SelectAllFiles: false,
             qt2SoChuSo: 3,
             forwardUser: "",
@@ -433,7 +434,8 @@ import { setFastInterval } from './bg-ticker.js';
 
                 // --- AUTO UPLOAD (btnUploadFile) ---
                 // Áp dụng khi tool đã nạp thư mục file. Khớp tên file theo quy tắc SPH cuối / GT / PT.
-                if (topState.uploadDirHandle && typeof topState.refreshUploadFolder === 'function' && now - (topState._dirRefreshAt || 0) > 1500) {
+                if (topState.uploadDirHandle && typeof topState.refreshUploadFolder === 'function' && now - (topState._dirRefreshAt || 0) > 1500
+                    && document.querySelector('#btnUploadFile.btn-success, a[type="upload"].btn-success')) {
                     topState._dirRefreshAt = now;
                     try { await topState.refreshUploadFolder(); } catch (e) {
                         console.log('[MPLIS Upload] Không đọc lại được thư mục (mất quyền truy cập?):', e);
@@ -1138,11 +1140,16 @@ import { setFastInterval } from './bg-ticker.js';
                         // đất đai", "Giấy chứng nhận quyền sử dụng đất") nên tự nó không bao giờ tích
                         // được mấy dòng đó. Tích sẵn bằng "Chọn tất cả" thì chúng ở lại, còn các file
                         // có tên .pdf vẫn bị vòng lặp lọc theo Số phát hành gỡ tích nếu sai đơn.
+                        // Ô "Chọn tất cả" nhớ trạng thái đơn trước nên 1 lần bấm có thể chỉ đảo ngược (bỏ tích hết).
+                        // Bấm lại tới khi ô tổng đã tích VÀ mọi dòng đã tích (tối đa 3 lần), rồi mới lọc.
+                        const lanBamAll = parseInt(chkSelectAll.getAttribute('data-mplis-selectall') || '0', 10);
+                        const conDongChuaTich = Array.from(document.querySelectorAll('#tbDanhSachGiayToDinhKem tbody tr input[type="checkbox"]')).some(c => !c.checked);
                         if (topState.config.qt2SelectAllFiles &&
-                            !chkSelectAll.hasAttribute('data-mplis-selectall') &&
+                            lanBamAll < 3 &&
+                            (!chkSelectAll.checked || conDongChuaTich) &&
                             !chkSelectAll.hasAttribute('data-mplis-clicked')) {
-                            writeLog("Bấm 'Chọn tất cả' để tích hết bảng trước khi lọc...");
-                            chkSelectAll.setAttribute('data-mplis-selectall', 'true');
+                            writeLog("Bấm 'Chọn tất cả' để tích hết bảng trước khi lọc (lần " + (lanBamAll + 1) + ")...");
+                            chkSelectAll.setAttribute('data-mplis-selectall', String(lanBamAll + 1));
                             const jqAll = (typeof unsafeWindow !== 'undefined' && unsafeWindow.$) ? unsafeWindow.$ : null;
                             if (jqAll) jqAll(chkSelectAll).click(); else chkSelectAll.click();
                             setLastActionTime(now, 600);
@@ -1160,7 +1167,7 @@ import { setFastInterval } from './bg-ticker.js';
                             // chắc chắn là của đơn này (dù người dùng gõ sai mã SPH), nên CHỌN HẾT.
                             const totalDons = document.querySelectorAll('#lstDonDangKy ul.dondangky-item').length;
 
-                            if (topState.config.qt2SelectAllFiles) writeLog("Đã tích hết bảng, giờ lọc bỏ file sai Số phát hành...");
+                            if (topState.config.qt2SelectAllFiles) writeLog("Đã tích hết bảng, giữ nguyên toàn bộ file (giấy chứng nhận sẽ gán đúng theo Số phát hành ở bước sau)...");
 
                             const fileRows = Array.from(document.querySelectorAll('#tbDanhSachGiayToDinhKem tbody tr'));
                             for (const row of fileRows) {
@@ -1170,12 +1177,12 @@ import { setFastInterval } from './bg-ticker.js';
                                 // Tên file không còn đuôi .pdf thì chỉ nhận đúng dạng "<mã HS>-<SPH>" / "<mã HS>-GT|PT"
                                 const isGtPt = /(GT|PT)\.PDF/.test(fileName) || /[\d+]-(GT|PT)(?![A-Z])/.test(fileName);
                                 const coTenFile = fileName.includes('.PDF') || isGtPt || /\d{3,}\+?-[A-ZĐ]{1,2}\s*\d{5,}/.test(fileName);
-                                if (!coTenFile) continue;
+                                // Chọn hết: dòng nào chưa tích (VD "Đơn đề nghị...", không có đuôi .pdf) cũng phải tích.
+                                if (!coTenFile && !topState.config.qt2SelectAllFiles) continue;
 
-                                // Quy tắc lọc theo Số phát hành LUÔN chạy, kể cả khi bật "chọn hết file" -
-                                // chế độ đó chỉ tích THÊM phần còn lại chứ không thay thế bước lọc này.
+                                // Bật "chọn hết file" thì giữ tích mọi dòng; chỉ khi tắt mới lọc theo Số phát hành.
                                 let shouldKeep;
-                                if (totalDons <= 1) {
+                                if (totalDons <= 1 || topState.config.qt2SelectAllFiles) {
                                     shouldKeep = true;
                                 } else {
                                     // File "gt"/"pt" là tài liệu DÙNG CHUNG cho cả hồ sơ (không thuộc riêng
@@ -1277,7 +1284,14 @@ import { setFastInterval } from './bg-ticker.js';
                                     const dsSph = topState.qt2SoPhatHanhList || [];
                                     const sphTuTen = docSphTuTen(targetRow.textContent);
                                     let assignedSph = null;
-                                    if (dsSph.length >= 2) {
+                                    // Chọn hết file mà không đọc được số phát hành: bảng lẫn file đơn khác, gắn theo thứ tự sẽ sai.
+                                    if (topState.config.qt2SelectAllFiles && dsSph.length === 0) {
+                                        dungQT2('Không đọc được số phát hành', 'Đơn này không đọc được số phát hành của giấy chứng nhận nên không biết file nào thuộc giấy nào. Tắt "chọn hết file" hoặc xử lý tay.');
+                                        return;
+                                    }
+                                    // Chọn hết file: bảng lẫn file của đơn khác, nên đơn 1 giấy cũng chỉ gán file khớp tên (không gán theo thứ tự).
+                                    const gan_theo_ten = dsSph.length >= 2 || (topState.config.qt2SelectAllFiles && dsSph.length === 1);
+                                    if (gan_theo_ten) {
                                         if (sphTuTen && dsSph.includes(sphTuTen)) {
                                             if ((topState.qt2DaGan || []).includes(sphTuTen)) {
                                                 dungQT2('Hai file cùng số phát hành', 'Có từ 2 file cùng mang số phát hành ' + sphTuTen + ', không biết file nào đúng. Xử lý tay.');
@@ -1317,7 +1331,7 @@ import { setFastInterval } from './bg-ticker.js';
                             } else {
                                 // Khi không còn file nào cần sửa: đơn từ 2 giấy thì mỗi giấy phải đã có file được gán
                                 const dsCan = topState.qt2SoPhatHanhList || [];
-                                if (dsCan.length >= 2) {
+                                if (dsCan.length >= 2 || (topState.config.qt2SelectAllFiles && dsCan.length === 1)) {
                                     const chuaCo = dsCan.filter(x => !(topState.qt2DaGan || []).includes(x));
                                     if (chuaCo.length) {
                                         dungQT2('Thiếu file giấy chứng nhận', 'Giấy chứng nhận ' + chuaCo.join(', ') + ' không có file nào khớp số phát hành trong bảng. Kiểm tra tên file rồi chạy lại.');

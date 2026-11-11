@@ -71,11 +71,21 @@
   }
   try {
     if (typeof unsafeWindow !== "undefined" && isAutoConfirmEnabled()) {
+      const gocConfirm = unsafeWindow.confirm, gocAlert = unsafeWindow.alert;
+      const autoDangChay2 = () => {
+        try {
+          return !!(topWin.MPLIS_AUTO_STATE && topWin.MPLIS_AUTO_STATE.isRunning);
+        } catch (e) {
+          return false;
+        }
+      };
       unsafeWindow.confirm = function(message) {
+        if (!autoDangChay2()) return gocConfirm.call(unsafeWindow, message);
         console.log("[MPLIS Auto] Tự động chấp nhận confirm mặc định: " + message);
         return true;
       };
       unsafeWindow.alert = function(message) {
+        if (!autoDangChay2()) return gocAlert.call(unsafeWindow, message);
         console.log("[MPLIS Auto] Tự động bỏ qua alert: " + message);
         return true;
       };
@@ -317,6 +327,7 @@
         #mplis-run-toast .mplis-toast-bar { height: 4px; border-radius: 3px; background: rgba(255,255,255,0.09); overflow: hidden; }
         #mplis-run-toast .mplis-toast-bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, var(--mplis-accent), var(--mplis-accent-2)); transition: width 0.3s ease; }
         #mplis-run-toast .mplis-toast-bar i.done { background: var(--mplis-good); }
+        #mplis-run-toast .mplis-toast-bar i.error { background: var(--mplis-bad); }
         #mplis-run-toast .mplis-toast-log { margin-top: 8px; font-size: 11.5px; color: var(--mplis-text-dim); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         @media print { #mplis-run-toast { display: none !important; } }
 
@@ -332,6 +343,12 @@
         .mplis-btn-primary:active { transform: translateY(0); filter: brightness(0.97); box-shadow: 0 2px 8px rgba(99,102,241,0.3) !important; }
         .mplis-btn-primary.running { background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%) !important; box-shadow: 0 4px 15px rgba(244,63,94,0.4), inset 0 1px 0 rgba(255,255,255,0.15) !important; }
         .mplis-btn-primary.running:hover { box-shadow: 0 7px 22px rgba(244,63,94,0.55), inset 0 1px 0 rgba(255,255,255,0.2) !important; }
+        /* Chân bảng ghim đáy: nút Bắt đầu/Dừng + tóm tắt + trạng thái luôn thấy, không phải cuộn tìm. */
+        #mplis-auto-panel .mplis-runbar { position: sticky; bottom: 0; z-index: 2; margin: 8px -10px -10px; padding: 8px 10px 10px; background: var(--mplis-bg); border-top: 1px solid var(--mplis-border); }
+        #mplis-auto-panel .mplis-runbar .mplis-status-bar { margin-top: 8px !important; }
+        #mplis-auto-panel #btn-toggle-process { padding: 12px 14px !important; font-size: 14px !important; }
+        .mplis-run-summary { font-size: 12px; line-height: 1.5; color: var(--mplis-text-dim); margin-bottom: 8px; }
+        .mplis-run-summary b { color: var(--mplis-text); font-weight: 600; }
         .mplis-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; filter: none; box-shadow: none !important; }
 
         /* Chọn hậu tố GT/PT - 2 nút kiểu segmented, nút đang chọn đổi màu + đậm để nhìn là biết. */
@@ -352,15 +369,13 @@
         .mplis-status-lbl { display: flex !important; align-items: center !important; gap: 7px !important; color: #c8d3e8 !important; }
         .mplis-status-dot { width: 8px !important; height: 8px !important; border-radius: 50% !important; background-color: #4a5568 !important; flex-shrink: 0; }
         .mplis-status-dot.active { background-color: var(--mplis-good) !important; box-shadow: 0 0 0 2px rgba(34,197,94,0.2), 0 0 10px rgba(34,197,94,0.6) !important; }
+        .mplis-status-dot.error { background-color: var(--mplis-bad) !important; }
         .mplis-status-dot.waiting { background-color: var(--mplis-warn) !important; box-shadow: 0 0 0 2px rgba(245,158,11,0.2), 0 0 10px rgba(245,158,11,0.6) !important; }
         @keyframes mplis-pulse { 0% { opacity: 0.55; } 50% { opacity: 1; } 100% { opacity: 0.55; } }
 
         .mplis-log { margin-top: 8px !important; font-family: 'Consolas', 'Cascadia Code', monospace !important; font-size: 11.5px !important; color: var(--mplis-text-dim) !important; border-top: 1px solid rgba(148,163,184,0.1) !important; padding-top: 7px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
 
         .mplis-highlight-target { outline: 2px solid var(--mplis-good) !important; box-shadow: 0 0 0 4px rgba(34,197,94,0.15), 0 0 18px rgba(34,197,94,0.6) !important; border-radius: 4px !important; }
-        .tab-return-color .mplis-highlight-target { outline-color: var(--mplis-warn) !important; box-shadow: 0 0 0 4px rgba(245,158,11,0.15), 0 0 18px rgba(245,158,11,0.6) !important; }
-        .tab-return-color .mplis-btn-primary { background: linear-gradient(135deg, #f59e0b, #b45309) !important; color: #0a0c10 !important; box-shadow: 0 4px 15px rgba(245,158,11,0.38), inset 0 1px 0 rgba(255,255,255,0.2) !important; }
-        .tab-return-color .mplis-btn-primary.running { background: linear-gradient(135deg, var(--mplis-bad), #be123c) !important; color: #fff !important; }
 
         .mplis-filter-tab.active { background: rgba(99,102,241,0.28) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(99,102,241,0.4); }
         .mplis-excel-filter.active { background: rgba(99,102,241,0.28) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(99,102,241,0.4); }
@@ -651,6 +666,7 @@
               statusDot.className = "mplis-status-dot";
               if (type === "active") statusDot.classList.add("active");
               if (type === "waiting") statusDot.classList.add("waiting");
+              if (type === "error") statusDot.classList.add("error");
             }
           },
           incrementSuccess: function() {
@@ -727,9 +743,10 @@
     const defaultConfig = {
       activeWorkflows: ["QT0", "QT1", "QT2", "QT3"],
       isQT5: false,
-      // QT2 - bảng chọn file hồ sơ quét. Lọc theo Số phát hành/gt/pt LUÔN chạy ở cả 2 giá trị.
-      // true = tích thêm cả file mà bộ lọc không nhận và không gỡ tích file nào - dùng khi tên
-      // file đặt sai nên quy tắc lọc bỏ sót. false (mặc định) = chỉ giữ file bộ lọc nhận.
+      // QT2 - bảng chọn file hồ sơ quét.
+      // true = tích hết mọi file trong bảng, không gỡ tích file nào; khi gắn giấy chứng nhận thì
+      // chỉ gắn file có số phát hành trong tên khớp giấy của đơn. false (mặc định) = chỉ tích
+      // file khớp Số phát hành của đơn + file gt/pt dùng chung.
       qt2SelectAllFiles: false,
       qt2SoChuSo: 3,
       forwardUser: "",
@@ -1103,7 +1120,7 @@
             return;
           }
         }
-        if (topState.uploadDirHandle && typeof topState.refreshUploadFolder === "function" && now2 - (topState._dirRefreshAt || 0) > 1500) {
+        if (topState.uploadDirHandle && typeof topState.refreshUploadFolder === "function" && now2 - (topState._dirRefreshAt || 0) > 1500 && document.querySelector('#btnUploadFile.btn-success, a[type="upload"].btn-success')) {
           topState._dirRefreshAt = now2;
           try {
             await topState.refreshUploadFolder();
@@ -1758,9 +1775,11 @@
             }
           })();
           if (isFilePopupOpen) {
-            if (topState.config.qt2SelectAllFiles && !chkSelectAll.hasAttribute("data-mplis-selectall") && !chkSelectAll.hasAttribute("data-mplis-clicked")) {
-              writeLog("Bấm 'Chọn tất cả' để tích hết bảng trước khi lọc...");
-              chkSelectAll.setAttribute("data-mplis-selectall", "true");
+            const lanBamAll = parseInt(chkSelectAll.getAttribute("data-mplis-selectall") || "0", 10);
+            const conDongChuaTich = Array.from(document.querySelectorAll('#tbDanhSachGiayToDinhKem tbody tr input[type="checkbox"]')).some((c) => !c.checked);
+            if (topState.config.qt2SelectAllFiles && lanBamAll < 3 && (!chkSelectAll.checked || conDongChuaTich) && !chkSelectAll.hasAttribute("data-mplis-clicked")) {
+              writeLog("Bấm 'Chọn tất cả' để tích hết bảng trước khi lọc (lần " + (lanBamAll + 1) + ")...");
+              chkSelectAll.setAttribute("data-mplis-selectall", String(lanBamAll + 1));
               const jqAll = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
               if (jqAll) jqAll(chkSelectAll).click();
               else chkSelectAll.click();
@@ -1772,7 +1791,7 @@
               chkSelectAll.setAttribute("data-mplis-clicked", "true");
               const jq2 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
               const totalDons = document.querySelectorAll("#lstDonDangKy ul.dondangky-item").length;
-              if (topState.config.qt2SelectAllFiles) writeLog("Đã tích hết bảng, giờ lọc bỏ file sai Số phát hành...");
+              if (topState.config.qt2SelectAllFiles) writeLog("Đã tích hết bảng, giữ nguyên toàn bộ file (giấy chứng nhận sẽ gán đúng theo Số phát hành ở bước sau)...");
               const fileRows = Array.from(document.querySelectorAll("#tbDanhSachGiayToDinhKem tbody tr"));
               for (const row of fileRows) {
                 const cb = row.querySelector('input[type="checkbox"]');
@@ -1780,9 +1799,9 @@
                 const fileName = (row.textContent || "").toUpperCase();
                 const isGtPt = /(GT|PT)\.PDF/.test(fileName) || /[\d+]-(GT|PT)(?![A-Z])/.test(fileName);
                 const coTenFile = fileName.includes(".PDF") || isGtPt || /\d{3,}\+?-[A-ZĐ]{1,2}\s*\d{5,}/.test(fileName);
-                if (!coTenFile) continue;
+                if (!coTenFile && !topState.config.qt2SelectAllFiles) continue;
                 let shouldKeep;
-                if (totalDons <= 1) {
+                if (totalDons <= 1 || topState.config.qt2SelectAllFiles) {
                   shouldKeep = true;
                 } else {
                   if (isGtPt) {
@@ -1888,7 +1907,12 @@
                   const dsSph = topState.qt2SoPhatHanhList || [];
                   const sphTuTen = docSphTuTen(targetRow.textContent);
                   let assignedSph = null;
-                  if (dsSph.length >= 2) {
+                  if (topState.config.qt2SelectAllFiles && dsSph.length === 0) {
+                    dungQT2("Không đọc được số phát hành", 'Đơn này không đọc được số phát hành của giấy chứng nhận nên không biết file nào thuộc giấy nào. Tắt "chọn hết file" hoặc xử lý tay.');
+                    return;
+                  }
+                  const gan_theo_ten = dsSph.length >= 2 || topState.config.qt2SelectAllFiles && dsSph.length === 1;
+                  if (gan_theo_ten) {
                     if (sphTuTen && dsSph.includes(sphTuTen)) {
                       if ((topState.qt2DaGan || []).includes(sphTuTen)) {
                         dungQT2("Hai file cùng số phát hành", "Có từ 2 file cùng mang số phát hành " + sphTuTen + ", không biết file nào đúng. Xử lý tay.");
@@ -1921,7 +1945,7 @@
                 }
               } else {
                 const dsCan = topState.qt2SoPhatHanhList || [];
-                if (dsCan.length >= 2) {
+                if (dsCan.length >= 2 || topState.config.qt2SelectAllFiles && dsCan.length === 1) {
                   const chuaCo = dsCan.filter((x) => !(topState.qt2DaGan || []).includes(x));
                   if (chuaCo.length) {
                     dungQT2("Thiếu file giấy chứng nhận", "Giấy chứng nhận " + chuaCo.join(", ") + " không có file nào khớp số phát hành trong bảng. Kiểm tra tên file rồi chạy lại.");
@@ -2333,984 +2357,6 @@
     };
   }();
 
-  // src/return-module.js
-  var ReturnModule = function() {
-    const defaultConfig = { delayOpen: 500, delayAction: 500, delayNext: 500 };
-    const { getTopState, writeLog, updateStatus, incrementSuccess, setLastActionTime, saveConfig } = createModuleRuntime({
-      globalStateKey: "MPLIS_AUTO_TRAHOSO_STATE",
-      configStorageKey: "mplis_auto_trahoso_config",
-      defaultConfig,
-      logPrefix: "[MPLIS TraHoSo] ",
-      domSuffix: "return"
-    });
-    async function scanAndExecute() {
-      try {
-        const topState = getTopState();
-        if (!topState || !topState.isRunning) return;
-        const now2 = Date.now();
-        const lockDuration = topState.currentLockDuration || 1200;
-        if (topState.lastActionTime && now2 - topState.lastActionTime < lockDuration) return;
-        if (isSystemLoading()) {
-          updateStatus("Hệ thống đang xử lý...", "waiting");
-          return;
-        }
-        const jconfirmBox = document.querySelector(".jconfirm-box");
-        if (jconfirmBox) {
-          const jcRect = jconfirmBox.getBoundingClientRect();
-          if (jcRect.width > 0 && jcRect.height > 0) {
-            const jcMessage = (jconfirmBox.querySelector(".jconfirm-content, .jconfirm-message") || {}).textContent || "";
-            if (jcMessage.toLowerCase().includes("thật sự muốn trả hồ sơ")) {
-              const agreeBtn = jconfirmBox.querySelector(".jconfirm-buttons .btn-orange, .jconfirm-buttons button:first-child");
-              if (agreeBtn) {
-                setLastActionTime(now2, topState.config.delayNext);
-                writeLog("Phát hiện hộp thoại trả hồ sơ. Bấm 'Đồng ý'...");
-                clickElement(agreeBtn);
-                incrementSuccess();
-                updateStatus("Đang xử lý trả...", "waiting");
-                return;
-              }
-            }
-          }
-        }
-        const btnLuuTraHoSo = document.querySelector("#btnLuuTraHoSo");
-        if (btnLuuTraHoSo && (() => {
-          try {
-            return btnLuuTraHoSo.getBoundingClientRect().width > 0;
-          } catch (e) {
-            return false;
-          }
-        })()) {
-          if (!btnLuuTraHoSo.hasAttribute("data-mplis-clicked")) {
-            setLastActionTime(now2, topState.config.delayAction);
-            btnLuuTraHoSo.setAttribute("data-mplis-clicked", "true");
-            writeLog("Bấm 'Thực hiện' lưu trả hồ sơ...");
-            clickElement(btnLuuTraHoSo);
-            updateStatus("Chờ xác nhận...", "waiting");
-            return;
-          } else {
-            updateStatus("Đợi xác nhận...", "waiting");
-            return;
-          }
-        }
-        const btnXuLyTacVuList = Array.from(document.querySelectorAll('.btnXuLyTacVu[data-actioncode="TraHoSo"]'));
-        const visibleBtnXuLyTacVu = btnXuLyTacVuList.filter((el) => {
-          try {
-            return el.getBoundingClientRect().width > 0;
-          } catch (e) {
-            return false;
-          }
-        });
-        if (visibleBtnXuLyTacVu.length > 0) {
-          const btn = visibleBtnXuLyTacVu[0];
-          const tr = btn.closest("tr");
-          if (tr) {
-            const checkbox = tr.querySelector('input[type="checkbox"]');
-            if (checkbox && checkbox.checked) {
-              const closeBtn = document.querySelector('button.close, .modal-header .close, button[data-dismiss="modal"]');
-              if (closeBtn && (() => {
-                try {
-                  return closeBtn.getBoundingClientRect().width > 0;
-                } catch (e) {
-                  return false;
-                }
-              })()) {
-                if (!closeBtn.hasAttribute("data-mplis-clicked")) {
-                  closeBtn.setAttribute("data-mplis-clicked", "true");
-                  setLastActionTime(now2, topState.config.delayNext);
-                  writeLog("Đã xử lý xong tác vụ. Đóng bảng...");
-                  clickElement(closeBtn);
-                  return;
-                }
-              }
-            } else if (!btn.hasAttribute("data-mplis-clicked")) {
-              setLastActionTime(now2, topState.config.delayAction);
-              btn.setAttribute("data-mplis-clicked", "true");
-              writeLog("Bấm 'Xử lý tác vụ' cho 'Trả hồ sơ'...");
-              clickElement(btn);
-              updateStatus("Chờ xác nhận...", "waiting");
-              return;
-            } else {
-              updateStatus("Đợi xác nhận...", "waiting");
-              return;
-            }
-          }
-        }
-        const isAnyModalOpen = Array.from(document.querySelectorAll(".modal.in, .modal.show, .k-window, .ui-dialog, .dx-popup-content")).some((el) => {
-          try {
-            return el.getBoundingClientRect().width > 0;
-          } catch (e) {
-            return false;
-          }
-        });
-        if (isAnyModalOpen) {
-          updateStatus("Đang mở bảng...", "waiting");
-          return;
-        }
-        const rows = Array.from(document.querySelectorAll("tr"));
-        let targetRow = null;
-        let hasAnyTargetInTable = false;
-        for (const row of rows) {
-          if (row.querySelector("th")) continue;
-          try {
-            if (row.getBoundingClientRect().width === 0) continue;
-          } catch (e) {
-            continue;
-          }
-          const rowText = (row.textContent || "").toLowerCase();
-          if (rowText.includes("5. trả kết quả hồ sơ") || rowText.includes("6. trả kết quả hồ sơ") || rowText.includes("9. trả kết quả hồ sơ")) {
-            hasAnyTargetInTable = true;
-            if (row.getAttribute("data-mplis-processed") !== "true") {
-              targetRow = row;
-              break;
-            }
-          }
-        }
-        if (targetRow) {
-          if (targetRow.getAttribute("data-mplis-selected") !== "true") {
-            targetRow.setAttribute("data-mplis-selected", "true");
-            const firstTd = targetRow.querySelector("td");
-            if (firstTd) clickElement(firstTd);
-            clickElement(targetRow);
-            const input = targetRow.querySelector('input[type="radio"], input[type="checkbox"]');
-            if (input) {
-              input.checked = true;
-              try {
-                input.dispatchEvent(new Event("change", { bubbles: true }));
-              } catch (e) {
-              }
-              clickElement(input);
-            }
-            try {
-              const win = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
-              if (win.$) {
-                const $row = win.$(targetRow);
-                $row.click();
-              }
-            } catch (e) {
-            }
-            setLastActionTime(now2, 800);
-            writeLog("Đã chọn hồ sơ (5/6/9). Chờ bấm Xử lý hồ sơ...");
-            updateStatus("Chọn hồ sơ...", "waiting");
-            return;
-          } else {
-            const btnXuly = document.querySelector("#btnXuly") || Array.from(document.querySelectorAll("button, a")).find((el) => {
-              const text = (el.textContent || "").trim().toLowerCase();
-              return text === "xử lý hồ sơ";
-            });
-            if (btnXuly && (() => {
-              try {
-                return btnXuly.getBoundingClientRect().width > 0;
-              } catch (e) {
-                return false;
-              }
-            })()) {
-              setLastActionTime(now2, topState.config.delayOpen);
-              writeLog("Bấm 'Xử lý hồ sơ'...");
-              clickElement(btnXuly);
-              targetRow.setAttribute("data-mplis-processed", "true");
-              updateStatus("Chờ mở bảng...", "waiting");
-              return;
-            } else {
-              updateStatus("Đợi nút Xử lý hồ sơ...", "waiting");
-            }
-          }
-        } else {
-          if (!hasAnyTargetInTable) {
-            writeLog("Không có hồ sơ Trả kết quả (5, 6, 9) nào. Dừng Auto.");
-            updateStatus("Hoàn thành", "idle");
-            if (typeof topWin.MPLIS_AUTO_TRAHOSO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TRAHOSO_TOGGLE_FUNC("🎉 KHÔNG TÌM THẤY HỒ SƠ ĐỂ TRẢ!");
-            return;
-          } else {
-            const hasDone = rows.some((r) => r.getAttribute("data-mplis-processed") === "true");
-            if (hasDone) {
-              writeLog("Hoàn thành! Đã quét hết hồ sơ Trả kết quả (5, 6, 9).");
-              updateStatus("Hoàn thành", "idle");
-              if (typeof topWin.MPLIS_AUTO_TRAHOSO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TRAHOSO_TOGGLE_FUNC("🎉 ĐÃ HOÀN THÀNH TOÀN BỘ!");
-              return;
-            }
-          }
-        }
-        updateStatus("Đang quét...", "active");
-      } catch (e) {
-        console.error("[MPLIS Auto Trả Hồ Sơ Error] ", e);
-      }
-    }
-    setInterval(scanAndExecute, 1200);
-    return {
-      getTopState,
-      saveConfig
-    };
-  }();
-
-  // src/update-parcel-module.js
-  var UpdateParcelModule = function() {
-    const state = {
-      isRunning: false,
-      excelData: [],
-      currentIndex: 0,
-      logBuffer: [],
-      config: {
-        delayAction: 1500,
-        delayPageLoad: 3e3
-      }
-    };
-    function writeLog(msg) {
-      const logContent = document.getElementById("vbdlis-logs");
-      if (!logContent) return;
-      const time = (/* @__PURE__ */ new Date()).toLocaleTimeString();
-      logContent.innerHTML += `[${time}] ${msg}
-`;
-      logContent.scrollTop = logContent.scrollHeight;
-    }
-    function parseExcelInput() {
-      const rawText = document.getElementById("update-excel-input").value.trim();
-      if (!rawText) {
-        writeLog("⚠️ Chưa có dữ liệu Excel được dán vào!");
-        return;
-      }
-      const lines = rawText.split("\n");
-      const parsed = [];
-      const groupCounts = {};
-      lines.forEach((line, idx) => {
-        const cols = line.split("	").map((c) => c.trim());
-        if (line.toLowerCase().includes("số phát hành") || line.toLowerCase().includes("tham chiếu")) {
-          return;
-        }
-        if (cols.length >= 4) {
-          let sph = "";
-          let newTo, rawNewThua, oldTo, oldThua;
-          if (cols.length >= 5) {
-            sph = cols[0].toUpperCase();
-            newTo = cols[1];
-            rawNewThua = cols[2];
-            oldTo = cols[3];
-            oldThua = cols[4];
-          } else {
-            sph = "";
-            newTo = cols[0];
-            rawNewThua = cols[1];
-            oldTo = cols[2];
-            oldThua = cols[3];
-          }
-          let thuaList = rawNewThua.split(/[,;.]+/).map((x) => x.trim()).filter((x) => x);
-          if (thuaList.length === 0) thuaList = [rawNewThua];
-          let groupKey = `${sph}_${newTo}_${rawNewThua}`;
-          groupCounts[groupKey] = (groupCounts[groupKey] || 0) + 1;
-          const extractNum = (str) => {
-            const match = str.match(/\d+/);
-            return match ? match[0] : str;
-          };
-          parsed.push({
-            sph,
-            newTo,
-            newThuaList: thuaList,
-            newThua: thuaList[0],
-            // Lấy số đầu tiên
-            newThuaIndex: 0,
-            oldTo: extractNum(oldTo),
-            oldThua: extractNum(oldThua),
-            groupKey
-          });
-        }
-      });
-      if (parsed.length === 0) {
-        writeLog("❌ Không thể phân tích dữ liệu. Vui lòng kiểm tra lại cấu trúc cột!");
-        return;
-      }
-      parsed.forEach((t) => {
-        t.isGroup = groupCounts[t.groupKey] > 1;
-      });
-      state.excelData = parsed;
-      state.groupSuccess = {};
-      state.currentIndex = 0;
-      document.getElementById("stat-total").textContent = parsed.length;
-      document.getElementById("stat-current").textContent = "1";
-      document.getElementById("btn-update-start").removeAttribute("disabled");
-      writeLog(`✅ Đã phân tích xong ${parsed.length} dòng dữ liệu!`);
-      console.log("Parsed Excel Data:", parsed);
-    }
-    function startAuto() {
-      if (state.excelData.length === 0) return;
-      state.isRunning = true;
-      document.getElementById("stat-status").textContent = "Đang chạy...";
-      document.getElementById("stat-status").className = "status-running";
-      document.getElementById("btn-update-start").style.display = "none";
-      document.getElementById("btn-update-stop").style.display = "block";
-      writeLog("▶️ Bắt đầu tiến trình tự động...");
-    }
-    function stopAuto() {
-      state.isRunning = false;
-      document.getElementById("stat-status").textContent = "Tạm dừng";
-      document.getElementById("stat-status").className = "status-paused";
-      document.getElementById("btn-update-start").style.display = "block";
-      document.getElementById("btn-update-stop").style.display = "none";
-      writeLog("⏸️ Đã tạm dừng tiến trình Auto.");
-    }
-    function isPageLoading() {
-      try {
-        const commonLoaders = Array.from(document.querySelectorAll(".loading, .loader, #loading, #loader, .k-loading-mask, .blockUI.blockOverlay, .blockUI.blockMsg, .dx-loadpanel, #AjaxLoader, .dataTables_processing"));
-        for (const loader of commonLoaders) {
-          const style = window.getComputedStyle(loader);
-          if (style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0") {
-            const rect = loader.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0) return true;
-          }
-        }
-        const allElements = Array.from(document.querySelectorAll("div, span, p"));
-        for (const el of allElements) {
-          if (el.children.length <= 2) {
-            const text = (el.textContent || "").trim().toLowerCase();
-            if (text === "đang xử lý..." || text === "đang xử lý") {
-              const style = window.getComputedStyle(el);
-              if (style.display !== "none" && style.visibility !== "hidden") {
-                const rect = el.getBoundingClientRect();
-                if (rect.width > 0 && rect.height > 0) return true;
-              }
-            }
-          }
-        }
-      } catch (e) {
-      }
-      return false;
-    }
-    function getVisibleElement(selector) {
-      const els = Array.from(document.querySelectorAll(selector));
-      return els.find((el) => el.offsetWidth > 0 && el.offsetHeight > 0 && window.getComputedStyle(el).display !== "none");
-    }
-    setInterval(() => {
-      if (!state.isRunning) return;
-      if (isPageLoading()) {
-        return;
-      }
-      if (state.currentIndex >= state.excelData.length) {
-        writeLog("🎉 Hoàn thành cập nhật toàn bộ danh sách Excel!");
-        stopAuto();
-        return;
-      }
-      const task = state.excelData[state.currentIndex];
-      document.getElementById("stat-current").textContent = state.currentIndex + 1;
-      if (!state.step) {
-        state.step = "OPEN_SEARCH";
-      }
-      const jq2 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-      switch (state.step) {
-        case "OPEN_SEARCH":
-          if (task.isGroup && state.groupSuccess[task.groupKey]) {
-            writeLog(`⏭️ Nhóm gộp thửa đã có 1 thửa đại diện thành công. Bỏ qua thửa cũ ${task.oldThua} (Đã ứng đại diện).`);
-            task.resultStatus = "Đã ứng đại diện";
-            state.step = "NEXT_TASK";
-            break;
-          }
-          const btnSearch = getVisibleElement("#btnChonDonDangKy");
-          if (btnSearch) {
-            writeLog("Bước 1: Bấm nút 'Tra cứu'...");
-            if (jq2) jq2(btnSearch).click();
-            else btnSearch.click();
-            state.step = "WAIT_OPEN_SEARCH";
-            state.lastOpenSearchTime = Date.now();
-          }
-          break;
-        case "WAIT_OPEN_SEARCH":
-          if (Date.now() - state.lastOpenSearchTime > 400) {
-            const btnRefresh = getVisibleElement("#btnKhoiTaoTraCuuTinhHinhDangKyChiTiet");
-            if (btnRefresh) {
-              writeLog("Làm mới form tra cứu để xóa kết quả cũ...");
-              if (jq2) jq2(btnRefresh).click();
-              else btnRefresh.click();
-            }
-            task.searchAttempt = task.searchAttempt || 0;
-            if (task.sph) {
-              state.step = "SEARCH_SPH";
-            } else {
-              writeLog(`⚠️ Đơn này KHÔNG CÓ Số Phát Hành. Tự động chuyển thẳng sang tìm bằng Tờ/Thửa cũ...`);
-              task.searchAttempt = 1;
-              state.step = "SEARCH_FALLBACK";
-            }
-          }
-          break;
-        case "SEARCH_SPH":
-          const inputSPH = getVisibleElement('input[name="soPhatHanh"]');
-          const btnSubmitSearch = getVisibleElement("#btnTraCuuTinhHinhDangKy");
-          if (inputSPH && btnSubmitSearch) {
-            writeLog(`Bước 2: Nhập SPH [${task.sph}] và tìm kiếm...`);
-            state.step = "WAIT_SEARCH";
-            setTimeout(() => {
-              inputSPH.value = task.sph;
-              inputSPH.dispatchEvent(new Event("input", { bubbles: true }));
-              inputSPH.dispatchEvent(new Event("change", { bubbles: true }));
-              setTimeout(() => {
-                if (jq2) jq2(btnSubmitSearch).click();
-                else btnSubmitSearch.click();
-                state.step = "WAIT_SEARCH_RESULT";
-                state.lastSearchTime = Date.now();
-              }, 200);
-            }, 200);
-          }
-          break;
-        case "SEARCH_FALLBACK":
-          const inputToCu = getVisibleElement('input[name="soHieuToBanDoCu"]');
-          const inputThuaCu = getVisibleElement('input[name="soThuTuThuaCu"]');
-          const btnSubmitSearch2 = getVisibleElement("#btnTraCuuTinhHinhDangKy");
-          if (inputToCu && inputThuaCu && btnSubmitSearch2) {
-            writeLog(`Bước 2 (Dự phòng 1): Nhập Tờ cũ [${task.oldTo}] & Thửa cũ [${task.oldThua}] và tìm kiếm...`);
-            state.step = "WAIT_SEARCH";
-            setTimeout(() => {
-              inputToCu.value = task.oldTo;
-              inputToCu.dispatchEvent(new Event("input", { bubbles: true }));
-              inputToCu.dispatchEvent(new Event("change", { bubbles: true }));
-              inputThuaCu.value = task.oldThua;
-              inputThuaCu.dispatchEvent(new Event("input", { bubbles: true }));
-              inputThuaCu.dispatchEvent(new Event("change", { bubbles: true }));
-              setTimeout(() => {
-                if (jq2) jq2(btnSubmitSearch2).click();
-                else btnSubmitSearch2.click();
-                state.step = "WAIT_SEARCH_RESULT";
-                state.lastSearchTime = Date.now();
-              }, 200);
-            }, 200);
-          } else {
-            writeLog(`⚠️ Lỗi giao diện: Không tìm thấy ô nhập Tờ/Thửa cũ.`);
-            task.resultStatus = "Lỗi giao diện (thiếu ô Tờ/Thửa cũ)";
-            state.step = "NEXT_TASK";
-            const btnCloseSearch2 = getVisibleElement("#TraCuuTinhHinhDangKy .close") || getVisibleElement('button[data-dismiss="modal"].close');
-            if (btnCloseSearch2) {
-              if (jq2) jq2(btnCloseSearch2).click();
-              else btnCloseSearch2.click();
-            }
-          }
-          break;
-        case "SEARCH_FALLBACK_2":
-          const inputToMacDinh = getVisibleElement('input[name="soHieuToBanDo"]');
-          const inputThuaMacDinh = getVisibleElement('input[name="soThuTuThua"]');
-          const btnSubmitSearch3 = getVisibleElement("#btnTraCuuTinhHinhDangKy");
-          if (inputToMacDinh && inputThuaMacDinh && btnSubmitSearch3) {
-            writeLog(`Bước 2 (Dự phòng 2): Nhập Tờ mặc định [${task.oldTo}] & Thửa mặc định [${task.oldThua}] và tìm kiếm...`);
-            state.step = "WAIT_SEARCH";
-            setTimeout(() => {
-              inputToMacDinh.value = task.oldTo;
-              inputToMacDinh.dispatchEvent(new Event("input", { bubbles: true }));
-              inputToMacDinh.dispatchEvent(new Event("change", { bubbles: true }));
-              inputThuaMacDinh.value = task.oldThua;
-              inputThuaMacDinh.dispatchEvent(new Event("input", { bubbles: true }));
-              inputThuaMacDinh.dispatchEvent(new Event("change", { bubbles: true }));
-              setTimeout(() => {
-                if (jq2) jq2(btnSubmitSearch3).click();
-                else btnSubmitSearch3.click();
-                state.step = "WAIT_SEARCH_RESULT";
-                state.lastSearchTime = Date.now();
-              }, 200);
-            }, 200);
-          } else {
-            writeLog(`⚠️ Lỗi giao diện: Không tìm thấy ô nhập Tờ/Thửa mặc định.`);
-            task.resultStatus = "Lỗi giao diện (thiếu ô Tờ/Thửa mặc định)";
-            state.step = "NEXT_TASK";
-            const btnCloseSearch3 = getVisibleElement("#TraCuuTinhHinhDangKy .close") || getVisibleElement('button[data-dismiss="modal"].close');
-            if (btnCloseSearch3) {
-              if (jq2) jq2(btnCloseSearch3).click();
-              else btnCloseSearch3.click();
-            }
-          }
-          break;
-        case "WAIT_SEARCH":
-          break;
-        case "WAIT_SEARCH_RESULT":
-          if (Date.now() - state.lastSearchTime > 1200) {
-            state.step = "SELECT_DOSSIER";
-          }
-          break;
-        case "SELECT_DOSSIER":
-          const visibleTable = getVisibleElement("#tblTraCuuTinhHinhDangKy");
-          if (!visibleTable) {
-            if (Date.now() - state.lastSearchTime > 8e3) {
-              writeLog(`⚠️ Không tìm thấy bảng kết quả tra cứu. Bỏ qua.`);
-              task.resultStatus = "Lỗi giao diện (không thấy bảng)";
-              state.step = "NEXT_TASK";
-            }
-            break;
-          }
-          const tbody = visibleTable.querySelector("tbody");
-          const emptyCell = tbody ? tbody.querySelector("td.dataTables_empty") : null;
-          if (emptyCell && emptyCell.textContent.toLowerCase().includes("không tìm thấy")) {
-            task.searchAttempt = task.searchAttempt || 0;
-            if (task.searchAttempt === 0) {
-              writeLog(`⚠️ Không tìm thấy SPH [${task.sph}]. Chuyển sang tìm dự phòng (1) bằng Tờ/Thửa cũ...`);
-              task.searchAttempt = 1;
-              const btnRefresh = getVisibleElement("#btnKhoiTaoTraCuuTinhHinhDangKyChiTiet");
-              if (btnRefresh) {
-                if (jq2) jq2(btnRefresh).click();
-                else btnRefresh.click();
-              }
-              state.step = "SEARCH_FALLBACK";
-            } else if (task.searchAttempt === 1) {
-              writeLog(`⚠️ Không tìm thấy bằng Tờ/Thửa cũ. Chuyển sang tìm dự phòng (2) bằng Tờ/Thửa mặc định...`);
-              task.searchAttempt = 2;
-              const btnRefresh = getVisibleElement("#btnKhoiTaoTraCuuTinhHinhDangKyChiTiet");
-              if (btnRefresh) {
-                if (jq2) jq2(btnRefresh).click();
-                else btnRefresh.click();
-              }
-              state.step = "SEARCH_FALLBACK_2";
-            } else {
-              writeLog(`⚠️ Đã thử tìm bằng CẢ 3 CÁCH (SPH, Tờ/Thửa cũ, Tờ/Thửa mặc định) nhưng vẫn KHÔNG CÓ ĐƠN. Bỏ qua.`);
-              task.resultStatus = "Không tìm thấy đơn (thử cả 3 cách)";
-              const btnCloseSearch = getVisibleElement("#TraCuuTinhHinhDangKy .close") || getVisibleElement('button[data-dismiss="modal"].close');
-              if (btnCloseSearch) {
-                if (jq2) jq2(btnCloseSearch).click();
-                else btnCloseSearch.click();
-              }
-              state.step = "NEXT_TASK";
-            }
-            break;
-          }
-          const rawRows = tbody ? Array.from(tbody.querySelectorAll("tr:not(.dataTables_empty)")) : [];
-          const rows = rawRows.filter((r) => r.offsetWidth > 0 && r.parentElement === tbody);
-          const btnSelect = getVisibleElement("#btnLuuChonTinhHinhDangKy");
-          if (rows.length > 1) {
-            console.log("CHI TIẾT LỖI TRÙNG ĐƠN - Các dòng thu được:", rows.map((r) => r.outerHTML));
-            writeLog(`⚠️ SPH [${task.sph}] có ${rows.length} đơn (Trùng đơn) → Bỏ qua và đóng tìm kiếm.`);
-            task.resultStatus = `Trùng đơn (${rows.length} kết quả)`;
-            const btnCloseSearch = getVisibleElement("#TraCuuTinhHinhDangKy .close") || getVisibleElement('button[data-dismiss="modal"].close');
-            if (btnCloseSearch) {
-              if (jq2) jq2(btnCloseSearch).click();
-              else btnCloseSearch.click();
-            }
-            state.step = "NEXT_TASK";
-            break;
-          }
-          if (rows.length === 1 && btnSelect) {
-            const row = rows[0];
-            writeLog("Bước 3: Tìm thấy Đơn. Tiến hành chọn đơn...");
-            const cb = row.querySelector("td.select-checkbox");
-            if (jq2) {
-              if (cb) jq2(cb).click();
-              jq2(row).click();
-              jq2(row).addClass("selected");
-            } else {
-              if (cb) cb.click();
-              row.click();
-              row.classList.add("selected");
-            }
-            setTimeout(() => {
-              writeLog("Bấm 'Đồng ý' chọn đơn...");
-              if (jq2) jq2(btnSelect).click();
-              else btnSelect.click();
-            }, 800);
-            state.step = "OPEN_PARCEL";
-            state.lastOpenParcelTime = Date.now();
-          } else {
-            if (Date.now() - state.lastSearchTime > 8e3) {
-              writeLog(`⚠️ Không tìm thấy Đơn cho SPH: ${task.sph}. Bỏ qua.`);
-              task.resultStatus = "Không tìm thấy Đơn";
-              state.step = "NEXT_TASK";
-            }
-          }
-          break;
-        case "OPEN_PARCEL":
-          const tree = document.getElementById("treeTaiSan");
-          if (tree) {
-            const anchors = Array.from(tree.querySelectorAll("a.jstree-anchor"));
-            writeLog(`🔍 Đang tìm thửa cũ: Thửa ${task.oldThua}, Tờ ${task.oldTo} (Dạng hiển thị: ${task.oldThua} (${task.oldTo}))`);
-            console.log("Danh sách thửa trên VBDLIS:", anchors.map((a) => (a.textContent || "").trim()));
-            const cleanOldThua = parseInt(task.oldThua, 10).toString();
-            const cleanOldTo = parseInt(task.oldTo, 10).toString();
-            const targetAnchor = anchors.find((a) => {
-              const txt = (a.textContent || "").trim();
-              const cleanTxt = txt.replace(/\s+/g, "");
-              const cleanTarget1 = `${cleanOldThua}(${cleanOldTo})`;
-              const cleanTarget2 = `cũ:${cleanOldThua}(${cleanOldTo})`;
-              return cleanTxt.includes(cleanTarget1) || cleanTxt.includes(cleanTarget2);
-            });
-            if (targetAnchor) {
-              writeLog(`🎯 Đã tìm thấy thửa cũ khớp trên cây tài sản! Đang chọn...`);
-              if (!targetAnchor.classList.contains("jstree-clicked")) {
-                if (jq2) jq2(targetAnchor).click();
-                else targetAnchor.click();
-              }
-              const btnSua = document.getElementById("btnSuaTaiSan");
-              if (btnSua) {
-                setTimeout(() => {
-                  writeLog("Bấm nút 'Sửa' thửa đất...");
-                  if (jq2) jq2(btnSua).click();
-                  else btnSua.click();
-                }, 500);
-                state.step = "EDIT_PARCEL";
-                state.lastEditParcelTime = Date.now();
-              }
-            } else {
-              const cleanNewTo = parseInt(task.newTo, 10).toString();
-              const alreadyUpdatedAnchor = anchors.find((a) => {
-                const txt = (a.textContent || "").trim();
-                const cleanTxt = txt.replace(/\s+/g, "");
-                return task.newThuaList.some((newTh) => {
-                  const cleanNewTh = parseInt(newTh, 10).toString();
-                  return cleanTxt.includes(`${cleanNewTh}(${cleanNewTo})`);
-                });
-              });
-              if (alreadyUpdatedAnchor) {
-                writeLog(`✅ Thửa Mới đã có trên hệ thống (đã được cập nhật từ trước). Bỏ qua và đánh dấu thành công.`);
-                task.resultStatus = `Đã cập nhật trước đó`;
-                if (task.isGroup) {
-                  state.groupSuccess[task.groupKey] = true;
-                }
-                state.step = "REMOVE_DOSSIER";
-                state.lastRemoveTime = Date.now();
-              } else {
-                if (Date.now() - state.lastOpenParcelTime > 1e4) {
-                  writeLog(`⚠️ Không tìm thấy thửa cũ [Thửa ${task.oldThua} (Tờ ${task.oldTo})] → Bỏ đơn ra danh sách.`);
-                  task.resultStatus = `Không tìm thấy thửa ${task.oldThua} (${task.oldTo})`;
-                  state.step = "REMOVE_DOSSIER";
-                  state.lastRemoveTime = Date.now();
-                }
-              }
-            }
-          }
-          break;
-        case "EDIT_PARCEL":
-          const formThuaDat = getVisibleElement('div[id^="frmThuaDat-"]');
-          const inputTo = formThuaDat ? formThuaDat.querySelector('input[name="soHieuToBanDo"]') : null;
-          const inputThua = formThuaDat ? formThuaDat.querySelector('input[name="soThuTuThua"]') : null;
-          const btnSaveThua = formThuaDat ? formThuaDat.parentElement.querySelector('button[id^="btnSaveThuaDat-"]') || document.querySelector('button[id^="btnSaveThuaDat-"]') : null;
-          if (formThuaDat && inputTo && inputThua && btnSaveThua) {
-            writeLog(`📝 Form thửa đất đã mở! Đang chờ giao diện ổn định...`);
-            state.step = "WAIT_PARCEL_EDITING";
-            setTimeout(() => {
-              writeLog(`Tiến hành điền Thửa mới [${task.newThua}], Tờ mới [${task.newTo}]...`);
-              const fillInput = (el, val) => {
-                if (!el) return;
-                el.focus();
-                el.value = val;
-                el.setAttribute("value", val);
-                el.dispatchEvent(new Event("input", { bubbles: true }));
-                el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
-                el.dispatchEvent(new Event("change", { bubbles: true }));
-                el.blur();
-                if (jq2) jq2(el).val(val).trigger("input").trigger("change").trigger("keyup");
-              };
-              fillInput(inputThua, task.newThua);
-              fillInput(inputTo, task.newTo);
-              if (task.newThuaIndex > 0) {
-                writeLog("🔁 Đang thử lại Thửa mới, bỏ qua kiểm tra Nguồn gốc đất.");
-                setTimeout(() => {
-                  writeLog("💾 Bấm lưu Thửa Đất (Thử lại)...");
-                  if (jq2) jq2(btnSaveThua).click();
-                  else btnSaveThua.click();
-                  state.step = "WAIT_PARCEL_SAVE";
-                  state.lastSaveTime = Date.now();
-                }, 500);
-              } else {
-                const formMdsdContainer = getVisibleElement('div[id^="frmMucDichSuDung-"]');
-                const mdsdForms = formMdsdContainer ? Array.from(formMdsdContainer.querySelectorAll('form[data-duplicate="mucdichsudung"]')) : [];
-                writeLog(`Tìm thấy ${mdsdForms.length} loại đất cần kiểm tra Nguồn gốc.`);
-                let mdsdDelay = 500;
-                mdsdForms.forEach((mdsdForm, idx) => {
-                  const preSelectNguonGoc = mdsdForm.querySelector('select[name="loaiNguonGocSuDungDatId"]');
-                  if (preSelectNguonGoc && preSelectNguonGoc.value && preSelectNguonGoc.value !== "0") {
-                    setTimeout(() => {
-                      writeLog(`✅ MĐSD thứ ${idx + 1} đã có sẵn nguồn gốc (mã ${preSelectNguonGoc.value}), khỏi mở form.`);
-                    }, mdsdDelay);
-                    return;
-                  }
-                  setTimeout(() => {
-                    const stringWrapper = mdsdForm.querySelector(".string-wrapper");
-                    if (stringWrapper) {
-                      if (jq2) jq2(stringWrapper).click();
-                      else stringWrapper.click();
-                    }
-                    if (jq2) {
-                      jq2(mdsdForm).addClass("item-selected expanded");
-                    } else {
-                      mdsdForm.classList.add("item-selected", "expanded");
-                    }
-                    setTimeout(() => {
-                      const selectMdsd = mdsdForm.querySelector('select[name="loaiMucDichSuDungId"]');
-                      const selectNguonGoc = mdsdForm.querySelector('select[name="loaiNguonGocSuDungDatId"]');
-                      if (!selectMdsd || !selectNguonGoc) {
-                        writeLog(`⚠️ MĐSD thứ ${idx + 1}: Không tìm thấy select Nguồn gốc.`);
-                        return;
-                      }
-                      const mdsdText = selectMdsd.options[selectMdsd.selectedIndex]?.text || selectMdsd.value || "";
-                      const nguonGocVal = selectNguonGoc.value;
-                      if (nguonGocVal && nguonGocVal !== "0") {
-                        writeLog(`✅ MĐSD [${mdsdText}] thứ ${idx + 1} đã có nguồn gốc (mã ${nguonGocVal}), bỏ qua.`);
-                        return;
-                      }
-                      const upperMdsd = mdsdText.toUpperCase();
-                      const isDatO = upperMdsd.includes("ODT") || upperMdsd.includes("ONT");
-                      const targetVal = isDatO ? "2" : "3";
-                      const targetName = isDatO ? "Có thu tiền" : "Không thu tiền";
-                      writeLog(`👉 MĐSD [${mdsdText}] thứ ${idx + 1} → Chọn Nguồn gốc '${targetName}'`);
-                      selectNguonGoc.value = targetVal;
-                      selectNguonGoc.dispatchEvent(new Event("change", { bubbles: true }));
-                      if (jq2) {
-                        jq2(selectNguonGoc).val(targetVal).trigger("change").trigger("change.select2");
-                      }
-                    }, 500);
-                  }, mdsdDelay);
-                  mdsdDelay += 1e3;
-                });
-                setTimeout(() => {
-                  writeLog("💾 Bấm lưu Thửa Đất...");
-                  if (jq2) jq2(btnSaveThua).click();
-                  else btnSaveThua.click();
-                  state.step = "WAIT_PARCEL_SAVE";
-                  state.lastSaveTime = Date.now();
-                }, mdsdDelay + 800);
-              }
-            }, 800);
-          } else {
-            if (Date.now() - state.lastEditParcelTime > 8e3) {
-              writeLog("⚠️ Không mở được form chỉnh sửa thửa đất (timeout 8s). Bỏ đơn ra danh sách.");
-              task.resultStatus = "Lỗi mở form thửa";
-              state.step = "REMOVE_DOSSIER";
-              state.lastRemoveTime = Date.now();
-            } else {
-              writeLog("⏳ Đang chờ form thửa đất mở...");
-            }
-          }
-          break;
-        case "WAIT_PARCEL_EDITING":
-          break;
-        case "WAIT_PARCEL_SAVE":
-          const errorConfirm = document.querySelector(".jconfirm-box");
-          if (errorConfirm) {
-            const msgEl = errorConfirm.querySelector(".jconfirm-content, .jconfirm-message");
-            const msgText = msgEl ? msgEl.textContent.trim().toLowerCase() : "";
-            if (msgText.includes("đã tồn tại") || msgText.includes("tồn tại") || msgText.includes("trùng")) {
-              writeLog(`⚠️ Phát hiện: "${msgText}" → Thửa [${task.newThua}] bị trùng.`);
-              const btnOk = errorConfirm.querySelector(".btn-orange");
-              if (btnOk) {
-                if (jq2) jq2(btnOk).click();
-                else btnOk.click();
-              }
-              state.step = "WAIT_DIALOG_CLOSE";
-              state.nextStepAfterDialog = "CHECK_NEXT_THUA";
-              state.lastDialogCloseTime = Date.now();
-            } else {
-              const btnOk = errorConfirm.querySelector(".btn-orange");
-              if (btnOk) {
-                if (jq2) jq2(btnOk).click();
-                else btnOk.click();
-              }
-              state.step = "WAIT_DIALOG_CLOSE";
-              state.nextStepAfterDialog = "SAVE_REGISTRATION";
-              state.lastDialogCloseTime = Date.now();
-            }
-          } else {
-            if (Date.now() - state.lastSaveTime > 3e3) {
-              state.step = "SAVE_REGISTRATION";
-            }
-          }
-          break;
-        case "CHECK_NEXT_THUA":
-          task.newThuaIndex++;
-          if (task.newThuaIndex < task.newThuaList.length) {
-            task.newThua = task.newThuaList[task.newThuaIndex];
-            writeLog(`🔁 Thử lại với Số thửa mới: ${task.newThua} (Thửa ${task.newThuaIndex + 1}/${task.newThuaList.length})...`);
-            state.step = "EDIT_PARCEL";
-          } else {
-            writeLog(`⚠️ Đã thử hết ${task.newThuaList.length} số thửa nhưng đều bị TRÙNG. Bỏ đơn ra danh sách.`);
-            task.resultStatus = `Trùng thửa (đã thử ${task.newThuaList.length} số)`;
-            state.step = "CLOSE_PARCEL_FORM_ERROR";
-          }
-          break;
-        case "CLOSE_PARCEL_FORM_ERROR":
-          const btnCloseForm = document.querySelector('button.btn-blue[data-dismiss="modal"]');
-          if (btnCloseForm) {
-            writeLog("Bấm 'Đóng' form sửa thửa đất...");
-            if (jq2) jq2(btnCloseForm).click();
-            else btnCloseForm.click();
-          }
-          state.step = "REMOVE_DOSSIER";
-          state.lastRemoveTime = Date.now();
-          break;
-        case "SAVE_REGISTRATION":
-          const btnSaveDangKy = document.getElementById("btnLuuDangKyThongTinDangKy");
-          if (btnSaveDangKy) {
-            writeLog("Bước 6: Bấm 'Lưu thông tin đăng ký'...");
-            if (jq2) jq2(btnSaveDangKy).click();
-            else btnSaveDangKy.click();
-            state.step = "WAIT_REGISTRATION_SAVE";
-            state.lastSaveRegTime = Date.now();
-          } else {
-            if (!state.lastSaveRegSearch) state.lastSaveRegSearch = Date.now();
-            if (Date.now() - state.lastSaveRegSearch > 3e3) {
-              writeLog("⚠️ Không tìm thấy nút Lưu đăng ký, bỏ qua.");
-              state.step = "REMOVE_DOSSIER";
-              state.lastRemoveTime = Date.now();
-              state.lastSaveRegSearch = 0;
-            }
-          }
-          break;
-        case "WAIT_REGISTRATION_SAVE":
-          const regConfirm = document.querySelector(".jconfirm-box");
-          if (regConfirm) {
-            const btnOk = regConfirm.querySelector(".btn-orange") || regConfirm.querySelector(".btn-blue");
-            if (btnOk) {
-              writeLog("Xác nhận 'Đồng ý' đã lưu thông tin đăng ký...");
-              if (jq2) jq2(btnOk).click();
-              else btnOk.click();
-            }
-            state.step = "WAIT_DIALOG_CLOSE";
-            state.nextStepAfterDialog = "REMOVE_DOSSIER";
-            state.lastDialogCloseTime = Date.now();
-          } else {
-            if (Date.now() - state.lastSaveRegTime > 3e3) {
-              state.step = "REMOVE_DOSSIER";
-              state.lastRemoveTime = Date.now();
-            }
-          }
-          break;
-        case "REMOVE_DOSSIER":
-          const btnBoDon = document.getElementById("btnBoDonDangKy");
-          if (btnBoDon) {
-            writeLog("Bước 7: Bấm 'Bỏ đơn khỏi danh sách'...");
-            if (jq2) jq2(btnBoDon).click();
-            else btnBoDon.click();
-            state.step = "CONFIRM_REMOVE";
-            state.lastRemoveTime = Date.now();
-          } else {
-            if (Date.now() - state.lastRemoveTime > 3e3) {
-              writeLog("⚠️ Không tìm thấy nút Bỏ đơn. Tiếp tục sang đơn mới.");
-              state.step = "NEXT_TASK";
-            }
-          }
-          break;
-        case "CONFIRM_REMOVE":
-          const confirmBox = document.querySelector(".jconfirm-box");
-          if (confirmBox) {
-            const btnAgree = confirmBox.querySelector(".btn-orange");
-            if (btnAgree) {
-              writeLog("Xác nhận 'Đồng ý' bỏ đơn...");
-              if (jq2) jq2(btnAgree).click();
-              else btnAgree.click();
-              state.step = "WAIT_DIALOG_CLOSE";
-              state.nextStepAfterDialog = "NEXT_TASK";
-              state.lastDialogCloseTime = Date.now();
-            }
-          } else {
-            if (Date.now() - state.lastRemoveTime > 4e3) {
-              state.step = "NEXT_TASK";
-            }
-          }
-          break;
-        case "WAIT_DIALOG_CLOSE":
-          if (!document.querySelector(".jconfirm-box")) {
-            state.step = state.nextStepAfterDialog;
-          } else {
-            if (Date.now() - state.lastDialogCloseTime > 3e3) {
-              state.step = state.nextStepAfterDialog;
-            }
-          }
-          break;
-        case "NEXT_TASK":
-          if (!task.resultStatus || task.resultStatus === "Cập nhật thành công") {
-            if (task.isGroup) {
-              task.resultStatus = "Ứng đại diện";
-              state.groupSuccess[task.groupKey] = true;
-            } else {
-              task.resultStatus = "Cập nhật thành công";
-            }
-          }
-          writeLog(`✅ Dòng thứ ${state.currentIndex + 1}: ${task.resultStatus}`);
-          state.currentIndex++;
-          updateResultBox();
-          state.step = "OPEN_SEARCH";
-          break;
-      }
-    }, 700);
-    function updateResultBox() {
-      const tbody = document.getElementById("result-table-body");
-      if (!tbody) return;
-      let done = 0, fail = 0, pending = 0;
-      let html = "";
-      state.excelData.forEach((d, i) => {
-        let status, cssClass, rowClass;
-        if (i < state.currentIndex) {
-          const raw = d.resultStatus || "Cập nhật thành công";
-          const isOk = raw === "Cập nhật thành công" || raw === "Ứng đại diện" || raw === "Đã ứng đại diện" || raw === "Đã cập nhật trước đó";
-          if (isOk) {
-            status = raw === "Cập nhật thành công" ? "✅ OK" : "✅ " + raw;
-            cssClass = "status-ok";
-            rowClass = "row-success";
-            done++;
-          } else {
-            status = "❌ " + raw;
-            cssClass = "status-err";
-            rowClass = "row-fail";
-            fail++;
-          }
-        } else if (i === state.currentIndex && state.isRunning) {
-          status = "🔄";
-          cssClass = "status-run";
-          rowClass = "row-current";
-          pending++;
-        } else {
-          status = "—";
-          cssClass = "status-wait";
-          rowClass = "";
-          pending++;
-        }
-        html += `<tr class="${rowClass}">
-                <td>${i + 1}</td>
-                <td title="${escapeHtml(d.sph)}">${escapeHtml(d.sph)}</td>
-                <td>${escapeHtml(d.oldThua)}(${escapeHtml(d.oldTo)}) → ${escapeHtml(d.newThua)}(${escapeHtml(d.newTo)})</td>
-                <td class="${cssClass}" title="${escapeHtml(d.resultStatus || "")}">${escapeHtml(status)}</td>
-            </tr>`;
-      });
-      tbody.innerHTML = html;
-      const elDone = document.getElementById("stat-current");
-      const elFail = document.getElementById("result-fail");
-      const elPending = document.getElementById("result-pending");
-      if (elDone) elDone.textContent = `✅ ${done}`;
-      if (elFail) elFail.textContent = `❌ ${fail}`;
-      if (elPending) elPending.textContent = `⏳ ${pending}`;
-      const wrapper = document.querySelector(".result-table-wrapper");
-      const currentRow = tbody.querySelector(".row-current");
-      if (wrapper && currentRow) {
-        currentRow.scrollIntoView({ block: "center", behavior: "smooth" });
-      }
-    }
-    function init() {
-      const btnParse = document.getElementById("btn-update-parse");
-      if (btnParse) btnParse.addEventListener("click", parseExcelInput);
-      const btnStart = document.getElementById("btn-update-start");
-      if (btnStart) btnStart.addEventListener("click", () => {
-        const dot = document.getElementById("update-dot");
-        if (dot) {
-          dot.style.background = "#10b981";
-          dot.style.boxShadow = "0 0 8px #10b981";
-        }
-        startAuto();
-      });
-      const btnStop = document.getElementById("btn-update-stop");
-      if (btnStop) btnStop.addEventListener("click", () => {
-        const dot = document.getElementById("update-dot");
-        if (dot) {
-          dot.style.background = "#ef4444";
-          dot.style.boxShadow = "0 0 8px #ef4444";
-        }
-        stopAuto();
-      });
-      const btnCopy = document.getElementById("btn-update-copy");
-      if (btnCopy) btnCopy.addEventListener("click", () => {
-        const lines = state.excelData.map((d) => d.resultStatus || "Chưa xử lý");
-        const text = lines.join("\n");
-        navigator.clipboard.writeText(text).then(() => {
-          writeLog("📋 Đã copy Trạng Thái Gốc vào clipboard!");
-        }).catch(() => {
-          const ta = document.createElement("textarea");
-          ta.value = text;
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand("copy");
-          ta.remove();
-          writeLog("📋 Đã copy (fallback)");
-        });
-      });
-    }
-    return { init };
-  }();
-
   // src/mplis-logger.js
   var MAX = 400;
   var _buf = [];
@@ -3594,6 +2640,7 @@
       el.textContent = text;
       el.style.color = ok ? "#22c55e" : "#f43f5e";
     }
+    const _dangGui = /* @__PURE__ */ new Set();
     function pushRecordToSheet(r) {
       const bucket = getBucket(r);
       if (!PUSHABLE_BUCKETS.includes(bucket)) {
@@ -3647,27 +2694,49 @@
         nts: r.dtTSN || "",
         hnk: r.dtHNK || ""
       };
+      if (_dangGui.has(r)) return;
+      _dangGui.add(r);
       gmxhr({
         method: "POST",
         url,
         data: JSON.stringify(payload),
         headers: { "Content-Type": "application/json" },
         onload: function(res) {
+          _dangGui.delete(r);
           console.log("[Excel] Phản hồi từ Sheet:", res.status, res.responseText);
           try {
             const body = JSON.parse(res.responseText);
-            if (body.ok) setSheetStatus("✅ đã đồng bộ", true);
-            else setSheetStatus("❌ " + (body.error || "lỗi"), false);
+            if (body.ok) {
+              r.daDay = true;
+              saveState();
+              setSheetStatus("✅ đã đồng bộ", true);
+            } else setSheetStatus("❌ " + (body.error || "lỗi"), false);
           } catch (e) {
             console.log("[Excel] Không parse được phản hồi JSON:", e);
             setSheetStatus("❌ phản hồi lạ", false);
           }
         },
+        timeout: 2e4,
+        ontimeout: function() {
+          _dangGui.delete(r);
+          setSheetStatus("❌ hết giờ chờ (20s), sẽ thử lại", false);
+        },
         onerror: function(err) {
+          _dangGui.delete(r);
           console.log("[Excel] Lỗi kết nối khi đẩy lên Sheet:", err);
           setSheetStatus("❌ lỗi kết nối", false);
         }
       });
+    }
+    function guiLaiChuaDay() {
+      if (!getSheetUrl()) return;
+      const cho = state.records.filter((r) => r.daDay === false && (r.soLanThu || 0) < 5 && !_dangGui.has(r)).slice(0, 3);
+      if (!cho.length) return;
+      cho.forEach((r) => {
+        r.soLanThu = (r.soLanThu || 0) + 1;
+        pushRecordToSheet(r);
+      });
+      saveState();
     }
     function init() {
       loadState();
@@ -3717,6 +2786,11 @@
                 if (res.status >= 200 && res.status < 300) setSheetStatus("✅ link phản hồi", true);
                 else setSheetStatus("❌ lỗi HTTP " + res.status, false);
               }
+            },
+            timeout: 2e4,
+            ontimeout: function() {
+              btnTestSheetLink.disabled = false;
+              setSheetStatus("❌ hết giờ chờ (20s): trình duyệt này chưa kết nối được Google", false);
             },
             onerror: function() {
               btnTestSheetLink.disabled = false;
@@ -3776,6 +2850,7 @@
         }
       }, true);
       setInterval(scanTree, 1e3);
+      setInterval(guiLaiChuaDay, 6e4);
     }
     function loadState() {
       try {
@@ -3785,6 +2860,7 @@
       }
     }
     function saveState() {
+      if (state.records.length > 1500) state.records.splice(0, state.records.length - 1500);
       try {
         localStorage.setItem("mplis_excel_cart", JSON.stringify(state.records));
       } catch (e) {
@@ -4086,7 +3162,10 @@
               dtTSN: datTSN,
               dtLUA: datLUA,
               dtHNK: datHNK,
-              dtSKC: datSKC
+              dtSKC: datSKC,
+              daDay: false,
+              // true khi Sheet đã nhận; false thì tự gửi lại
+              soLanThu: 1
             };
             state.records.push(newRecord);
             saveState();
@@ -5259,7 +4338,9 @@
       btn.textContent = "Bắt đầu Xử Lý";
       btn.classList.remove("running");
       const isCustom = typeof customStopMessage === "string";
-      ProcessModule.getTopState().updateStatus(isCustom ? customStopMessage.includes("LỖI") ? "Lỗi dừng" : "Hoàn thành" : "Đang dừng", "idle");
+      const laLoi = isCustom && /LỖI|⚠️/.test(customStopMessage);
+      state.lastStopKind = laLoi ? "error" : isCustom ? "done" : "user";
+      ProcessModule.getTopState().updateStatus(laLoi ? "Lỗi - đã dừng" : isCustom ? "Hoàn thành" : "Đang dừng", laLoi ? "error" : "idle");
       ProcessModule.getTopState().writeLog(isCustom ? customStopMessage : "Đã dừng hoạt động.");
       if (isCustom) {
         const logEl = document.getElementById("mplis-step-log-process");
@@ -5277,6 +4358,7 @@
     } else {
       if (state.config.activeWorkflows.length === 0) return alert("Vui lòng chọn ít nhất 1 quy trình!");
       document.querySelectorAll('*[data-mplis-clicked="true"]').forEach((el) => el.removeAttribute("data-mplis-clicked"));
+      state.lastStopKind = null;
       state._qt5Done = false;
       state.tacVuDaXuLy = null;
       state.qt1ConfirmStreak = 0;
@@ -5292,58 +4374,24 @@
       ProcessModule.getTopState().writeLog("▶ Bắt đầu xử lý hồ sơ" + (maHS ? " " + maHS : ""));
     }
   }
-  function toggleReturn(customStopMessage) {
-    const state = ReturnModule.getTopState();
-    const btn = document.getElementById("btn-toggle-return");
-    if (state.isRunning) {
-      state.isRunning = false;
-      btn.textContent = "Bắt đầu Trả Hồ Sơ";
-      btn.classList.remove("running");
-      const isCustom = typeof customStopMessage === "string";
-      ReturnModule.getTopState().updateStatus(isCustom ? "Hoàn thành" : "Đang dừng", "idle");
-      ReturnModule.getTopState().writeLog(isCustom ? customStopMessage : "Đã dừng hoạt động.");
-      if (isCustom) {
-        const logEl = document.getElementById("mplis-step-log-return");
-        if (logEl) {
-          logEl.style.color = "#10b981";
-          logEl.style.fontWeight = "bold";
-        }
-        setTimeout(() => {
-          if (logEl) {
-            logEl.style.color = "";
-            logEl.style.fontWeight = "";
-          }
-        }, 1e4);
-      }
-    } else {
-      state.isRunning = true;
-      btn.textContent = "Tạm dừng Trả Hồ Sơ";
-      btn.classList.add("running");
-      ReturnModule.getTopState().updateStatus("Đang chạy", "active");
-    }
-  }
 
   // src/inject-panel.js
   var svgIcon = (paths, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="flex-shrink:0;">${paths}</svg>`;
   var ICON_PROCESS = svgIcon('<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>');
   var ICON_ALERT = svgIcon('<circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 14"></polyline>');
   var ICON_EXCEL = svgIcon('<line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line>');
-  var ICON_RETURN = svgIcon('<path d="M4 4h16v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><polyline points="4 8 12 13 20 8"></polyline>');
-  var ICON_UPDATE = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>');
   var ICON_SETTINGS = svgIcon('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>');
   var ICON_SEARCH = svgIcon('<circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>');
   var ICON_BELL = svgIcon('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>');
   var ICON_MORE = svgIcon('<circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle>');
   var ICON_LINK = svgIcon('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>', 16);
   var ICON_REFRESH = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"></path>', 16);
-  var ICON_CLIPBOARD = svgIcon('<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1"></rect>', 16);
   function injectPanel() {
     if (document.getElementById("mplis-auto-panel")) return;
     const panel = document.createElement("div");
     panel.id = "mplis-auto-panel";
     panel.classList.add("minimized");
     const pCfg = ProcessModule.getTopState().config;
-    const rCfg = ReturnModule.getTopState().config;
     const isQT0 = pCfg.activeWorkflows.includes("QT0") ? "checked" : "";
     const isQT1 = pCfg.activeWorkflows.includes("QT1") ? "checked" : "";
     const isQT2 = pCfg.activeWorkflows.includes("QT2") ? "checked" : "";
@@ -5363,10 +4411,10 @@
     const isBypassSpatialLinkChecked = localStorage.getItem("mplis_bypass_spatial_link_enabled") === "true" ? "checked" : "";
     const isBypassDaKySoChecked = localStorage.getItem("mplis_bypass_dakyso_enabled") === "true" ? "checked" : "";
     function qt2FileHint(selectAll) {
-      return selectAll ? 'Bấm "Chọn tất cả" trước cho tích hết bảng, rồi lọc Số phát hành gỡ tích file sai đơn.' : "Chỉ tích file khớp Số phát hành của đơn, cộng file gt/pt dùng chung.";
+      return selectAll ? "Tích hết file trong bảng. Giấy chứng nhận chỉ gắn file có Số phát hành khớp của đơn, file khác bỏ qua." : "Chỉ tích file khớp Số phát hành của đơn, cộng file gt/pt dùng chung.";
     }
     function qt2FileState(selectAll) {
-      return selectAll ? "Chọn tất cả + lọc SPH" : "Lọc theo SPH";
+      return selectAll ? "Tích hết · gắn theo SPH" : "Lọc theo SPH";
     }
     function fwUserState(user) {
       return (user || "").trim() ? user.trim() : "Chưa đặt";
@@ -5416,10 +4464,6 @@
                     <button class="mplis-tab" data-tab="tab-excel" title="Xuất dữ liệu Excel" aria-label="Xuất dữ liệu Excel">${ICON_EXCEL}</button>
                     <button class="mplis-tab" data-tab="tab-lookup" title="Tra cứu hồ sơ" aria-label="Tra cứu hồ sơ">${ICON_SEARCH}</button>
                     <button class="mplis-tab" data-tab="tab-notify" title="Thông báo hồ sơ mới" aria-label="Thông báo hồ sơ mới">${ICON_BELL}</button>
-                    <!-- ĐANG ẨN TẠM: 2 tab "Trả hồ sơ" và "Auto sửa Thửa/Tờ" (không dùng tới). Toàn bộ code
-                         và phần nội dung 2 tab vẫn giữ nguyên bên dưới - muốn bật lại chỉ cần thêm lại 2 dòng:
-                         <button class="mplis-tab mplis-tab-extra" data-tab="tab-return" title="Trả hồ sơ" aria-label="Trả hồ sơ" style="display:none;">ICON_RETURN</button>
-                         <button class="mplis-tab mplis-tab-extra" data-tab="tab-update" title="Auto sửa Thửa/Tờ" aria-label="Auto sửa Thửa/Tờ" style="display:none;">ICON_UPDATE</button> -->
                     <button class="mplis-tab mplis-tab-extra" data-tab="tab-settings" title="Cài đặt" aria-label="Cài đặt" style="display:none;">${ICON_SETTINGS}</button>
                     <button class="mplis-tab-toggle" id="mplis-btn-toggle-extra" title="Hiện thêm tab" aria-label="Hiện thêm tab">${ICON_MORE}</button>
                 </div>
@@ -5546,15 +4590,6 @@
                             <div id="qt-sender-list"></div>
                         </div>
 
-                        <button class="mplis-btn-primary" id="btn-toggle-process">▶ Bắt đầu Xử Lý</button>
-                        <div class="mplis-status-bar">
-                            <div class="mplis-status-row">
-                                <div class="mplis-status-lbl"><span class="mplis-status-dot" id="mplis-status-dot-process"></span><span id="mplis-status-text-process">Đang dừng</span></div>
-                                <div style="color: var(--mplis-text-dim);">Thành công: <span id="mplis-counter-val-process" style="color: var(--mplis-accent-2); font-weight: bold;">0</span></div>
-                            </div>
-                            <div class="mplis-log" id="mplis-step-log-process">Sẵn sàng</div>
-                        </div>
-
                         <div class="mplis-card mplis-collapse" id="proc-log-group" style="margin-top:8px;">
                             <button type="button" class="mplis-collapse-head" id="proc-log-toggle" aria-expanded="false" aria-controls="proc-log-body">
                                 <span class="mplis-section-label">Nhật ký xử lý</span>
@@ -5578,6 +4613,18 @@
                                     <button type="button" id="btn-proc-log-copy-raw" class="mplis-btn-ghost" style="flex:1; font-size:11.5px; padding:7px;" title="Bản đầy đủ cho người dò lỗi - gửi bản này khi cần hỗ trợ">Copy log kỹ thuật</button>
                                     <button type="button" id="btn-proc-log-clear" class="mplis-btn-ghost" style="padding:7px 14px; font-size:11.5px;">Xóa</button>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="mplis-runbar">
+                            <div class="mplis-run-summary" id="mplis-run-summary"></div>
+                            <button class="mplis-btn-primary" id="btn-toggle-process">Bắt đầu Xử Lý</button>
+                            <div class="mplis-status-bar">
+                                <div class="mplis-status-row">
+                                    <div class="mplis-status-lbl"><span class="mplis-status-dot" id="mplis-status-dot-process"></span><span id="mplis-status-text-process">Đang dừng</span></div>
+                                    <div style="color: var(--mplis-text-dim);">Thành công: <span id="mplis-counter-val-process" style="color: var(--mplis-accent-2); font-weight: bold;">0</span></div>
+                                </div>
+                                <div class="mplis-log" id="mplis-step-log-process">Sẵn sàng</div>
                             </div>
                         </div>
                     </div>
@@ -5652,44 +4699,6 @@
                     <!-- TAB NOTIFY -->
                     <div class="mplis-panel-body" id="tab-notify"></div>
 
-                    <!-- TAB 4: RETURN -->
-                    <div class="mplis-panel-body tab-return-color" id="tab-return">
-                        <div class="mplis-hint">Tự động quét các bước:<br/><b style="color:#fde047">5 · 6 · 9 — Trả kết quả hồ sơ</b></div>
-
-                        <button class="mplis-btn-primary" id="btn-toggle-return">▶ Bắt đầu Trả Hồ Sơ</button>
-                        <div class="mplis-status-bar">
-                            <div class="mplis-status-row">
-                                <div class="mplis-status-lbl"><span class="mplis-status-dot" id="mplis-status-dot-return"></span><span id="mplis-status-text-return">Đang dừng</span></div>
-                                <div style="color: var(--mplis-text-dim);">Thành công: <span id="mplis-counter-val-return" style="color: #eab308; font-weight: bold;">0</span></div>
-                            </div>
-                            <div class="mplis-log" id="mplis-step-log-return">Sẵn sàng</div>
-                        </div>
-                    </div>
-
-                    <!-- TAB 5: UPDATE PARCEL -->
-                    <div class="mplis-panel-body" id="tab-update">
-                        <span class="mplis-section-label">Dán dữ liệu từ Excel</span>
-                        <textarea id="update-excel-input" placeholder="Số phát hành, Tờ mới, Thửa mới, Tờ cũ, Thửa cũ" style="background: rgba(0,0,0,0.25); border: 1px solid var(--mplis-border); border-radius: 8px; padding: 8px; color: #f8fafc; width: 100%; height: 72px; font-size: 12px; resize:none; margin-bottom:8px;"></textarea>
-                        <div style="display:flex; gap:6px; margin-bottom:10px;">
-                            <button class="mplis-btn-primary" id="btn-update-parse" style="flex:1; background:linear-gradient(135deg,#3b82f6,#2563eb); font-size:12px; padding:9px;">Nạp dữ liệu</button>
-                            <button class="mplis-btn-primary" id="btn-update-start" style="flex:1; background:linear-gradient(135deg,#10b981,#059669); font-size:12px; padding:9px;" disabled>Bắt đầu</button>
-                            <button class="mplis-btn-primary" id="btn-update-stop" style="flex:1; background:linear-gradient(135deg,#f43f5e,#e11d48); font-size:12px; padding:9px; display:none;">Dừng lại</button>
-                        </div>
-                        <div class="mplis-status-bar">
-                            <div class="mplis-status-row">
-                                <div class="mplis-status-lbl">Tiến độ: <span id="stat-current" style="color:var(--mplis-accent-2); font-weight:bold;">0</span> / <span id="stat-total">0</span></div>
-                                <div style="color: var(--mplis-text-dim);"><span class="mplis-status-dot" id="update-dot"></span><span id="stat-status">Chưa bắt đầu</span></div>
-                            </div>
-                            <div class="mplis-log" id="vbdlis-logs" style="height: 60px; overflow-y:auto; white-space:pre-wrap; font-family: monospace; font-size: 12px; line-height: 1.5;">Sẵn sàng</div>
-                        </div>
-                        <div style="max-height:100px; overflow-y:auto; margin-top:10px; border:1px solid var(--mplis-border); border-radius:8px;">
-                            <table style="width:100%; font-size:12px; color:#f8fafc; border-collapse:collapse; text-align:left;">
-                                <tbody id="result-table-body"></tbody>
-                            </table>
-                        </div>
-                        <button class="mplis-btn-primary mplis-btn-ghost" id="btn-update-copy" style="width:100%; margin-top:8px; font-size:12px; padding:9px; box-shadow:none;">${ICON_CLIPBOARD}Copy trạng thái gốc</button>
-                    </div>
-
                     <!-- TAB 6: SETTINGS -->
                     <!-- Mỗi mục là 1 thẻ thu gọn: đóng lại chỉ còn tiêu đề + trạng thái, nên tab
                          Cài đặt không dài tới mức phải cuộn mới thấy mục cuối. Trạng thái nằm trên
@@ -5705,7 +4714,7 @@
                                 <div class="mplis-bypass-row">
                                     <div class="mplis-bypass-row-label">
                                         <strong>Tự đồng ý hộp thoại</strong>
-                                        <span>Tắt nếu muốn tự xác nhận (ký số, kết ISO). Cần <b>tải lại trang</b>.</span>
+                                        <span>Chỉ khi auto đang chạy; lúc bạn tự thao tác vẫn hỏi như thường. Tắt nếu muốn tự xác nhận cả những hộp thoại gốc của trình duyệt. Cần <b>tải lại trang</b>.</span>
                                     </div>
                                     <label class="mplis-toggle-sw">
                                         <input type="checkbox" id="chk-auto-confirm" ${isAutoConfirmChecked}>
@@ -5951,6 +4960,19 @@
       if (delay >= 700) return "Tuỳ chỉnh · chậm";
       return "Tuỳ chỉnh";
     }
+    function veTomTat() {
+      const el = document.getElementById("mplis-run-summary");
+      if (!el) return;
+      const c = ProcessModule.getTopState().config;
+      const buoc = (c.activeWorkflows || []).slice().sort();
+      const chuyen = c.isQT5 && c.forwardUser;
+      if (chuyen) buoc.push("QT5");
+      if (!buoc.length) {
+        el.textContent = "Chưa chọn quy trình nào";
+        return;
+      }
+      el.innerHTML = "Sẽ chạy: <b>" + buoc.join(" · ") + "</b>" + (chuyen ? " → chuyển cho <b>" + escapeHtml(c.forwardUser) + "</b>" : "") + (c.isQT5 && !c.forwardUser ? " · QT5 chưa có người nhận" : "") + " · tốc độ <b>" + escapeHtml(tenMucTocDo(c.delayAction || 500).toLowerCase()) + "</b>";
+    }
     function veTocDo(delay) {
       const muc = MUC_TOC_DO.find((m) => m.delay === delay);
       nhomTocDo.forEach((g) => g.querySelectorAll(".mplis-hauto-btn").forEach((b) => {
@@ -5964,6 +4986,7 @@
         tocDoValue.title = tenMucTocDo(delay);
       }
       veBadge("set-speed-state", tenMucTocDo(delay), true);
+      veTomTat();
       if (tocDoState) {
         tocDoState.innerHTML = 'Nghỉ giữa 2 thao tác: <b style="color:#fff;">' + delay + 'ms</b> · vòng quét 400ms. Kéo thanh ở tab Xử lý để chỉnh từng 50ms.<br/>Số càng nhỏ chạy càng sát; mạng hoặc cổng chậm mà để dưới <b style="color:#fff;">200ms</b> thì dễ bấm lúc trang chưa dựng xong, auto gặp hộp thoại lạ rồi tự dừng.';
       }
@@ -6103,11 +5126,6 @@
         requestAnimationFrame(() => {
           content.style.minHeight = endHeight + "px";
         });
-        if (targetId === "tab-process") {
-          if (ReturnModule.getTopState()?.isRunning) toggleReturn();
-        } else if (targetId === "tab-return") {
-          if (ProcessModule.getTopState()?.isRunning) toggleProcess();
-        }
       };
     });
     const extraTabs = document.querySelectorAll(".mplis-tab-extra");
@@ -6138,6 +5156,7 @@
       const checked = e.target.checked;
       document.getElementById("fw-user-group").style.display = checked ? "block" : "none";
       ProcessModule.saveConfig({ isQT5: checked });
+      veTomTat();
     };
     document.getElementById("cfg-p-forwardUser").oninput = (e) => {
       const user = e.target.value.trim();
@@ -6145,6 +5164,7 @@
       stateEl.textContent = fwUserState(user);
       stateEl.classList.toggle("on", !!user);
       ProcessModule.saveConfig({ forwardUser: user });
+      veTomTat();
     };
     const folderPickerEl = document.getElementById("mplis-folder-picker");
     const btnChonThuMuc = document.getElementById("btn-chon-thu-muc");
@@ -6394,6 +5414,7 @@
       cb.onchange = () => {
         const checked = Array.from(document.querySelectorAll('input[name="mplis-workflow"]:checked')).map((c) => c.value);
         ProcessModule.saveConfig({ activeWorkflows: checked });
+        veTomTat();
         const qt2Group = document.getElementById("qt2-file-group");
         if (qt2Group) qt2Group.style.display = checked.includes("QT2") ? "block" : "none";
         const hasQT2 = checked.includes("QT2"), hasQT4 = checked.includes("QT4");
@@ -6406,12 +5427,10 @@
       };
     });
     document.getElementById("btn-toggle-process").onclick = toggleProcess;
-    document.getElementById("btn-toggle-return").onclick = toggleReturn;
     LookupModule.init();
     NotifyModule.init();
     AlertModule.init();
     ExcelModule.init();
-    UpdateParcelModule.init();
   }
 
   // src/run-toast.js
@@ -6471,7 +5490,9 @@
     if (!lastRunning && state.isRunning) hiddenByUser = false;
     lastRunning = state.isRunning;
     const justStopped = stoppedAt && Date.now() - stoppedAt < HOLD_AFTER_STOP_MS;
-    const shouldShow = !hiddenByUser && panel.classList.contains("minimized") && (state.isRunning || justStopped);
+    const dungViLoi = !state.isRunning && state.lastStopKind === "error";
+    if (dungViLoi && !panel.classList.contains("minimized")) hiddenByUser = true;
+    const shouldShow = !hiddenByUser && panel.classList.contains("minimized") && (state.isRunning || justStopped || dungViLoi);
     toast.classList.toggle("show", shouldShow);
     if (!shouldShow) return;
     const queue = getWorkflowQueue(state.config);
@@ -6486,12 +5507,13 @@
       stepEl.textContent = code ? `${code} · ${TASK_LABELS[code] || ""}` : "Đang tìm hồ sơ...";
       countEl.textContent = idx >= 0 ? `${idx + 1}/${queue.length}` : `0/${queue.length}`;
       fillEl.style.width = (idx >= 0 && queue.length ? (idx + 1) / queue.length * 100 : 0) + "%";
-      fillEl.classList.remove("done");
+      fillEl.classList.remove("done", "error");
     } else {
-      stepEl.textContent = "Đã dừng";
+      stepEl.textContent = dungViLoi ? "Lỗi - auto đã dừng" : "Đã dừng";
       countEl.textContent = `${queue.length}/${queue.length}`;
       fillEl.style.width = "100%";
-      fillEl.classList.add("done");
+      fillEl.classList.toggle("done", !dungViLoi);
+      fillEl.classList.toggle("error", dungViLoi);
     }
     const srcLog = document.getElementById("mplis-step-log-process");
     logEl.textContent = srcLog ? srcLog.textContent : "";
@@ -6541,12 +5563,19 @@
     });
   }, 1500);
 
+  // src/gioi-han.js
+  function giuMoiNhat(obj, n) {
+    const keys = Object.keys(obj);
+    for (let i = 0; i < keys.length - n; i++) delete obj[keys[i]];
+    return obj;
+  }
+
   // src/bien-dong-capture.js
   function saveBienDongCode(maHS, code) {
     try {
       const stored = JSON.parse(localStorage.getItem("mplis_bien_dong_codes") || "{}");
       stored[maHS] = code;
-      localStorage.setItem("mplis_bien_dong_codes", JSON.stringify(stored));
+      localStorage.setItem("mplis_bien_dong_codes", JSON.stringify(giuMoiNhat(stored, 300)));
     } catch (e) {
     }
   }
@@ -6782,7 +5811,7 @@
     try {
       const stored = JSON.parse(localStorage.getItem(AUTO_DATE_KEY) || "{}");
       stored[maHS] = value;
-      localStorage.setItem(AUTO_DATE_KEY, JSON.stringify(stored));
+      localStorage.setItem(AUTO_DATE_KEY, JSON.stringify(giuMoiNhat(stored, 300)));
     } catch (e) {
     }
   }
@@ -6901,11 +5930,12 @@
     return found;
   }
   function layDongGiayInMoi() {
-    return Array.from(document.querySelectorAll("tr")).map((tr) => {
-      const cells = Array.from(tr.querySelectorAll("td"));
-      if (!cells.length) return null;
-      const loaiText = cells[0].textContent || "";
+    return Array.from(document.getElementsByTagName("tr")).map((tr) => {
+      const dau = tr.querySelector("td");
+      if (!dau) return null;
+      const loaiText = dau.textContent || "";
       if (!GIAY_RE.test(loaiText)) return null;
+      const cells = Array.from(tr.querySelectorAll("td"));
       const loai = GIAY_THU_HOI_RE.test(loaiText) ? "THU HỒI" : "IN MỚI";
       for (const td of cells) {
         const m = SPH_RE.exec((td.textContent || "").trim().toUpperCase());
@@ -6929,7 +5959,7 @@
       }
       if (!doi) return;
       stored[maHS] = cuaHoSo;
-      localStorage.setItem(LOAI_GIAY_KEY, JSON.stringify(stored));
+      localStorage.setItem(LOAI_GIAY_KEY, JSON.stringify(giuMoiNhat(stored, 300)));
       console.log("[MPLIS TenFile] Ghi nhớ loại giấy của hồ sơ " + maHS + ": " + dong.map((d) => d.sph + "=" + d.loai).join(", "));
     } catch (e) {
     }
@@ -6986,7 +6016,7 @@
       const stored = JSON.parse(localStorage.getItem(SPH_NHO_KEY) || "{}");
       if (JSON.stringify(stored[maHS]) === JSON.stringify(sphList)) return;
       stored[maHS] = sphList;
-      localStorage.setItem(SPH_NHO_KEY, JSON.stringify(stored));
+      localStorage.setItem(SPH_NHO_KEY, JSON.stringify(giuMoiNhat(stored, 300)));
     } catch (e) {
     }
   }
@@ -7431,139 +6461,6 @@
     copyTenGiayToKem();
   });
 
-  // src/notify-capture.js
-  var WORK_LOGGED_KEY = "mplis_notify_logged";
-  var WORK_SHEET_URL_KEY = "mplis_excel_sheet_url_mine";
-  var NOTIFY_RESOLVED_KEY = "mplis_notify_resolved";
-  function getWorkSheetUrl() {
-    try {
-      return (localStorage.getItem(WORK_SHEET_URL_KEY) || "").trim();
-    } catch (e) {
-      return "";
-    }
-  }
-  function isNotifyResolved(soBienNhan) {
-    try {
-      const stored = JSON.parse(localStorage.getItem(NOTIFY_RESOLVED_KEY) || "{}");
-      return !!stored[soBienNhan];
-    } catch (e) {
-      return false;
-    }
-  }
-  function markNotifyResolved(soBienNhan) {
-    try {
-      const stored = JSON.parse(localStorage.getItem(NOTIFY_RESOLVED_KEY) || "{}");
-      stored[soBienNhan] = true;
-      localStorage.setItem(NOTIFY_RESOLVED_KEY, JSON.stringify(stored));
-    } catch (e) {
-    }
-  }
-  function parseAspNetDate2(str) {
-    if (!str) return "";
-    const m = str.match(/\/Date\((\d+)\)\//);
-    if (!m) return "";
-    const d = new Date(parseInt(m[1], 10));
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mi = String(d.getMinutes()).padStart(2, "0");
-    return `${dd}/${mm}/${d.getFullYear()} ${hh}:${mi}`;
-  }
-  function formatTrangThaiChiTiet(item) {
-    if (item.daTra) {
-      return "Đã trả kết quả ngày " + parseAspNetDate2(item.ngayTra);
-    }
-    if (item.daKetISO) {
-      return "Đã kết ISO ngày " + parseAspNetDate2(item.ngayKetISO);
-    }
-    if (item.daCapNhatDuLieuPhapLy) {
-      return "Đã cập nhật dữ liệu pháp lý ngày " + parseAspNetDate2(item.ngayCapNhatDuLieuPhapLy);
-    }
-    const buoc = item.state && item.state.Title || "Đang xử lý";
-    const isLuuTru = item.state && item.state.State === "LuuTru";
-    const nguoiGiu = item.tenNguoiChuyenTiep || item.tenNguoiTiepNhan;
-    return !isLuuTru && nguoiGiu ? `${buoc} - Đang ở: ${nguoiGiu}` : buoc;
-  }
-  function pushTrangThai(maHS, trangThai) {
-    const url = getWorkSheetUrl();
-    if (!url || typeof GM_xmlhttpRequest === "undefined") return;
-    gmxhr({
-      method: "POST",
-      url,
-      data: JSON.stringify({ bucket: "thongbao_trangthai", maHS, trangThai }),
-      headers: { "Content-Type": "application/json" },
-      onload: function(res) {
-        console.log("[Notify] Cập nhật trạng thái", maHS, ":", res.status, res.responseText);
-      },
-      onerror: function(err) {
-        console.log("[Notify] Lỗi kết nối khi cập nhật trạng thái", maHS, ":", err);
-      }
-    });
-  }
-  function checkOneStatus(maHS) {
-    const jq2 = typeof unsafeWindow !== "undefined" && unsafeWindow.$ ? unsafeWindow.$ : null;
-    if (!jq2 || !jq2.ajax) return;
-    jq2.ajax({
-      url: "https://dla.mplis.gov.vn/dc/DangKyAjax/AdvancedSearchHoSoTiepNhan",
-      method: "POST",
-      data: {
-        start: 0,
-        length: 10,
-        "model[tinhId]": 66,
-        "model[huyenId]": 650,
-        "model[xaId]": "",
-        "model[quytrinh]": "",
-        "model[state]": "",
-        "model[soBienNhan]": maHS,
-        "model[laHoSoMotCua]": false,
-        "model[tiepNhanTuNgay]": "",
-        "model[tiepNhanDenNgay]": "",
-        "model[henTraTuNgay]": "",
-        "model[henTraDenNgay]": "",
-        "model[trangThaiHoSo]": 0,
-        "model[trangThaiKetISO][]": 0,
-        "model[diaChiTaiSan]": "",
-        "model[soThua]": "",
-        "model[soTo]": "",
-        "model[diaChi]": "",
-        "model[hoTen]": "",
-        "model[soDienThoai]": "",
-        "model[giayChungMinh]": "",
-        "model[daXuLy]": -1
-      }
-    }).done((json) => {
-      if (!json || !Array.isArray(json.data) || json.data.length === 0) {
-        console.log("[Notify] Không tìm thấy hồ sơ khi tra trạng thái:", maHS);
-        return;
-      }
-      const item = json.data.find((d) => d.soBienNhan === maHS) || json.data[0];
-      pushTrangThai(maHS, formatTrangThaiChiTiet(item));
-      if (item.daTra) markNotifyResolved(maHS);
-    }).fail((xhr) => {
-      console.log("[Notify] Lỗi khi tra trạng thái", maHS, ":", xhr.status, xhr.responseText);
-    });
-  }
-  var STATUS_POLL_DELAY_MS = 600;
-  function pollAllStatuses(onProgress) {
-    let logged = {};
-    try {
-      logged = JSON.parse(localStorage.getItem(WORK_LOGGED_KEY) || "{}");
-    } catch (e) {
-    }
-    const maHSList = Object.keys(logged).filter((maHS) => !isNotifyResolved(maHS));
-    console.log(`[Notify] Đang tra trạng thái thời gian thực cho ${maHSList.length} hồ sơ chưa trả (tuần tự, cách nhau ${STATUS_POLL_DELAY_MS}ms)...`);
-    if (onProgress) onProgress(0, maHSList.length);
-    maHSList.forEach((maHS, idx) => {
-      setTimeout(() => {
-        checkOneStatus(maHS);
-        if (onProgress) onProgress(idx + 1, maHSList.length);
-      }, idx * STATUS_POLL_DELAY_MS);
-    });
-  }
-  if (window === window.top) {
-    topWin.MPLIS_POLL_ALL_STATUSES = pollAllStatuses;
-  }
-
   // src/spatial-link-bypass.js
   var ENABLED_KEY2 = "mplis_bypass_spatial_link_enabled";
   var ENDPOINT = "ThucHienKetISO";
@@ -7763,24 +6660,18 @@
       }
     }, 300);
     topWin.MPLIS_AUTO_TOGGLE_FUNC = toggleProcess;
-    topWin.MPLIS_AUTO_TRAHOSO_TOGGLE_FUNC = toggleReturn;
+    try {
+      ["mplis_notify_logged", "mplis_notify_resolved"].forEach((k) => localStorage.removeItem(k));
+    } catch (e) {
+    }
   }
   window.addEventListener("keydown", (e) => {
     if (e.altKey && (e.key === "s" || e.key === "S" || e.key === "đ" || e.key === "Đ")) {
       e.preventDefault();
-      const returnTab = document.getElementById("tab-return");
-      if (returnTab && returnTab.classList.contains("active")) {
-        if (window === window.top) toggleReturn();
-        else try {
-          if (typeof topWin.MPLIS_AUTO_TRAHOSO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TRAHOSO_TOGGLE_FUNC();
-        } catch (err) {
-        }
-      } else {
-        if (window === window.top) toggleProcess();
-        else try {
-          if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC();
-        } catch (err) {
-        }
+      if (window === window.top) toggleProcess();
+      else try {
+        if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function") topWin.MPLIS_AUTO_TOGGLE_FUNC();
+      } catch (err) {
       }
     } else if (e.altKey && (e.key === "h" || e.key === "H")) {
       e.preventDefault();

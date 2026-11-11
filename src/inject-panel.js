@@ -1,12 +1,10 @@
 import { ProcessModule } from './process-module.js';
-import { ReturnModule } from './return-module.js';
-import { UpdateParcelModule } from './update-parcel-module.js';
 import { ExcelModule } from './excel-module.js';
 import { AlertModule } from './alert-module.js';
 import { LookupModule } from './lookup-module.js';
 import { NotifyModule } from './telegram-notify.js';
 import { isAutoConfirmEnabled, escapeHtml } from './utils.js';
-import { toggleProcess, toggleReturn } from './toggle.js';
+import { toggleProcess } from './toggle.js';
 import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from './mplis-logger.js';
 
     // Icon dạng SVG inline (bộ Lucide, nét 2px, viewBox 24) thay cho emoji: emoji phụ thuộc font
@@ -17,15 +15,12 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
     const ICON_PROCESS = svgIcon('<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>');
     const ICON_ALERT = svgIcon('<circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 14"></polyline>');
     const ICON_EXCEL = svgIcon('<line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line>');
-    const ICON_RETURN = svgIcon('<path d="M4 4h16v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><polyline points="4 8 12 13 20 8"></polyline>');
-    const ICON_UPDATE = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>');
     const ICON_SETTINGS = svgIcon('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>');
     const ICON_SEARCH = svgIcon('<circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>');
     const ICON_BELL = svgIcon('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>');
     const ICON_MORE =svgIcon('<circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle>');
     const ICON_LINK = svgIcon('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>', 16);
     const ICON_REFRESH = svgIcon('<polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"></path>', 16);
-    const ICON_CLIPBOARD = svgIcon('<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1"></rect>', 16);
 
     function injectPanel() {
         if (document.getElementById('mplis-auto-panel')) return;
@@ -35,7 +30,6 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
         panel.classList.add('minimized');
 
         const pCfg = ProcessModule.getTopState().config;
-        const rCfg = ReturnModule.getTopState().config;
 
         const isQT0 = pCfg.activeWorkflows.includes('QT0') ? 'checked' : '';
         const isQT1 = pCfg.activeWorkflows.includes('QT1') ? 'checked' : '';
@@ -74,13 +68,13 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
         // khỏi phải nhớ ý nghĩa của ô tích.
         function qt2FileHint(selectAll) {
             return selectAll
-                ? 'Bấm "Chọn tất cả" trước cho tích hết bảng, rồi lọc Số phát hành gỡ tích file sai đơn.'
+                ? 'Tích hết file trong bảng. Giấy chứng nhận chỉ gắn file có Số phát hành khớp của đơn, file khác bỏ qua.'
                 : 'Chỉ tích file khớp Số phát hành của đơn, cộng file gt/pt dùng chung.';
         }
 
         // Nhãn ngắn hiện ngay trên thanh tiêu đề, đọc được cả khi thẻ đang thu gọn.
         function qt2FileState(selectAll) {
-            return selectAll ? 'Chọn tất cả + lọc SPH' : 'Lọc theo SPH';
+            return selectAll ? 'Tích hết · gắn theo SPH' : 'Lọc theo SPH';
         }
 
         function fwUserState(user) {
@@ -134,10 +128,6 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                     <button class="mplis-tab" data-tab="tab-excel" title="Xuất dữ liệu Excel" aria-label="Xuất dữ liệu Excel">${ICON_EXCEL}</button>
                     <button class="mplis-tab" data-tab="tab-lookup" title="Tra cứu hồ sơ" aria-label="Tra cứu hồ sơ">${ICON_SEARCH}</button>
                     <button class="mplis-tab" data-tab="tab-notify" title="Thông báo hồ sơ mới" aria-label="Thông báo hồ sơ mới">${ICON_BELL}</button>
-                    <!-- ĐANG ẨN TẠM: 2 tab "Trả hồ sơ" và "Auto sửa Thửa/Tờ" (không dùng tới). Toàn bộ code
-                         và phần nội dung 2 tab vẫn giữ nguyên bên dưới - muốn bật lại chỉ cần thêm lại 2 dòng:
-                         <button class="mplis-tab mplis-tab-extra" data-tab="tab-return" title="Trả hồ sơ" aria-label="Trả hồ sơ" style="display:none;">ICON_RETURN</button>
-                         <button class="mplis-tab mplis-tab-extra" data-tab="tab-update" title="Auto sửa Thửa/Tờ" aria-label="Auto sửa Thửa/Tờ" style="display:none;">ICON_UPDATE</button> -->
                     <button class="mplis-tab mplis-tab-extra" data-tab="tab-settings" title="Cài đặt" aria-label="Cài đặt" style="display:none;">${ICON_SETTINGS}</button>
                     <button class="mplis-tab-toggle" id="mplis-btn-toggle-extra" title="Hiện thêm tab" aria-label="Hiện thêm tab">${ICON_MORE}</button>
                 </div>
@@ -264,15 +254,6 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                             <div id="qt-sender-list"></div>
                         </div>
 
-                        <button class="mplis-btn-primary" id="btn-toggle-process">▶ Bắt đầu Xử Lý</button>
-                        <div class="mplis-status-bar">
-                            <div class="mplis-status-row">
-                                <div class="mplis-status-lbl"><span class="mplis-status-dot" id="mplis-status-dot-process"></span><span id="mplis-status-text-process">Đang dừng</span></div>
-                                <div style="color: var(--mplis-text-dim);">Thành công: <span id="mplis-counter-val-process" style="color: var(--mplis-accent-2); font-weight: bold;">0</span></div>
-                            </div>
-                            <div class="mplis-log" id="mplis-step-log-process">Sẵn sàng</div>
-                        </div>
-
                         <div class="mplis-card mplis-collapse" id="proc-log-group" style="margin-top:8px;">
                             <button type="button" class="mplis-collapse-head" id="proc-log-toggle" aria-expanded="false" aria-controls="proc-log-body">
                                 <span class="mplis-section-label">Nhật ký xử lý</span>
@@ -296,6 +277,18 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                                     <button type="button" id="btn-proc-log-copy-raw" class="mplis-btn-ghost" style="flex:1; font-size:11.5px; padding:7px;" title="Bản đầy đủ cho người dò lỗi - gửi bản này khi cần hỗ trợ">Copy log kỹ thuật</button>
                                     <button type="button" id="btn-proc-log-clear" class="mplis-btn-ghost" style="padding:7px 14px; font-size:11.5px;">Xóa</button>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="mplis-runbar">
+                            <div class="mplis-run-summary" id="mplis-run-summary"></div>
+                            <button class="mplis-btn-primary" id="btn-toggle-process">Bắt đầu Xử Lý</button>
+                            <div class="mplis-status-bar">
+                                <div class="mplis-status-row">
+                                    <div class="mplis-status-lbl"><span class="mplis-status-dot" id="mplis-status-dot-process"></span><span id="mplis-status-text-process">Đang dừng</span></div>
+                                    <div style="color: var(--mplis-text-dim);">Thành công: <span id="mplis-counter-val-process" style="color: var(--mplis-accent-2); font-weight: bold;">0</span></div>
+                                </div>
+                                <div class="mplis-log" id="mplis-step-log-process">Sẵn sàng</div>
                             </div>
                         </div>
                     </div>
@@ -370,44 +363,6 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                     <!-- TAB NOTIFY -->
                     <div class="mplis-panel-body" id="tab-notify"></div>
 
-                    <!-- TAB 4: RETURN -->
-                    <div class="mplis-panel-body tab-return-color" id="tab-return">
-                        <div class="mplis-hint">Tự động quét các bước:<br/><b style="color:#fde047">5 · 6 · 9 — Trả kết quả hồ sơ</b></div>
-
-                        <button class="mplis-btn-primary" id="btn-toggle-return">▶ Bắt đầu Trả Hồ Sơ</button>
-                        <div class="mplis-status-bar">
-                            <div class="mplis-status-row">
-                                <div class="mplis-status-lbl"><span class="mplis-status-dot" id="mplis-status-dot-return"></span><span id="mplis-status-text-return">Đang dừng</span></div>
-                                <div style="color: var(--mplis-text-dim);">Thành công: <span id="mplis-counter-val-return" style="color: #eab308; font-weight: bold;">0</span></div>
-                            </div>
-                            <div class="mplis-log" id="mplis-step-log-return">Sẵn sàng</div>
-                        </div>
-                    </div>
-
-                    <!-- TAB 5: UPDATE PARCEL -->
-                    <div class="mplis-panel-body" id="tab-update">
-                        <span class="mplis-section-label">Dán dữ liệu từ Excel</span>
-                        <textarea id="update-excel-input" placeholder="Số phát hành, Tờ mới, Thửa mới, Tờ cũ, Thửa cũ" style="background: rgba(0,0,0,0.25); border: 1px solid var(--mplis-border); border-radius: 8px; padding: 8px; color: #f8fafc; width: 100%; height: 72px; font-size: 12px; resize:none; margin-bottom:8px;"></textarea>
-                        <div style="display:flex; gap:6px; margin-bottom:10px;">
-                            <button class="mplis-btn-primary" id="btn-update-parse" style="flex:1; background:linear-gradient(135deg,#3b82f6,#2563eb); font-size:12px; padding:9px;">Nạp dữ liệu</button>
-                            <button class="mplis-btn-primary" id="btn-update-start" style="flex:1; background:linear-gradient(135deg,#10b981,#059669); font-size:12px; padding:9px;" disabled>Bắt đầu</button>
-                            <button class="mplis-btn-primary" id="btn-update-stop" style="flex:1; background:linear-gradient(135deg,#f43f5e,#e11d48); font-size:12px; padding:9px; display:none;">Dừng lại</button>
-                        </div>
-                        <div class="mplis-status-bar">
-                            <div class="mplis-status-row">
-                                <div class="mplis-status-lbl">Tiến độ: <span id="stat-current" style="color:var(--mplis-accent-2); font-weight:bold;">0</span> / <span id="stat-total">0</span></div>
-                                <div style="color: var(--mplis-text-dim);"><span class="mplis-status-dot" id="update-dot"></span><span id="stat-status">Chưa bắt đầu</span></div>
-                            </div>
-                            <div class="mplis-log" id="vbdlis-logs" style="height: 60px; overflow-y:auto; white-space:pre-wrap; font-family: monospace; font-size: 12px; line-height: 1.5;">Sẵn sàng</div>
-                        </div>
-                        <div style="max-height:100px; overflow-y:auto; margin-top:10px; border:1px solid var(--mplis-border); border-radius:8px;">
-                            <table style="width:100%; font-size:12px; color:#f8fafc; border-collapse:collapse; text-align:left;">
-                                <tbody id="result-table-body"></tbody>
-                            </table>
-                        </div>
-                        <button class="mplis-btn-primary mplis-btn-ghost" id="btn-update-copy" style="width:100%; margin-top:8px; font-size:12px; padding:9px; box-shadow:none;">${ICON_CLIPBOARD}Copy trạng thái gốc</button>
-                    </div>
-
                     <!-- TAB 6: SETTINGS -->
                     <!-- Mỗi mục là 1 thẻ thu gọn: đóng lại chỉ còn tiêu đề + trạng thái, nên tab
                          Cài đặt không dài tới mức phải cuộn mới thấy mục cuối. Trạng thái nằm trên
@@ -423,7 +378,7 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                                 <div class="mplis-bypass-row">
                                     <div class="mplis-bypass-row-label">
                                         <strong>Tự đồng ý hộp thoại</strong>
-                                        <span>Tắt nếu muốn tự xác nhận (ký số, kết ISO). Cần <b>tải lại trang</b>.</span>
+                                        <span>Chỉ khi auto đang chạy; lúc bạn tự thao tác vẫn hỏi như thường. Tắt nếu muốn tự xác nhận cả những hộp thoại gốc của trình duyệt. Cần <b>tải lại trang</b>.</span>
                                     </div>
                                     <label class="mplis-toggle-sw">
                                         <input type="checkbox" id="chk-auto-confirm" ${isAutoConfirmChecked}>
@@ -691,6 +646,20 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
             return 'Tuỳ chỉnh';
         }
 
+        function veTomTat() {
+            const el = document.getElementById('mplis-run-summary');
+            if (!el) return;
+            const c = ProcessModule.getTopState().config;
+            const buoc = (c.activeWorkflows || []).slice().sort();
+            const chuyen = c.isQT5 && c.forwardUser;
+            if (chuyen) buoc.push('QT5');
+            if (!buoc.length) { el.textContent = 'Chưa chọn quy trình nào'; return; }
+            el.innerHTML = 'Sẽ chạy: <b>' + buoc.join(' · ') + '</b>'
+                + (chuyen ? ' → chuyển cho <b>' + escapeHtml(c.forwardUser) + '</b>' : '')
+                + (c.isQT5 && !c.forwardUser ? ' · QT5 chưa có người nhận' : '')
+                + ' · tốc độ <b>' + escapeHtml(tenMucTocDo(c.delayAction || 500).toLowerCase()) + '</b>';
+        }
+
         function veTocDo(delay) {
             const muc = MUC_TOC_DO.find(m => m.delay === delay);
             nhomTocDo.forEach(g => g.querySelectorAll('.mplis-hauto-btn').forEach(b => {
@@ -704,6 +673,7 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                 tocDoValue.title = tenMucTocDo(delay);
             }
             veBadge('set-speed-state', tenMucTocDo(delay), true);
+            veTomTat();
             if (tocDoState) {
                 tocDoState.innerHTML = 'Nghỉ giữa 2 thao tác: <b style="color:#fff;">' + delay + 'ms</b>'
                     + ' · vòng quét 400ms. Kéo thanh ở tab Xử lý để chỉnh từng 50ms.<br/>'
@@ -846,17 +816,10 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
                 void content.offsetHeight; // ép trình duyệt áp dụng ngay chiều cao cũ trước khi bật lại transition
                 content.style.transition = '';
                 requestAnimationFrame(() => { content.style.minHeight = endHeight + 'px'; });
-
-                // Pause the other tools automatically when switching tabs
-                if (targetId === 'tab-process') {
-                    if (ReturnModule.getTopState()?.isRunning) toggleReturn();
-                } else if (targetId === 'tab-return') {
-                    if (ProcessModule.getTopState()?.isRunning) toggleProcess();
-                }
             };
         });
 
-        // Ẩn/hiện 3 tab ít dùng (Trả hồ sơ, Auto sửa Thửa/Tờ, Cài đặt) — mặc định ẩn, bấm nút 3 chấm để hiện lại khi cần
+        // Ẩn/hiện tab ít dùng (Cài đặt) — mặc định ẩn, bấm nút 3 chấm để hiện lại khi cần
         const extraTabs = document.querySelectorAll('.mplis-tab-extra');
         const btnToggleExtra = document.getElementById('mplis-btn-toggle-extra');
         function setExtraTabsVisible(visible) {
@@ -886,6 +849,7 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
             const checked = e.target.checked;
             document.getElementById('fw-user-group').style.display = checked ? 'block' : 'none';
             ProcessModule.saveConfig({ isQT5: checked });
+            veTomTat();
         };
 
         document.getElementById('cfg-p-forwardUser').oninput = (e) => {
@@ -894,6 +858,7 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
             stateEl.textContent = fwUserState(user);
             stateEl.classList.toggle('on', !!user);
             ProcessModule.saveConfig({ forwardUser: user });
+            veTomTat();
         };
 
         // Nhớ trạng thái đóng/mở qua F5, giống cách nút 3 chấm nhớ mplis_extra_tabs_visible
@@ -1130,6 +1095,7 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
             cb.onchange = () => {
                 const checked = Array.from(document.querySelectorAll('input[name="mplis-workflow"]:checked')).map(c => c.value);
                 ProcessModule.saveConfig({ activeWorkflows: checked });
+                veTomTat();
                 // Ô "Chọn hết file" chỉ có nghĩa khi QT2 đang chạy - ẩn đi cho đỡ rối khi tắt QT2
                 const qt2Group = document.getElementById('qt2-file-group');
                 if (qt2Group) qt2Group.style.display = checked.includes('QT2') ? 'block' : 'none';
@@ -1145,13 +1111,11 @@ import { getLogJson, clearLog, getLogCount, isLogEnabled, setLogEnabled } from '
         });
 
         document.getElementById('btn-toggle-process').onclick = toggleProcess;
-        document.getElementById('btn-toggle-return').onclick = toggleReturn;
 
         LookupModule.init();
         NotifyModule.init();
         AlertModule.init();
         ExcelModule.init();
-        UpdateParcelModule.init();
     }
 
 export { injectPanel };

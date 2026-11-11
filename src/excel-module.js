@@ -104,6 +104,9 @@ import { gmxhr } from './mplis-logger.js';
             el.style.color = ok ? '#22c55e' : '#f43f5e';
         }
 
+        // Dòng đang gửi dở (chưa có phản hồi) - tránh gửi trùng khi vòng thử lại chạy.
+        const _dangGui = new Set();
+
         function pushRecordToSheet(r) {
             const bucket = getBucket(r);
             if (!PUSHABLE_BUCKETS.includes(bucket)) {
@@ -162,27 +165,44 @@ import { gmxhr } from './mplis-logger.js';
                 hnk: r.dtHNK || ''
             };
 
+            if (_dangGui.has(r)) return;
+            _dangGui.add(r);
             gmxhr({
                 method: 'POST',
                 url: url,
                 data: JSON.stringify(payload),
                 headers: { 'Content-Type': 'application/json' },
                 onload: function (res) {
+                    _dangGui.delete(r);
                     console.log('[Excel] Phản hồi từ Sheet:', res.status, res.responseText);
                     try {
                         const body = JSON.parse(res.responseText);
-                        if (body.ok) setSheetStatus('✅ đã đồng bộ', true);
+                        if (body.ok) { r.daDay = true; saveState(); setSheetStatus('✅ đã đồng bộ', true); }
                         else setSheetStatus('❌ ' + (body.error || 'lỗi'), false);
                     } catch (e) {
                         console.log('[Excel] Không parse được phản hồi JSON:', e);
                         setSheetStatus('❌ phản hồi lạ', false);
                     }
                 },
+                timeout: 20000,
+                ontimeout: function () {
+                    _dangGui.delete(r);
+                    setSheetStatus('❌ hết giờ chờ (20s), sẽ thử lại', false);
+                },
                 onerror: function (err) {
+                    _dangGui.delete(r);
                     console.log('[Excel] Lỗi kết nối khi đẩy lên Sheet:', err);
                     setSheetStatus('❌ lỗi kết nối', false);
                 }
             });
+        }
+
+        function guiLaiChuaDay() {
+            if (!getSheetUrl()) return;
+            const cho = state.records.filter(r => r.daDay === false && (r.soLanThu || 0) < 5 && !_dangGui.has(r)).slice(0, 3);
+            if (!cho.length) return;
+            cho.forEach(r => { r.soLanThu = (r.soLanThu || 0) + 1; pushRecordToSheet(r); });
+            saveState();
         }
 
         function init() {
@@ -227,6 +247,11 @@ import { gmxhr } from './mplis-logger.js';
                                 if (res.status >= 200 && res.status < 300) setSheetStatus('✅ link phản hồi', true);
                                 else setSheetStatus('❌ lỗi HTTP ' + res.status, false);
                             }
+                        },
+                        timeout: 20000,
+                        ontimeout: function() {
+                            btnTestSheetLink.disabled = false;
+                            setSheetStatus('❌ hết giờ chờ (20s): trình duyệt này chưa kết nối được Google', false);
                         },
                         onerror: function() {
                             btnTestSheetLink.disabled = false;
@@ -292,6 +317,7 @@ import { gmxhr } from './mplis-logger.js';
 
             // Tự động quét tree mỗi 1 giây
             setInterval(scanTree, 1000);
+            setInterval(guiLaiChuaDay, 60000);
         }
 
         function loadState() {
@@ -305,6 +331,7 @@ import { gmxhr } from './mplis-logger.js';
             // Không try/catch trước đây khiến QuotaExceededError (giỏ hàng phình to sau thời gian
             // dài dùng) ném lỗi ngay TRƯỚC dòng gọi pushRecordToSheet trong scanTree, làm phần tự
             // đẩy Sheet ngưng chạy mà không có cách nào biết lý do.
+            if (state.records.length > 1500) state.records.splice(0, state.records.length - 1500);
             try {
                 localStorage.setItem('mplis_excel_cart', JSON.stringify(state.records));
             } catch (e) {
@@ -633,7 +660,9 @@ import { gmxhr } from './mplis-logger.js';
                         const newRecord = {
                             maHS, loaiHS, tenTTHCFull: tenTTHCDong, soBienNhan, nguoiNop, diaChi, gcn, thua, to, dt,
                             dtO: datO, dtCLN: datCLN, dtTSN: datTSN,
-                            dtLUA: datLUA, dtHNK: datHNK, dtSKC: datSKC
+                            dtLUA: datLUA, dtHNK: datHNK, dtSKC: datSKC,
+                            daDay: false, // true khi Sheet đã nhận; false thì tự gửi lại
+                            soLanThu: 1
                         };
                         state.records.push(newRecord);
                         saveState();

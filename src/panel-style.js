@@ -104,6 +104,7 @@
         #mplis-run-toast .mplis-toast-bar { height: 4px; border-radius: 3px; background: rgba(255,255,255,0.09); overflow: hidden; }
         #mplis-run-toast .mplis-toast-bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, var(--mplis-accent), var(--mplis-accent-2)); transition: width 0.3s ease; }
         #mplis-run-toast .mplis-toast-bar i.done { background: var(--mplis-good); }
+        #mplis-run-toast .mplis-toast-bar i.error { background: var(--mplis-bad); }
         #mplis-run-toast .mplis-toast-log { margin-top: 8px; font-size: 11.5px; color: var(--mplis-text-dim); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         @media print { #mplis-run-toast { display: none !important; } }
 
@@ -119,6 +120,12 @@
         .mplis-btn-primary:active { transform: translateY(0); filter: brightness(0.97); box-shadow: 0 2px 8px rgba(99,102,241,0.3) !important; }
         .mplis-btn-primary.running { background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%) !important; box-shadow: 0 4px 15px rgba(244,63,94,0.4), inset 0 1px 0 rgba(255,255,255,0.15) !important; }
         .mplis-btn-primary.running:hover { box-shadow: 0 7px 22px rgba(244,63,94,0.55), inset 0 1px 0 rgba(255,255,255,0.2) !important; }
+        /* Chân bảng ghim đáy: nút Bắt đầu/Dừng + tóm tắt + trạng thái luôn thấy, không phải cuộn tìm. */
+        #mplis-auto-panel .mplis-runbar { position: sticky; bottom: 0; z-index: 2; margin: 8px -10px -10px; padding: 8px 10px 10px; background: var(--mplis-bg); border-top: 1px solid var(--mplis-border); }
+        #mplis-auto-panel .mplis-runbar .mplis-status-bar { margin-top: 8px !important; }
+        #mplis-auto-panel #btn-toggle-process { padding: 12px 14px !important; font-size: 14px !important; }
+        .mplis-run-summary { font-size: 12px; line-height: 1.5; color: var(--mplis-text-dim); margin-bottom: 8px; }
+        .mplis-run-summary b { color: var(--mplis-text); font-weight: 600; }
         .mplis-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; filter: none; box-shadow: none !important; }
 
         /* Chọn hậu tố GT/PT - 2 nút kiểu segmented, nút đang chọn đổi màu + đậm để nhìn là biết. */
@@ -139,15 +146,13 @@
         .mplis-status-lbl { display: flex !important; align-items: center !important; gap: 7px !important; color: #c8d3e8 !important; }
         .mplis-status-dot { width: 8px !important; height: 8px !important; border-radius: 50% !important; background-color: #4a5568 !important; flex-shrink: 0; }
         .mplis-status-dot.active { background-color: var(--mplis-good) !important; box-shadow: 0 0 0 2px rgba(34,197,94,0.2), 0 0 10px rgba(34,197,94,0.6) !important; }
+        .mplis-status-dot.error { background-color: var(--mplis-bad) !important; }
         .mplis-status-dot.waiting { background-color: var(--mplis-warn) !important; box-shadow: 0 0 0 2px rgba(245,158,11,0.2), 0 0 10px rgba(245,158,11,0.6) !important; }
         @keyframes mplis-pulse { 0% { opacity: 0.55; } 50% { opacity: 1; } 100% { opacity: 0.55; } }
 
         .mplis-log { margin-top: 8px !important; font-family: 'Consolas', 'Cascadia Code', monospace !important; font-size: 11.5px !important; color: var(--mplis-text-dim) !important; border-top: 1px solid rgba(148,163,184,0.1) !important; padding-top: 7px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
 
         .mplis-highlight-target { outline: 2px solid var(--mplis-good) !important; box-shadow: 0 0 0 4px rgba(34,197,94,0.15), 0 0 18px rgba(34,197,94,0.6) !important; border-radius: 4px !important; }
-        .tab-return-color .mplis-highlight-target { outline-color: var(--mplis-warn) !important; box-shadow: 0 0 0 4px rgba(245,158,11,0.15), 0 0 18px rgba(245,158,11,0.6) !important; }
-        .tab-return-color .mplis-btn-primary { background: linear-gradient(135deg, #f59e0b, #b45309) !important; color: #0a0c10 !important; box-shadow: 0 4px 15px rgba(245,158,11,0.38), inset 0 1px 0 rgba(255,255,255,0.2) !important; }
-        .tab-return-color .mplis-btn-primary.running { background: linear-gradient(135deg, var(--mplis-bad), #be123c) !important; color: #fff !important; }
 
         .mplis-filter-tab.active { background: rgba(99,102,241,0.28) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(99,102,241,0.4); }
         .mplis-excel-filter.active { background: rgba(99,102,241,0.28) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(99,102,241,0.4); }

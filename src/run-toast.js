@@ -80,7 +80,11 @@ function refresh() {
     lastRunning = state.isRunning;
 
     const justStopped = stoppedAt && (Date.now() - stoppedAt < HOLD_AFTER_STOP_MS);
-    const shouldShow = !hiddenByUser && panel.classList.contains('minimized') && (state.isRunning || justStopped);
+    // Dừng vì lỗi thì bảng ở lại tới khi người dùng đóng, không tự tắt sau vài giây như lúc xong việc.
+    const dungViLoi = !state.isRunning && state.lastStopKind === 'error';
+    // Đã mở rộng bảng điều khiển = đã thấy lỗi, thu nhỏ lại không hiện lại bảng cũ.
+    if (dungViLoi && !panel.classList.contains('minimized')) hiddenByUser = true;
+    const shouldShow = !hiddenByUser && panel.classList.contains('minimized') && (state.isRunning || justStopped || dungViLoi);
     toast.classList.toggle('show', shouldShow);
     if (!shouldShow) return;
 
@@ -99,12 +103,13 @@ function refresh() {
         // idx = -1 khi chưa nhận ra bước nào (vừa bấm chạy) - hiện thanh rỗng thay vì đoán bừa
         countEl.textContent = idx >= 0 ? `${idx + 1}/${queue.length}` : `0/${queue.length}`;
         fillEl.style.width = (idx >= 0 && queue.length ? ((idx + 1) / queue.length) * 100 : 0) + '%';
-        fillEl.classList.remove('done');
+        fillEl.classList.remove('done', 'error');
     } else {
-        stepEl.textContent = 'Đã dừng';
+        stepEl.textContent = dungViLoi ? 'Lỗi - auto đã dừng' : 'Đã dừng';
         countEl.textContent = `${queue.length}/${queue.length}`;
         fillEl.style.width = '100%';
-        fillEl.classList.add('done');
+        fillEl.classList.toggle('done', !dungViLoi);
+        fillEl.classList.toggle('error', dungViLoi);
     }
 
     const srcLog = document.getElementById('mplis-step-log-process');

@@ -1,7 +1,7 @@
 import { topWin } from './utils.js';
 import { thanThien } from './log-friendly.js';
 
-// Shared plumbing for the top-level automation modules (ProcessModule, ReturnModule):
+// Shared plumbing for the top-level automation modules (ProcessModule):
 // per-module state lives on topWin (so every iframe reads/writes the same object),
 // with config persisted to localStorage and UI hooks resolved by DOM id suffix.
 function createModuleRuntime({ globalStateKey, configStorageKey, defaultConfig, logPrefix, domSuffix }) {
@@ -53,7 +53,7 @@ function createModuleRuntime({ globalStateKey, configStorageKey, defaultConfig, 
                     const statusText = document.getElementById('mplis-status-text-' + domSuffix);
                     const statusDot = document.getElementById('mplis-status-dot-' + domSuffix);
                     if (statusText) statusText.textContent = text;
-                    if (statusDot) { statusDot.className = 'mplis-status-dot'; if (type === 'active') statusDot.classList.add('active'); if (type === 'waiting') statusDot.classList.add('waiting'); }
+                    if (statusDot) { statusDot.className = 'mplis-status-dot'; if (type === 'active') statusDot.classList.add('active'); if (type === 'waiting') statusDot.classList.add('waiting'); if (type === 'error') statusDot.classList.add('error'); }
                 },
                 incrementSuccess: function () { this.successCount++; const el = document.getElementById('mplis-counter-val-' + domSuffix); if (el) el.textContent = this.successCount; }
             };
