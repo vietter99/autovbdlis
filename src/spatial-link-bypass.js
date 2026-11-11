@@ -3,7 +3,7 @@
 
 // Hồ sơ CHƯA "liên kết không gian" (GIS) bị cổng chặn khi bấm "Kết ISO" (API ThucHienKetISO),
 // bắt người dùng tự F12 -> bắt request trong Network -> thêm tay "bypassWarning": true -> gửi lại
-// (xem mplis-bypass.html, công cụ tay dùng trước khi có module này). Module này tự chèn
+// Module này tự chèn
 // bypassWarning:true vào MỌI request ThucHienKetISO của TRANG (không tự tạo request mới, không
 // cần biết hoSoTiepNhanId/token nằm ở đâu - trang tự gửi đúng, tool chỉ chặn giữa đường và vá
 // payload) nên không cần mở DevTools nữa. Vá cả 2 đường vì không chắc trang gọi qua $.ajax hay

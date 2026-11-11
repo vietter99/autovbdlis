@@ -1,5 +1,4 @@
 import { ProcessModule } from './process-module.js';
-import { ReturnModule } from './return-module.js';
 import { findCurrentMaHS } from './utils.js';
 
     function toggleProcess(customStopMessage) {
@@ -12,7 +11,10 @@ import { findCurrentMaHS } from './utils.js';
             btn.classList.remove('running');
 
             const isCustom = typeof customStopMessage === 'string';
-            ProcessModule.getTopState().updateStatus(isCustom ? (customStopMessage.includes('LỖI') ? "Lỗi dừng" : "Hoàn thành") : "Đang dừng", "idle");
+            // Có "LỖI" hoặc ⚠️ trong thông điệp = dừng vì sự cố, không phải hoàn thành.
+            const laLoi = isCustom && /LỖI|⚠️/.test(customStopMessage);
+            state.lastStopKind = laLoi ? 'error' : (isCustom ? 'done' : 'user');
+            ProcessModule.getTopState().updateStatus(laLoi ? "Lỗi - đã dừng" : (isCustom ? "Hoàn thành" : "Đang dừng"), laLoi ? "error" : "idle");
             ProcessModule.getTopState().writeLog(isCustom ? customStopMessage : "Đã dừng hoạt động.");
 
             if (isCustom) {
@@ -28,6 +30,7 @@ import { findCurrentMaHS } from './utils.js';
             // Xóa toàn bộ bộ nhớ click cũ để chuẩn bị cho hồ sơ mới
             document.querySelectorAll('*[data-mplis-clicked="true"]').forEach(el => el.removeAttribute('data-mplis-clicked'));
 
+            state.lastStopKind = null;
             state._qt5Done = false; state.tacVuDaXuLy = null; // danh sách tác vụ đã xử lý sẽ do server báo lại cho lượt này
             state.qt1ConfirmStreak = 0; // lượt mới thì xoá đếm lặp của lượt trước
             state.isRunning = true;
@@ -40,29 +43,4 @@ import { findCurrentMaHS } from './utils.js';
         }
     }
 
-    function toggleReturn(customStopMessage) {
-        const state = ReturnModule.getTopState();
-        const btn = document.getElementById('btn-toggle-return');
-        if (state.isRunning) {
-            state.isRunning = false;
-            btn.textContent = "Bắt đầu Trả Hồ Sơ";
-            btn.classList.remove('running');
-
-            const isCustom = typeof customStopMessage === 'string';
-            ReturnModule.getTopState().updateStatus(isCustom ? "Hoàn thành" : "Đang dừng", "idle");
-            ReturnModule.getTopState().writeLog(isCustom ? customStopMessage : "Đã dừng hoạt động.");
-
-            if (isCustom) {
-                const logEl = document.getElementById('mplis-step-log-return');
-                if (logEl) { logEl.style.color = '#10b981'; logEl.style.fontWeight = 'bold'; }
-                setTimeout(() => { if (logEl) { logEl.style.color = ''; logEl.style.fontWeight = ''; } }, 10000);
-            }
-        } else {
-            state.isRunning = true;
-            btn.textContent = "Tạm dừng Trả Hồ Sơ";
-            btn.classList.add('running');
-            ReturnModule.getTopState().updateStatus("Đang chạy", "active");
-        }
-    }
-
-export { toggleProcess, toggleReturn };
+export { toggleProcess };
