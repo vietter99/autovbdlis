@@ -17,6 +17,7 @@
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
 // @connect      api.telegram.org
+// @connect      bot-api.zaloplatforms.com
 // @run-at       document-end
 // @allFrames    true
 // ==/UserScript==

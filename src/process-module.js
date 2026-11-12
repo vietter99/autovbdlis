@@ -184,7 +184,7 @@ import { setFastInterval } from './bg-ticker.js';
     function baoLoiTelegram(loai, tieuDe, noiDung) {
         try {
             if (typeof topWin.MPLIS_TG_ALERT !== 'function') return;
-            const ma = findCurrentMaHS() || '';
+            const ma = findCurrentMaHS(document, true) || '';
             const { lyDo, huongXuLy } = moTaLoiTelegram(loai, tieuDe, noiDung);
             const d = new Date();
             const p = (n) => String(n).padStart(2, '0');

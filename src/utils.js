@@ -180,7 +180,8 @@
     // Dò Mã hồ sơ (VD: H15.50-260706-1377 -> "06-1377") đang hiển thị trên màn hình hiện tại.
     // Dùng chung bởi ExcelModule (quét cây QT3) và bien-dong-capture (bắt lúc QT1) để đảm bảo
     // 2 module luôn suy ra CÙNG 1 khóa mã hồ sơ cho cùng 1 hồ sơ.
-    function findCurrentMaHS(root = document) {
+    // dayDu = true trả mã đầy đủ (H15.50.05.12-260826-1077); mặc định trả dạng rút gọn (26-1077).
+    function findCurrentMaHS(root = document, dayDu = false) {
         const allNodes = Array.from(root.querySelectorAll('b, span, .modal-title, h4'));
         const validNodes = [];
 
@@ -204,6 +205,7 @@
         if (!targetNode) targetNode = validNodes[validNodes.length - 1];
 
         const full = targetNode.text;
+        if (dayDu) return full.toUpperCase();
         let maHS = '';
         const parts = full.split('-');
         if (parts.length >= 3) {
