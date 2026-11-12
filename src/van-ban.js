@@ -25,3 +25,11 @@ export function chiaTheoDo(text, toiDa) {
     day(cur);
     return khuc;
 }
+
+// Tin gửi trong nhóm thường mở đầu bằng thẻ gắn bot ("@mplis /tre"): bỏ phần đứng trước dấu "/" đầu tiên của 1 lệnh.
+// Không có lệnh nào thì giữ nguyên tin.
+export function catToiLenh(text) {
+    const t = String(text == null ? '' : text).trim();
+    const k = t.search(/(^|\s)\/[A-Za-zÀ-ỹ]/);
+    return k > 0 ? t.slice(k).trim() : t;
+}

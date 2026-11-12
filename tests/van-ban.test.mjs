@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { htmlSangChu, chiaTheoDo } from '../src/van-ban.js';
+import { catToiLenh, htmlSangChu, chiaTheoDo } from '../src/van-ban.js';
 
 test('bỏ thẻ, giữ chữ, đổi thực thể HTML về ký tự thật', () => {
     assert.equal(htmlSangChu('⏰ <b>A &amp; B</b> &lt;ok&gt;'), '⏰ A & B <ok>');
@@ -19,4 +19,12 @@ test('chia khúc: không khúc nào quá hạn mức và nối lại đủ nội
 
 test('rỗng thì không có khúc nào', () => {
     assert.deepEqual(chiaTheoDo('', 10), []);
+});
+
+test('gắn thẻ bot trước lệnh thì bỏ thẻ, giữ lệnh và đối số', () => {
+    assert.equal(catToiLenh('@mplis /tre 3'), '/tre 3');
+    assert.equal(catToiLenh('@Bot MPLIS /ai thoi'), '/ai thoi');
+    assert.equal(catToiLenh('/tong'), '/tong');
+    assert.equal(catToiLenh('  0402 '), '0402');
+    assert.equal(catToiLenh('xin chào a/b'), 'xin chào a/b');
 });

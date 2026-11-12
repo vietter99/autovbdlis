@@ -2,7 +2,7 @@ import { topWin, escapeHtml } from './utils.js';
 import { setFastInterval } from './bg-ticker.js';
 import { tenNguoiNop, traCuuHoSo, extractApplicant, parseAspNetDate } from './lookup-module.js';
 import { phanLoaiHan, khoangThoiGian, hanTraMs, mocDaToi } from './han-tra.js';
-import { htmlSangChu, chiaTheoDo } from './van-ban.js';
+import { htmlSangChu, chiaTheoDo, catToiLenh } from './van-ban.js';
 
 // Thông báo hồ sơ mới về Telegram.
 // Nguồn: DangKyAjax/GetNotify (mỗi dòng = 1 lần ai đó chuyển hồ sơ/tập hồ sơ cho mình) và
@@ -67,10 +67,11 @@ function nhoTen(list) {
 }
 const SUA_TEN = { 'TRINH ĐÌNH THỞI': 'Trịnh Đình Thởi' }; // cổng MPLIS ghi thiếu dấu
 function chuanTen(raw) {
-    raw = (raw || '').trim();
+    raw = (raw || '').trim().normalize('NFC');
     const full = getNames()[raw.toLowerCase()];
     if (full) raw = full;
-    if (SUA_TEN[raw.toUpperCase()]) return SUA_TEN[raw.toUpperCase()];
+    const sua = Object.keys(SUA_TEN).find((k) => k.normalize('NFC') === raw.toUpperCase());
+    if (sua) return SUA_TEN[sua];
     return raw && raw === raw.toUpperCase() ? raw.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : raw;
 }
 function tenNguoi(n) {
@@ -577,7 +578,7 @@ async function lamMoiDuLieu() {
 }
 let canTaiLai = false; // đặt khi người dùng gõ /f5; tải lại SAU khi đã gửi xong câu trả lời
 async function traLoi(text) {
-    const t = String(text || '').trim();
+    const t = catToiLenh(text);
     const m = /^\/?([a-zA-Z0-9_À-ỹ]+)(?:@\w+)?\s*(.*)$/s.exec(t);
     const lenh = m ? boDau(m[1]) : '';
     const doi = m ? m[2].trim() : '';

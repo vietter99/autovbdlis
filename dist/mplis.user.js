@@ -3710,6 +3710,11 @@
     day(cur);
     return khuc;
   }
+  function catToiLenh(text) {
+    const t = String(text == null ? "" : text).trim();
+    const k = t.search(/(^|\s)\/[A-Za-zÀ-ỹ]/);
+    return k > 0 ? t.slice(k).trim() : t;
+  }
 
   // src/telegram-notify.js
   var K_ON = "mplis_tg_enabled";
@@ -3791,10 +3796,11 @@
   }
   var SUA_TEN = { "TRINH ĐÌNH THỞI": "Trịnh Đình Thởi" };
   function chuanTen(raw) {
-    raw = (raw || "").trim();
+    raw = (raw || "").trim().normalize("NFC");
     const full = getNames()[raw.toLowerCase()];
     if (full) raw = full;
-    if (SUA_TEN[raw.toUpperCase()]) return SUA_TEN[raw.toUpperCase()];
+    const sua = Object.keys(SUA_TEN).find((k) => k.normalize("NFC") === raw.toUpperCase());
+    if (sua) return SUA_TEN[sua];
     return raw && raw === raw.toUpperCase() ? raw.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : raw;
   }
   function tenNguoi(n) {
@@ -4339,7 +4345,7 @@
   }
   var canTaiLai = false;
   async function traLoi(text) {
-    const t = String(text || "").trim();
+    const t = catToiLenh(text);
     const m = /^\/?([a-zA-Z0-9_À-ỹ]+)(?:@\w+)?\s*(.*)$/s.exec(t);
     const lenh = m ? boDau(m[1]) : "";
     const doi = m ? m[2].trim() : "";
