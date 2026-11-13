@@ -3925,7 +3925,9 @@
     const v = ls.get("mplis_ch_" + k + "_" + l);
     return v === "" ? macDinhKenh(k, l) : v === "true";
   };
-  var gioiHanGio = (v, macDinh) => Math.min(72, Math.max(0.25, parseFloat(String(v).replace(",", ".")) || macDinh));
+  var gioiHanGio = (v, macDinh) => Math.min(720, Math.max(1 / 12, parseFloat(String(v).replace(",", ".")) || macDinh));
+  var DON_VI = { phut: 1 / 60, gio: 1, ngay: 24 };
+  var donViBaoTre = (k) => ls.get("mplis_ch_" + k + "_dv") in DON_VI ? ls.get("mplis_ch_" + k + "_dv") : "gio";
   var gioBaoTre = (k) => gioiHanGio(ls.get("mplis_ch_" + k + "_gio"), 2);
   var soLanNhac = (k) => Math.min(10, Math.max(1, parseInt(ls.get("mplis_ch_" + k + "_lan"), 10) || 1));
   var dungTg = () => kenhBat("tg", "on");
@@ -4522,7 +4524,7 @@
   }
   function khoiKenh(k, ten, oNhap) {
     const tick2 = (l, nhan) => '<label style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--mplis-text);"><input type="checkbox" id="ch-' + k + "-" + l + '" ' + (kenhBat(k, l) ? "checked" : "") + "> " + nhan + "</label>";
-    return '<div id="kenh-' + k + '" style="padding:8px 0; border-top:1px solid var(--mplis-border);"><div class="mplis-bypass-row" style="padding:0 0 6px;"><div class="mplis-bypass-row-label"><strong>' + ten + '</strong></div><label class="mplis-toggle-sw"><input type="checkbox" id="ch-' + k + '-on" ' + (kenhBat(k, "on") ? "checked" : "") + '><span class="mplis-toggle-track"></span></label></div>' + oNhap + '<div style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--mplis-text-dim); margin:4px 0;">Báo trễ trước <input type="number" id="ch-' + k + '-gio" min="0.25" max="72" step="0.5" value="' + gioBaoTre(k) + '" style="width:60px; padding:4px; text-align:center;"> giờ, nhắc <input type="number" id="ch-' + k + '-lan" min="1" max="10" step="1" value="' + soLanNhac(k) + '" style="width:48px; padding:4px; text-align:center;"> lần</div><div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; margin-top:2px;">' + LOAI_TIN.map(([l, nhan]) => tick2(l, nhan)).join("") + "</div></div>";
+    return '<div id="kenh-' + k + '" style="padding:8px 0; border-top:1px solid var(--mplis-border);"><div class="mplis-bypass-row" style="padding:0 0 6px;"><div class="mplis-bypass-row-label"><strong>' + ten + '</strong></div><label class="mplis-toggle-sw"><input type="checkbox" id="ch-' + k + '-on" ' + (kenhBat(k, "on") ? "checked" : "") + '><span class="mplis-toggle-track"></span></label></div>' + oNhap + '<div style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--mplis-text-dim); margin:4px 0;">Báo trễ trước <input type="number" id="ch-' + k + '-gio" min="1" step="any" value="' + Math.round(gioBaoTre(k) / DON_VI[donViBaoTre(k)] * 100) / 100 + '" style="width:60px; padding:4px; text-align:center;"> <select id="ch-' + k + '-dv" style="padding:4px;">' + [["phut", "phút"], ["gio", "giờ"], ["ngay", "ngày"]].map(([v, t]) => '<option value="' + v + '"' + (donViBaoTre(k) === v ? " selected" : "") + ">" + t + "</option>").join("") + '</select>, nhắc <input type="number" id="ch-' + k + '-lan" min="1" max="10" step="1" value="' + soLanNhac(k) + '" style="width:48px; padding:4px; text-align:center;"> lần</div><div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; margin-top:2px;">' + LOAI_TIN.map(([l, nhan]) => tick2(l, nhan)).join("") + "</div></div>";
   }
   var NotifyModule = {
     html() {
@@ -4581,10 +4583,13 @@
           const v = parseInt(e.target.value, 10);
           if (v >= 1) ls.set("mplis_ch_" + k + "_lan", String(Math.min(10, v)));
         };
-        el("ch-" + k + "-gio").oninput = (e) => {
-          const v = parseFloat(String(e.target.value).replace(",", "."));
-          if (v > 0) ls.set("mplis_ch_" + k + "_gio", String(v));
+        const luuKhung = () => {
+          const v = parseFloat(String(el("ch-" + k + "-gio").value).replace(",", "."));
+          ls.set("mplis_ch_" + k + "_dv", el("ch-" + k + "-dv").value);
+          if (v > 0) ls.set("mplis_ch_" + k + "_gio", String(gioiHanGio(v * DON_VI[el("ch-" + k + "-dv").value], 2)));
         };
+        el("ch-" + k + "-gio").oninput = luuKhung;
+        el("ch-" + k + "-dv").onchange = luuKhung;
       });
       const card = el("tg-cfg-card");
       el("tg-cfg-toggle").onclick = () => {
