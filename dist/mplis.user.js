@@ -582,31 +582,32 @@
     }
     return raw.replace(/\s*—?\s*DỪNG AUTO[.!]?/g, " Tool đã dừng.");
   }
+  var boTuTool = (s) => String(s || "").replace('Tắt "chọn hết file" hoặc xử lý tay.', "Cần xử lý tay.").replace(/rồi chạy lại/g, "rồi làm lại").replace(/bấm chạy lại/g, "làm tiếp");
   function moTaLoiTelegram(loai, tieuDe, noiDung) {
-    const nd = gonTen(noiDung || "").slice(0, 300);
+    const nd = boTuTool(gonTen(noiDung || "")).slice(0, 300);
     const L = String(loai || "");
     let m;
     if (m = /^Server từ chối (\S+)/.exec(L)) {
       const ly = lyDoTuServer(noiDung);
       return {
-        lyDo: 'Hệ thống không cho phép bước "' + tenBuocTuApi(m[1]) + '"' + (ly ? ": " + ly : ""),
-        huongXuLy: "Vào hồ sơ xem thông báo của hệ thống, xử lý xong thì bấm chạy lại."
+        lyDo: 'Cổng MPLIS không cho làm bước "' + tenBuocTuApi(m[1]) + '"' + (ly ? ", lý do: " + ly : ""),
+        huongXuLy: "Mở hồ sơ trên MPLIS, đọc thông báo của hệ thống và xử lý theo đó, xong thì làm tiếp."
       };
     }
     if (/^Hộp thoại lạ/.test(L)) {
       return {
-        lyDo: "Có hộp thông báo lạ" + (tieuDe && tieuDe.trim() ? " «" + tieuDe.trim() + "»" : "") + (nd ? ": " + nd : ""),
-        huongXuLy: "Xem hộp thông báo trên màn hình, xử lý rồi bấm chạy lại."
+        lyDo: "MPLIS hiện một hộp thông báo cần người xem" + (tieuDe && tieuDe.trim() ? " («" + tieuDe.trim() + "»)" : "") + (nd ? ": " + nd : ""),
+        huongXuLy: "Mở hồ sơ, đọc hộp thông báo đó và xử lý, xong thì làm tiếp."
       };
     }
-    if (/^Thông báo lỗi/.test(L)) return { lyDo: "Hệ thống báo lỗi" + (nd ? ": " + nd : ""), huongXuLy: "Xem thông báo trên màn hình rồi bấm chạy lại." };
+    if (/^Thông báo lỗi/.test(L)) return { lyDo: "MPLIS đang báo lỗi" + (nd ? ": " + nd : ""), huongXuLy: "Mở hồ sơ, đọc thông báo lỗi rồi xử lý." };
     if (/^Cập nhật pháp lý bị từ chối/.test(L)) {
-      return { lyDo: "Hệ thống từ chối cập nhật dữ liệu pháp lý" + (nd ? ": " + nd : ""), huongXuLy: "Kiểm tra dữ liệu pháp lý của hồ sơ (ngày vào sổ, số phát hành...) rồi chạy lại." };
+      return { lyDo: "MPLIS không cho lưu thông tin pháp lý của hồ sơ" + (nd ? ": " + nd : ""), huongXuLy: "Mở hồ sơ, kiểm tra các thông tin đã điền (ngày vào sổ, số phát hành...) rồi làm lại." };
     }
     if (m = /^QT2 · (.+)$/.exec(L)) {
-      return { lyDo: m[1] + (nd ? ": " + nd : ""), huongXuLy: "Kiểm tra tên file và giấy chứng nhận của hồ sơ rồi chạy lại." };
+      return { lyDo: "Lỗi khi lưu file quét vào hồ sơ: " + m[1] + (nd ? " — " + nd : ""), huongXuLy: "Kiểm tra tên file và giấy chứng nhận của hồ sơ rồi làm lại." };
     }
-    return { lyDo: L + (nd ? ": " + nd : ""), huongXuLy: "Xem hồ sơ trên màn hình rồi bấm chạy lại." };
+    return { lyDo: L + (nd ? ": " + nd : ""), huongXuLy: "Mở hồ sơ xem chuyện gì xảy ra rồi xử lý tiếp." };
   }
 
   // src/module-runtime.js
@@ -861,7 +862,7 @@
             }
             if (!loi.length) writeLog("✅ Server xác nhận đủ " + ds.length + " giấy chứng nhận đã gắn file: " + ds.join(", "));
             else if (ds.length >= 2) {
-              dungQT2("Gắn giấy chứng nhận lệch", "Sau khi lưu kho, server ghi nhận: " + loi.join("; "));
+              dungQT2("Gắn giấy chứng nhận lệch", "Sau khi lưu, hệ thống cho thấy: " + loi.join("; "));
               return;
             } else writeLog("⚠️ Đối chiếu server (1 giấy, không chặn): " + loi.join("; "));
           }
@@ -898,14 +899,14 @@
         const p = (n) => String(n).padStart(2, "0");
         const gio = p(d.getHours()) + ":" + p(d.getMinutes()) + " " + p(d.getDate()) + "/" + p(d.getMonth() + 1);
         const cs = [
-          "⛔ <b>AUTO ĐÃ DỪNG</b>",
+          "⛔ <b>HỒ SƠ BỊ VƯỚNG</b>",
           "━━━━━━━━━━━━━━",
           ma ? "📄 Hồ sơ: <b>" + escapeHtml(ma) + "</b>" : "",
           "❗ " + escapeHtml(lyDo),
           "👉 " + escapeHtml(huongXuLy),
           "🕒 " + gio
         ].filter(Boolean);
-        topWin.MPLIS_TG_ALERT(cs.join("\n"));
+        topWin.MPLIS_TG_ALERT(cs.join("\n"), ma);
       } catch (e) {
       }
     }
@@ -2004,7 +2005,7 @@
                 }
                 if (!daChonDung && (topState.qt2SoPhatHanhList || []).length >= 2) {
                   if (now2 - (topState._qt2P2Start || now2) > 8e3) {
-                    dungQT2("Không chọn được giấy chứng nhận", "Không thấy giấy " + topState.qt2EditingSph + " trong ô chọn giấy chứng nhận của form sửa file.");
+                    dungQT2("Không chọn được giấy chứng nhận", "Không thấy giấy " + topState.qt2EditingSph + " trong danh sách giấy chứng nhận của hồ sơ.");
                   } else {
                     updateStatus("Đợi ô chọn giấy chứng nhận...", "waiting");
                   }
@@ -3534,15 +3535,19 @@
     }
     return "";
   }
+  function phuongXaHoSo(item) {
+    if (!item) return "";
+    const diaChi = pickField(item.nguoiNopDon, /^(diaChi|diaChiThuongTru|diaChiLienHe|diaChiNguoiNop)$/i) || pickField(item.nguoiNopDon, /diaChi/i);
+    const wardMatch = diaChi.match(/(Xã|Phường|Thị trấn)\s+[^,]+/i);
+    const taiSanMatch = String(item.diaChiTaiSan || "").match(/(Xã|Phường|Thị trấn)\s+[^,]+/i);
+    return (taiSanMatch ? taiSanMatch[0].trim() : "") || findDeep(item, /^(phuongXa|tenPhuongXa)$/i) || (wardMatch ? wardMatch[0].trim() : "");
+  }
   function extractApplicant(item) {
     const n = item.nguoiNopDon || {};
     const hoTen = pickField(n, /^(hoTen|hovaten|tenNguoiNop|tenNguoiNopDon|ten)$/i) || pickField(n, /ten/i);
     const soGiayTo = pickField(n, /(giayChungMinh|soGiayTo|cmnd|cccd|cmt|dinhDanh|soGiay)/i);
     const sdt = pickField(n, /(dienThoai|sdt|phone)/i);
-    const diaChi = pickField(n, /^(diaChi|diaChiThuongTru|diaChiLienHe|diaChiNguoiNop)$/i) || pickField(n, /diaChi/i);
-    const wardMatch = diaChi.match(/(Xã|Phường|Thị trấn)\s+[^,]+/i);
-    const taiSanMatch = String(item.diaChiTaiSan || "").match(/(Xã|Phường|Thị trấn)\s+[^,]+/i);
-    const phuongXa = (taiSanMatch ? taiSanMatch[0].trim() : "") || findDeep(item, /^(phuongXa|tenPhuongXa)$/i) || (wardMatch ? wardMatch[0].trim() : "");
+    const phuongXa = phuongXaHoSo(item);
     if (!hoTen || !soGiayTo || !sdt) {
       try {
         console.log("[MPLIS Lookup] Thiếu thông tin người nộp, nguoiNopDon =", JSON.stringify(item.nguoiNopDon));
@@ -4001,7 +4006,7 @@
       const moi = phanLoaiHan(st.working, now2, phut).sap.filter((x) => daToi(x).some((i) => !daNhac.has(khoa(x, i))));
       if (!moi.length) continue;
       try {
-        await guiTatCa("⏰ <b>SẮP TRỄ HẠN</b>" + (n > 1 ? " (nhắc " + n + " lần trong " + khoangThoiGian(phut * 6e4) + " cuối)" : " (còn dưới " + khoangThoiGian(phut * 6e4) + ")") + "\n" + KE + "\n" + moi.map((x) => dongTre(x, now2)).join("\n"), "tre", k);
+        await guiTatCa("⏰ <b>HỒ SƠ SẮP ĐẾN HẠN TRẢ</b> (còn dưới " + khoangThoiGian(phut * 6e4) + ")\n" + KE + "\n" + moi.map((x) => dongTre(x, now2)).join("\n"), "tre", k);
         moi.forEach((x) => daToi(x).forEach((i) => daNhac.add(khoa(x, i))));
       } catch (e) {
         loi = e;
@@ -4196,6 +4201,7 @@
     let t = String(item && item.quytrinh && item.quytrinh.SchemaName || "").replace(/\s+/g, " ").trim();
     if (!t) return "";
     t = t.replace(/^[\w.]+\.\s+/, "").replace(/^trường hợp\s+/i, "");
+    t = t.split(/\s+(?:quyền|trong trường)/i)[0].replace(/[.,;\s]+$/, "");
     t = t.charAt(0).toUpperCase() + t.slice(1);
     return t.length > 90 ? t.slice(0, 87) + "..." : t;
   }
@@ -4206,8 +4212,8 @@
     return d.getTime() < Date.now() ? s + " ⚠️ quá hạn" : s;
   }
   function dongPhu(item) {
-    const loai = loaiHoSoNgan(item), hen = henTraNgan(item);
-    return (loai ? "\n      📋 " + escapeHtml(loai) : "") + (hen ? "\n      ⏰ Hẹn trả: <b>" + escapeHtml(hen) + "</b>" : "");
+    const loai = loaiHoSoNgan(item), hen = henTraNgan(item), xa = phuongXaHoSo(item);
+    return (loai ? "\n      📋 " + escapeHtml(loai) : "") + (xa ? "\n      📍 " + escapeHtml(xa) : "") + (hen ? "\n      ⏰ Hẹn trả: <b>" + escapeHtml(hen) + "</b>" : "");
   }
   function dongHoSo(r) {
     const nn = docNguoiNop(r);
@@ -4243,7 +4249,7 @@
     if (cur) parts.push(cur);
     return parts.reduce((p, t) => p.then(() => tgGoi("sendMessage", { chat_id: chat, text: t, parse_mode: "HTML", disable_web_page_preview: true })), Promise.resolve());
   }
-  var HUONG_DAN = "🤖 <b>BOT MPLIS — CÁCH HỎI</b>\n" + KE + '\n📊 <b>/tong</b> — tổng số bộ đang chờ, mỗi người chuyển bao nhiêu\n📋 <b>/chitiet</b> — như trên, kèm từng hồ sơ (mã, người nộp, giờ chuyển)\n👤 <b>/ai thoi</b> — hồ sơ của người có tên chứa "thoi" (gõ không dấu cũng được)\n⏰ <b>/tre</b> — hồ sơ đã trễ + sắp trễ trong 1 giờ (<b>/tre 3</b> = trong 3 giờ). Tool cũng tự nhắc trước hạn theo số giờ đặt ở từng kênh (mặc định 2 giờ)\n🔎 <b>/tracuu 0402</b> — hồ sơ đi tới đâu, ai đang giữ, hẹn trả khi nào\n      Gõ thẳng đuôi mã (VD: <b>0402</b> hoặc <b>9-0402</b>) cũng được\n🔄 <b>/f5</b> — tải lại trang MPLIS trên máy (khi trang treo hoặc hết phiên)\n❓ <b>/help</b> — hiện bảng này\n' + KE + '\nGõ chữ khác bot sẽ hiện /tong. Bot chỉ trả lời khi bật "Chế độ đi vắng" trong tool.';
+  var HUONG_DAN = "🤖 <b>BOT MPLIS — CÁCH HỎI</b>\n" + KE + '\n📊 <b>/tong</b> — tổng số bộ đang chờ, mỗi người chuyển bao nhiêu\n📋 <b>/chitiet</b> — như trên, kèm từng hồ sơ (mã, người nộp, giờ chuyển)\n👤 <b>/ai thoi</b> — hồ sơ của người có tên chứa "thoi" (gõ không dấu cũng được)\n⏰ <b>/tre</b> — hồ sơ đã trễ + sắp trễ trong 1 giờ (<b>/tre 3</b> = trong 3 giờ). Bot cũng tự nhắc khi hồ sơ sắp đến hạn trả\n🔎 <b>/tracuu 0402</b> — hồ sơ đi tới đâu, ai đang giữ, hẹn trả khi nào\n      Gõ thẳng đuôi mã (VD: <b>0402</b> hoặc <b>9-0402</b>) cũng được\n🔄 <b>/f5</b> — tải lại trang MPLIS trên máy (khi trang treo hoặc hết phiên)\n❓ <b>/help</b> — hiện bảng này\n' + KE + "\nGõ chữ khác bot sẽ hiện /tong.";
   var boDau = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").toLowerCase();
   function tomTatNguoi(tuKhoa) {
     if (!st.working) return "Chưa có dữ liệu hồ sơ. Thử lại sau ít giây.";
@@ -4352,7 +4358,7 @@
     if (/^(start|help|huongdan|hd|trogiup)$/.test(lenh) || t === "?") return HUONG_DAN;
     if (/^(f5|reload|taitrang|lammoi)$/.test(lenh)) {
       const run = topWin.MPLIS_AUTO_STATE;
-      if (run && run.isRunning && !/ep|force/i.test(doi)) return "⚠️ Tool đang chạy quy trình, tải lại trang giữa chừng có thể làm hỏng bước đang làm.\nMuốn vẫn tải lại thì gõ <b>/f5 ep</b>.";
+      if (run && run.isRunning && !/ep|force/i.test(doi)) return "⚠️ Đang làm dở hồ sơ, tải lại trang giữa chừng có thể làm hỏng việc đang làm.\nMuốn vẫn tải lại thì gõ <b>/f5 ep</b>.";
       canTaiLai = true;
       return "🔄 Đang tải lại trang (F5)...";
     }
@@ -4486,8 +4492,11 @@
     }
   }
   if (window === window.top) {
-    topWin.MPLIS_TG_ALERT = (html) => {
+    topWin.MPLIS_TG_ALERT = (html, ma) => {
       if (!isOn() || !(telegramSan("loi") || zaloSan("loi"))) return;
+      const r = ma && (st.working || []).find((x) => x && String(x.soBienNhan).toUpperCase() === String(ma).toUpperCase());
+      const xa = r ? phuongXaHoSo(r) : "";
+      if (xa) html = html.replace(/(📄 Hồ sơ:[^\n]*)/, (m) => m + "\n📍 " + escapeHtml(xa));
       guiTatCa(html, "loi").catch((e) => console.log("[MPLIS Notify] Không gửi được cảnh báo lỗi:", e.message));
     };
   }
@@ -4617,7 +4626,7 @@
       el("tg-test").onclick = async () => {
         saveCfg();
         try {
-          const kq = await guiTatCa("✅ <b>MPLIS Auto</b>: kết nối thành công.");
+          const kq = await guiTatCa("✅ Bot đã kết nối, báo tin được rồi.");
           st.msg = "Gửi thử: " + kq.map(([ten, loi]) => ten + (loi ? " ❌ " + loi : " ✅")).join(" · ");
         } catch (e) {
           st.msg = "❌ Gửi thử lỗi: " + e.message;

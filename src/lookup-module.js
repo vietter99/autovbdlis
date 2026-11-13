@@ -85,17 +85,21 @@ function findDeep(obj, regex, depth = 0) {
     return '';
 }
 
+// Xã/phường của hồ sơ: ưu tiên địa chỉ tài sản, rồi cột phuongXa, cuối cùng địa chỉ người nộp.
+function phuongXaHoSo(item) {
+    if (!item) return '';
+    const diaChi = pickField(item.nguoiNopDon, /^(diaChi|diaChiThuongTru|diaChiLienHe|diaChiNguoiNop)$/i) || pickField(item.nguoiNopDon, /diaChi/i);
+    const wardMatch = diaChi.match(/(Xã|Phường|Thị trấn)\s+[^,]+/i);
+    const taiSanMatch = String(item.diaChiTaiSan || '').match(/(Xã|Phường|Thị trấn)\s+[^,]+/i);
+    return (taiSanMatch ? taiSanMatch[0].trim() : '') || findDeep(item, /^(phuongXa|tenPhuongXa)$/i) || (wardMatch ? wardMatch[0].trim() : '');
+}
+
 function extractApplicant(item) {
     const n = item.nguoiNopDon || {};
     const hoTen = pickField(n, /^(hoTen|hovaten|tenNguoiNop|tenNguoiNopDon|ten)$/i) || pickField(n, /ten/i);
     const soGiayTo = pickField(n, /(giayChungMinh|soGiayTo|cmnd|cccd|cmt|dinhDanh|soGiay)/i);
     const sdt = pickField(n, /(dienThoai|sdt|phone)/i);
-    const diaChi = pickField(n, /^(diaChi|diaChiThuongTru|diaChiLienHe|diaChiNguoiNop)$/i) || pickField(n, /diaChi/i);
-    const wardMatch = diaChi.match(/(Xã|Phường|Thị trấn)\s+[^,]+/i);
-    const taiSanMatch = String(item.diaChiTaiSan || '').match(/(Xã|Phường|Thị trấn)\s+[^,]+/i);
-    const phuongXa = (taiSanMatch ? taiSanMatch[0].trim() : '')
-        || findDeep(item, /^(phuongXa|tenPhuongXa)$/i)
-        || (wardMatch ? wardMatch[0].trim() : '');
+    const phuongXa = phuongXaHoSo(item);
     if (!hoTen || !soGiayTo || !sdt) {
         try { console.log('[MPLIS Lookup] Thiếu thông tin người nộp, nguoiNopDon =', JSON.stringify(item.nguoiNopDon)); } catch (e) { }
     }
@@ -207,4 +211,4 @@ async function traCuuHoSo(raw) {
     return search(buildPattern(raw));
 }
 
-export { LookupModule, tenNguoiNop, traCuuHoSo, extractApplicant, parseAspNetDate };
+export { LookupModule, tenNguoiNop, traCuuHoSo, extractApplicant, phuongXaHoSo, parseAspNetDate };

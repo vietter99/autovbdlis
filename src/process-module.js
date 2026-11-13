@@ -145,7 +145,7 @@ import { setFastInterval } from './bg-ticker.js';
                             else if (khop.length > 1) loi.push('giấy ' + sph + ' bị gắn ' + khop.length + ' file');
                         }
                         if (!loi.length) writeLog('✅ Server xác nhận đủ ' + ds.length + ' giấy chứng nhận đã gắn file: ' + ds.join(', '));
-                        else if (ds.length >= 2) { dungQT2('Gắn giấy chứng nhận lệch', 'Sau khi lưu kho, server ghi nhận: ' + loi.join('; ')); return; }
+                        else if (ds.length >= 2) { dungQT2('Gắn giấy chứng nhận lệch', 'Sau khi lưu, hệ thống cho thấy: ' + loi.join('; ')); return; }
                         else writeLog('⚠️ Đối chiếu server (1 giấy, không chặn): ' + loi.join('; '));
                     }
                 } catch (x) { console.log('[MPLIS QT2] Lỗi đối chiếu phản hồi lưu kho:', x); }
@@ -190,14 +190,14 @@ import { setFastInterval } from './bg-ticker.js';
             const p = (n) => String(n).padStart(2, '0');
             const gio = p(d.getHours()) + ':' + p(d.getMinutes()) + ' ' + p(d.getDate()) + '/' + p(d.getMonth() + 1);
             const cs = [
-                '⛔ <b>AUTO ĐÃ DỪNG</b>',
+                '⛔ <b>HỒ SƠ BỊ VƯỚNG</b>',
                 '━━━━━━━━━━━━━━',
                 ma ? '📄 Hồ sơ: <b>' + escapeHtml(ma) + '</b>' : '',
                 '❗ ' + escapeHtml(lyDo),
                 '👉 ' + escapeHtml(huongXuLy),
                 '🕒 ' + gio
             ].filter(Boolean);
-            topWin.MPLIS_TG_ALERT(cs.join('\n'));
+            topWin.MPLIS_TG_ALERT(cs.join('\n'), ma);
         } catch (e) { }
     }
 
@@ -1388,7 +1388,7 @@ import { setFastInterval } from './bg-ticker.js';
                                 // Đơn từ 2 giấy: KHÔNG được Lưu khi chưa chọn đúng giấy (lưu thiếu là sai dữ liệu).
                                 if (!daChonDung && (topState.qt2SoPhatHanhList || []).length >= 2) {
                                     if (now - (topState._qt2P2Start || now) > 8000) {
-                                        dungQT2('Không chọn được giấy chứng nhận', 'Không thấy giấy ' + topState.qt2EditingSph + ' trong ô chọn giấy chứng nhận của form sửa file.');
+                                        dungQT2('Không chọn được giấy chứng nhận', 'Không thấy giấy ' + topState.qt2EditingSph + ' trong danh sách giấy chứng nhận của hồ sơ.');
                                     } else {
                                         updateStatus("Đợi ô chọn giấy chứng nhận...", "waiting");
                                     }

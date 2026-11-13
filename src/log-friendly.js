@@ -154,31 +154,34 @@ function thanThien(text) {
 }
 
 // Mô tả lỗi cho tin Telegram: { lyDo, huongXuLy } - câu thường, không kèm dữ liệu kỹ thuật.
+// Tin gửi vào nhóm không được lộ chuyện đang dùng công cụ: đổi các cụm nói về tool/chạy lại thành lời thường.
+const boTuTool = (s) => String(s || '').replace('Tắt "chọn hết file" hoặc xử lý tay.', 'Cần xử lý tay.').replace(/rồi chạy lại/g, 'rồi làm lại').replace(/bấm chạy lại/g, 'làm tiếp');
+
 function moTaLoiTelegram(loai, tieuDe, noiDung) {
-    const nd = gonTen(noiDung || '').slice(0, 300);
+    const nd = boTuTool(gonTen(noiDung || '')).slice(0, 300);
     const L = String(loai || '');
     let m;
     if ((m = /^Server từ chối (\S+)/.exec(L))) {
         const ly = lyDoTuServer(noiDung);
         return {
-            lyDo: 'Hệ thống không cho phép bước "' + tenBuocTuApi(m[1]) + '"' + (ly ? ': ' + ly : ''),
-            huongXuLy: 'Vào hồ sơ xem thông báo của hệ thống, xử lý xong thì bấm chạy lại.'
+            lyDo: 'Cổng MPLIS không cho làm bước "' + tenBuocTuApi(m[1]) + '"' + (ly ? ', lý do: ' + ly : ''),
+            huongXuLy: 'Mở hồ sơ trên MPLIS, đọc thông báo của hệ thống và xử lý theo đó, xong thì làm tiếp.'
         };
     }
     if (/^Hộp thoại lạ/.test(L)) {
         return {
-            lyDo: 'Có hộp thông báo lạ' + (tieuDe && tieuDe.trim() ? ' «' + tieuDe.trim() + '»' : '') + (nd ? ': ' + nd : ''),
-            huongXuLy: 'Xem hộp thông báo trên màn hình, xử lý rồi bấm chạy lại.'
+            lyDo: 'MPLIS hiện một hộp thông báo cần người xem' + (tieuDe && tieuDe.trim() ? ' («' + tieuDe.trim() + '»)' : '') + (nd ? ': ' + nd : ''),
+            huongXuLy: 'Mở hồ sơ, đọc hộp thông báo đó và xử lý, xong thì làm tiếp.'
         };
     }
-    if (/^Thông báo lỗi/.test(L)) return { lyDo: 'Hệ thống báo lỗi' + (nd ? ': ' + nd : ''), huongXuLy: 'Xem thông báo trên màn hình rồi bấm chạy lại.' };
+    if (/^Thông báo lỗi/.test(L)) return { lyDo: 'MPLIS đang báo lỗi' + (nd ? ': ' + nd : ''), huongXuLy: 'Mở hồ sơ, đọc thông báo lỗi rồi xử lý.' };
     if (/^Cập nhật pháp lý bị từ chối/.test(L)) {
-        return { lyDo: 'Hệ thống từ chối cập nhật dữ liệu pháp lý' + (nd ? ': ' + nd : ''), huongXuLy: 'Kiểm tra dữ liệu pháp lý của hồ sơ (ngày vào sổ, số phát hành...) rồi chạy lại.' };
+        return { lyDo: 'MPLIS không cho lưu thông tin pháp lý của hồ sơ' + (nd ? ': ' + nd : ''), huongXuLy: 'Mở hồ sơ, kiểm tra các thông tin đã điền (ngày vào sổ, số phát hành...) rồi làm lại.' };
     }
     if ((m = /^QT2 · (.+)$/.exec(L))) {
-        return { lyDo: m[1] + (nd ? ': ' + nd : ''), huongXuLy: 'Kiểm tra tên file và giấy chứng nhận của hồ sơ rồi chạy lại.' };
+        return { lyDo: 'Lỗi khi lưu file quét vào hồ sơ: ' + m[1] + (nd ? ' — ' + nd : ''), huongXuLy: 'Kiểm tra tên file và giấy chứng nhận của hồ sơ rồi làm lại.' };
     }
-    return { lyDo: L + (nd ? ': ' + nd : ''), huongXuLy: 'Xem hồ sơ trên màn hình rồi bấm chạy lại.' };
+    return { lyDo: L + (nd ? ': ' + nd : ''), huongXuLy: 'Mở hồ sơ xem chuyện gì xảy ra rồi xử lý tiếp.' };
 }
 
 export { thanThien, moTaLoiTelegram };

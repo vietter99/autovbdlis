@@ -1,6 +1,6 @@
 import { topWin, escapeHtml } from './utils.js';
 import { setFastInterval } from './bg-ticker.js';
-import { tenNguoiNop, traCuuHoSo, extractApplicant, parseAspNetDate } from './lookup-module.js';
+import { tenNguoiNop, traCuuHoSo, extractApplicant, phuongXaHoSo, parseAspNetDate } from './lookup-module.js';
 import { phanLoaiHan, khoangThoiGian, hanTraMs, mocDaToi } from './han-tra.js';
 import { htmlSangChu, chiaTheoDo, catToiLenh } from './van-ban.js';
 
@@ -257,7 +257,7 @@ async function nhacSapTre() {
         const moi = phanLoaiHan(st.working, now, phut).sap.filter((x) => daToi(x).some((i) => !daNhac.has(khoa(x, i))));
         if (!moi.length) continue;
         try {
-            await guiTatCa('⏰ <b>SẮP TRỄ HẠN</b>' + (n > 1 ? ' (nhắc ' + n + ' lần trong ' + khoangThoiGian(phut * 60000) + ' cuối)' : ' (còn dưới ' + khoangThoiGian(phut * 60000) + ')') + '\n' + KE + '\n' + moi.map((x) => dongTre(x, now)).join('\n'), 'tre', k);
+            await guiTatCa('⏰ <b>HỒ SƠ SẮP ĐẾN HẠN TRẢ</b> (còn dưới ' + khoangThoiGian(phut * 60000) + ')' + '\n' + KE + '\n' + moi.map((x) => dongTre(x, now)).join('\n'), 'tre', k);
             moi.forEach((x) => daToi(x).forEach((i) => daNhac.add(khoa(x, i))));
         } catch (e) { loi = e; }
     }
@@ -436,6 +436,7 @@ function loaiHoSoNgan(item) {
     let t = String((item && item.quytrinh && item.quytrinh.SchemaName) || '').replace(/\s+/g, ' ').trim();
     if (!t) return '';
     t = t.replace(/^[\w.]+\.\s+/, '').replace(/^trường hợp\s+/i, '');
+    t = t.split(/\s+(?:quyền|trong trường)/i)[0].replace(/[.,;\s]+$/, ''); // "Đăng ký biến động quyền sử dụng đất..." -> "Đăng ký biến động"
     t = t.charAt(0).toUpperCase() + t.slice(1);
     return t.length > 90 ? t.slice(0, 87) + '...' : t;
 }
@@ -448,8 +449,8 @@ function henTraNgan(item) {
 }
 // Hai dòng phụ dưới mỗi hồ sơ: loại hồ sơ + hẹn trả (bỏ dòng nào không có dữ liệu).
 function dongPhu(item) {
-    const loai = loaiHoSoNgan(item), hen = henTraNgan(item);
-    return (loai ? '\n      📋 ' + escapeHtml(loai) : '') + (hen ? '\n      ⏰ Hẹn trả: <b>' + escapeHtml(hen) + '</b>' : '');
+    const loai = loaiHoSoNgan(item), hen = henTraNgan(item), xa = phuongXaHoSo(item);
+    return (loai ? '\n      📋 ' + escapeHtml(loai) : '') + (xa ? '\n      📍 ' + escapeHtml(xa) : '') + (hen ? '\n      ⏰ Hẹn trả: <b>' + escapeHtml(hen) + '</b>' : '');
 }
 function dongHoSo(r) {
     const nn = docNguoiNop(r);
@@ -481,12 +482,12 @@ const HUONG_DAN = '🤖 <b>BOT MPLIS — CÁCH HỎI</b>\n' + KE + '\n' +
     '📊 <b>/tong</b> — tổng số bộ đang chờ, mỗi người chuyển bao nhiêu\n' +
     '📋 <b>/chitiet</b> — như trên, kèm từng hồ sơ (mã, người nộp, giờ chuyển)\n' +
     '👤 <b>/ai thoi</b> — hồ sơ của người có tên chứa "thoi" (gõ không dấu cũng được)\n' +
-    '⏰ <b>/tre</b> — hồ sơ đã trễ + sắp trễ trong 1 giờ (<b>/tre 3</b> = trong 3 giờ). Tool cũng tự nhắc trước hạn theo số giờ đặt ở từng kênh (mặc định 2 giờ)\n' +
+    '⏰ <b>/tre</b> — hồ sơ đã trễ + sắp trễ trong 1 giờ (<b>/tre 3</b> = trong 3 giờ). Bot cũng tự nhắc khi hồ sơ sắp đến hạn trả\n' +
     '🔎 <b>/tracuu 0402</b> — hồ sơ đi tới đâu, ai đang giữ, hẹn trả khi nào\n' +
     '      Gõ thẳng đuôi mã (VD: <b>0402</b> hoặc <b>9-0402</b>) cũng được\n' +
     '🔄 <b>/f5</b> — tải lại trang MPLIS trên máy (khi trang treo hoặc hết phiên)\n' +
     '❓ <b>/help</b> — hiện bảng này\n' + KE + '\n' +
-    'Gõ chữ khác bot sẽ hiện /tong. Bot chỉ trả lời khi bật "Chế độ đi vắng" trong tool.';
+    'Gõ chữ khác bot sẽ hiện /tong.';
 
 // Bỏ dấu + chữ thường để gõ "thoi" vẫn khớp "Thởi".
 const boDau = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase();
@@ -585,7 +586,7 @@ async function traLoi(text) {
     if (/^(start|help|huongdan|hd|trogiup)$/.test(lenh) || t === '?') return HUONG_DAN;
     if (/^(f5|reload|taitrang|lammoi)$/.test(lenh)) {
         const run = topWin.MPLIS_AUTO_STATE;
-        if (run && run.isRunning && !/ep|force/i.test(doi)) return '⚠️ Tool đang chạy quy trình, tải lại trang giữa chừng có thể làm hỏng bước đang làm.\nMuốn vẫn tải lại thì gõ <b>/f5 ep</b>.';
+        if (run && run.isRunning && !/ep|force/i.test(doi)) return '⚠️ Đang làm dở hồ sơ, tải lại trang giữa chừng có thể làm hỏng việc đang làm.\nMuốn vẫn tải lại thì gõ <b>/f5 ep</b>.';
         canTaiLai = true;
         return '🔄 Đang tải lại trang (F5)...';
     }
@@ -659,8 +660,12 @@ async function pollZalo() {
 // Cho module khác (process-module) báo Telegram khi auto tự dừng vì lỗi. Chỉ gửi khi đang bật
 // "Chế độ đi vắng" và đã nhập API Key + Chat ID; lỗi gửi thì nuốt, không làm hỏng việc dừng auto.
 if (window === window.top) {
-    topWin.MPLIS_TG_ALERT = (html) => {
+    topWin.MPLIS_TG_ALERT = (html, ma) => {
         if (!isOn() || !(telegramSan('loi') || zaloSan('loi'))) return;
+        // Chèn xã của hồ sơ (nếu có trong danh sách đang chờ) ngay dưới dòng mã.
+        const r = ma && (st.working || []).find((x) => x && String(x.soBienNhan).toUpperCase() === String(ma).toUpperCase());
+        const xa = r ? phuongXaHoSo(r) : '';
+        if (xa) html = html.replace(/(📄 Hồ sơ:[^\n]*)/, (m) => m + '\n📍 ' + escapeHtml(xa));
         guiTatCa(html, 'loi').catch((e) => console.log('[MPLIS Notify] Không gửi được cảnh báo lỗi:', e.message));
     };
 }
@@ -778,7 +783,7 @@ export const NotifyModule = {
         el('tg-test').onclick = async () => {
             saveCfg();
             try {
-                const kq = await guiTatCa('✅ <b>MPLIS Auto</b>: kết nối thành công.');
+                const kq = await guiTatCa('✅ Bot đã kết nối, báo tin được rồi.');
                 st.msg = 'Gửi thử: ' + kq.map(([ten, loi]) => ten + (loi ? ' ❌ ' + loi : ' ✅')).join(' · ');
             } catch (e) { st.msg = '❌ Gửi thử lỗi: ' + e.message; }
             render();

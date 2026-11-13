@@ -36,5 +36,5 @@ test('moTaLoiTelegram: lỗi server có lý do và hướng xử lý', () => {
 
 test('moTaLoiTelegram: lỗi QT2 dặn kiểm tra tên file; loại lạ có hướng mặc định', () => {
     assert.match(moTaLoiTelegram('QT2 · Thiếu file giấy chứng nhận', '', 'x').huongXuLy, /tên file/);
-    assert.match(moTaLoiTelegram('Loại lạ', '', '').huongXuLy, /bấm chạy lại/);
+    assert.match(moTaLoiTelegram('Loại lạ', '', '').huongXuLy, /làm tiếp|xử lý tiếp/);
 });
