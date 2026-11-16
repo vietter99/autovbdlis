@@ -1,6 +1,7 @@
 import { topWin, clickElement, isSystemLoading, querySelectorAllCustom, findCurrentMaHS, escapeHtml } from './utils.js';
 import { createModuleRuntime } from './module-runtime.js';
 import { moTaLoiTelegram } from './log-friendly.js';
+import { chonFile } from './chon-file.js';
 import { setFastInterval } from './bg-ticker.js';
 
     const ProcessModule = (function () {
@@ -519,171 +520,16 @@ import { setFastInterval } from './bg-ticker.js';
                             return;
                         }
                         if (suffix) topState._chuaCoSphTu = 0;
-                        // Nếu mã đang xử lý khớp 2+ file → 2 GCN cùng số → dừng upload thủ công
-                        const _sameCodeFiles = !suffix ? [] : files.filter(f => {
-                            const n = f.name.toUpperCase();
-                            if (/(GT|PT)\.PDF$/.test(n)) return false;
-                            return n.endsWith(suffix + '.PDF') || n.endsWith(suffix + '+.PDF');
-                        });
-                        if (_sameCodeFiles.length > 1) {
-                            writeLog(`⚠️ Mã ...${suffix}: có ${_sameCodeFiles.length} file cùng khớp. Dừng — upload thủ công.`);
+                        const kq = chonFile(files, { rowText, fileType, suffix, sphNum, sphList, soChuSo });
+                        if (kq.soTrung) {
+                            writeLog(`⚠️ Mã ...${suffix}: có ${kq.soTrung} file cùng khớp (${fileType}). Dừng — upload thủ công.`);
                             updateStatus('2 file cùng mã - Dừng', 'idle');
                             if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === 'function')
-                                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ Mã ...${suffix} có ${_sameCodeFiles.length} file — upload thủ công`);
+                                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ Mã ...${suffix} có ${kq.soTrung} file ${fileType} — upload thủ công`);
                             return;
                         }
-                        // Tìm file GCN theo suffix của dòng này trước
-                        // Ưu tiên file tên DÀI (có "-") để gcnBase đúng khi tra PT/GT sau
-                        // VD: "H15...-1392-AA 09125452.pdf" ưu tiên hơn "5452.pdf"
-                        const _findGcnBySuffix = (sfx) => {
-                            if (!sfx) return null;
-                            const _match = (f) => {
-                                const n = f.name.toUpperCase();
-                                if (/(GT|PT)\.PDF$/.test(n)) return false;
-                                if (n.endsWith(sfx + '.PDF') || n.endsWith(sfx + '+.PDF')) return true;
-                                // File gộp nhiều mã: "1423+1422+.pdf" → tách theo "+", kiểm tra từng phần
-                                return n.replace(/\.PDF$/, '').split('+').some(p => p && p.endsWith(sfx));
-                            };
-                            const longFmt = files.find(f => f.name.includes('-') && _match(f));
-                            if (longFmt) return longFmt;
-                            return files.find(f => _match(f));
-                        };
-                        let gcnFile = _findGcnBySuffix(suffix);
-                        // Fallback: nhiều GCN dùng chung 1 file "+.PDF" (VD: 1387+1391+1392)
-                        // → thử tất cả SPH còn lại trong sphList
-                        if (!gcnFile && sphList.length > 0) {
-                            for (const sph of sphList) {
-                                const sfx2 = sph.replace(/[^0-9]/g, '').slice(-soChuSo);
-                                if (sfx2 === suffix) continue;
-                                gcnFile = _findGcnBySuffix(sfx2);
-                                if (gcnFile) break;
-                            }
-                        }
-
-                        // Thư mục chứa file GCN (dùng webkitRelativePath để tìm GT/PT cùng thư mục)
-                        // VD: webkitRelativePath="scan/1423/076+.pdf" → gcnDir="scan/1423"
-                        const gcnDir = gcnFile && gcnFile.webkitRelativePath
-                            ? gcnFile.webkitRelativePath.replace(/\/[^/]+$/, '')
-                            : null;
-
-                        // Base tên dài (chỉ dùng khi có dấu "-", tránh nhầm tên ngắn "076+")
-                        const gcnBase = gcnFile && gcnFile.name.includes('-')
-                            ? gcnFile.name.replace(/-[^-]+\.pdf$/i, '').toUpperCase()
-                            : null;
-
-                        // Chế độ 4 số: file GT/PT đặt theo 4 số cuối mã hồ sơ + "+" ("0028+.pdf"),
-                        // hoặc file gộp nhiều mã ("0432+0435+.pdf")
-                        const _findByMaHS = (sfx) => {
-                            if (!sfx) return null;
-                            return files.find(f => {
-                                const n = f.name.toUpperCase().replace(/\.PDF$/, '');
-                                if (!n.includes('+')) return false;
-                                return n.split('+').map(s => s.trim()).includes(sfx);
-                            }) || null;
-                        };
-
-                        let matchedFile = null;
-                        let warnSuffix = suffix; // default cho GCN; PT/GT sẽ override
-
-                        if (fileType === 'GT') {
-                            // Lấy suffix trực tiếp từ tên GT trong rowText
-                            // VD: rowText có "H15...-1392-GT.PDF" → gtSfxFull = "1392"
-                            // VD: rowText có "H15...-1392+-GT.PDF" → gtSfxFull = "1392+"
-                            const gtSfxM = rowText.match(/\b(\d{3,}\+?)-GT(?:\.PDF)?(?![A-Z])/i);
-                            const gtSfxFull = gtSfxM ? gtSfxM[1] : null;
-                            const gtSfx = gtSfxFull ? gtSfxFull.replace(/\+$/, '').slice(-soChuSo) : null;
-                            warnSuffix = gtSfxFull || gtSfx || suffix;
-                            // 1. Trực tiếp từ rowText (chính xác nhất, tránh nhầm suffix cert)
-                            if (gtSfxFull) matchedFile = files.find(f =>
-                                f.name.toUpperCase().endsWith(gtSfxFull.toUpperCase() + '-GT.PDF'));
-                            // 1b. Chế độ 4 số: file "<4 số mã hồ sơ>+.pdf" hoặc file gộp
-                            if (!matchedFile && soChuSo === 4) matchedFile = _findByMaHS(gtSfx);
-                            // 2. gcnBase từ file GCN dài
-                            if (!matchedFile && gcnBase) matchedFile = files.find(f =>
-                                f.name.toUpperCase() === gcnBase + '-GT.PDF' ||
-                                f.name.toUpperCase() === gcnBase + '+-GT.PDF');
-                            // 3. Cùng thư mục với GCN
-                            if (!matchedFile && gcnDir) matchedFile = files.find(f =>
-                                /GT\.PDF$/i.test(f.name) &&
-                                (f.webkitRelativePath || '').startsWith(gcnDir + '/'));
-                            // 4. sphList fallback (bỏ qua ở chế độ 4 số vì suffix cert ≠ suffix mã hồ sơ)
-                            if (!matchedFile && soChuSo !== 4) {
-                                for (const sph of sphList) {
-                                    const sfx = sph.replace(/[^0-9]/g, '').slice(-soChuSo);
-                                    if (gtSfx && sfx === gtSfx) continue;
-                                    const found = files.find(f =>
-                                        f.name.toUpperCase().endsWith(sfx + '-GT.PDF') ||
-                                        f.name.toUpperCase().endsWith(sfx + '+-GT.PDF'));
-                                    if (found) { matchedFile = found; break; }
-                                }
-                            }
-                            // 5. Quét folder: bất kỳ file -GT.PDF
-                            if (!matchedFile) matchedFile = files.find(f => /-GT\.PDF$/i.test(f.name)) || null;
-                            // 5.5. File tổng hợp nhiều số: suffix mã hồ sơ GT xuất hiện ở bất kỳ vị trí nào
-                            // (VD: 1387+1391+1392+.pdf → tìm được kể cả khi 1391 ở giữa)
-                            // Bỏ qua nếu gcnFile đã là file riêng cho cert này (có "+") — để step 6 dùng gcnFile
-                            if (!matchedFile && gtSfx && !(gcnFile && gcnFile.name.includes('+'))) {
-                                const s = gtSfx.toUpperCase();
-                                matchedFile = files.find(f => {
-                                    const n = f.name.toUpperCase();
-                                    if (/(GT|PT)\.PDF$/.test(n)) return false;
-                                    return n.includes(s + '+') && f.name.split('+').length >= 3;
-                                }) || null;
-                            }
-                            // 6. Không có file GT riêng → dùng gcnFile chỉ nếu là file tổng hợp nhiều số (có "+")
-                            // VD: "1387+1391+1392+.pdf" → OK. "5452.pdf" → KHÔNG dùng
-                            if (!matchedFile && gcnFile && gcnFile.name.includes('+')) matchedFile = gcnFile;
-                        } else if (fileType === 'PT') {
-                            // Lấy suffix trực tiếp từ tên PT trong rowText
-                            // VD: rowText có "H15...-1392-PT.PDF" → ptSfxFull = "1392"
-                            // VD: rowText có "H15...-1392+-PT.PDF" → ptSfxFull = "1392+"
-                            const ptSfxM = rowText.match(/\b(\d{3,}\+?)-PT(?:\.PDF)?(?![A-Z])/i);
-                            const ptSfxFull = ptSfxM ? ptSfxM[1] : null;
-                            const ptSfx = ptSfxFull ? ptSfxFull.replace(/\+$/, '').slice(-soChuSo) : null;
-                            warnSuffix = ptSfxFull || ptSfx || suffix;
-                            // 1. Trực tiếp từ rowText (đúng cho cả 3-số và 4-số)
-                            if (ptSfxFull) matchedFile = files.find(f =>
-                                f.name.toUpperCase().endsWith(ptSfxFull.toUpperCase() + '-PT.PDF'));
-                            // 1b. Chế độ 4 số: file "<4 số mã hồ sơ>+.pdf" hoặc file gộp
-                            if (!matchedFile && soChuSo === 4) matchedFile = _findByMaHS(ptSfx);
-                            // 2. gcnBase từ file GCN dài
-                            if (!matchedFile && gcnBase) matchedFile = files.find(f =>
-                                f.name.toUpperCase() === gcnBase + '-PT.PDF' ||
-                                f.name.toUpperCase() === gcnBase + '+-PT.PDF');
-                            // 3. Cùng thư mục với GCN
-                            if (!matchedFile && gcnDir) matchedFile = files.find(f =>
-                                /PT\.PDF$/i.test(f.name) &&
-                                (f.webkitRelativePath || '').startsWith(gcnDir + '/'));
-                            // 4. sphList fallback (bỏ qua ở chế độ 4 số vì suffix cert ≠ suffix mã hồ sơ)
-                            if (!matchedFile && soChuSo !== 4) {
-                                for (const sph of sphList) {
-                                    const sfx = sph.replace(/[^0-9]/g, '').slice(-soChuSo);
-                                    if (ptSfx && sfx === ptSfx) continue;
-                                    const found = files.find(f =>
-                                        f.name.toUpperCase().endsWith(sfx + '-PT.PDF') ||
-                                        f.name.toUpperCase().endsWith(sfx + '+-PT.PDF'));
-                                    if (found) { matchedFile = found; break; }
-                                }
-                            }
-                            // 5. Quét folder: bất kỳ file -PT.PDF
-                            if (!matchedFile) matchedFile = files.find(f => /-PT\.PDF$/i.test(f.name)) || null;
-                            // 5.5. File tổng hợp nhiều số: suffix mã hồ sơ PT xuất hiện ở bất kỳ vị trí nào
-                            // (VD: 1387+1391+1392+.pdf → tìm được kể cả khi 1391 ở giữa)
-                            // Bỏ qua nếu gcnFile đã là file riêng cho cert này (có "+") — để step 6 dùng gcnFile
-                            if (!matchedFile && ptSfx && !(gcnFile && gcnFile.name.includes('+'))) {
-                                const s = ptSfx.toUpperCase();
-                                matchedFile = files.find(f => {
-                                    const n = f.name.toUpperCase();
-                                    if (/(GT|PT)\.PDF$/.test(n)) return false;
-                                    return n.includes(s + '+') && f.name.split('+').length >= 3;
-                                }) || null;
-                            }
-                            // 6. Không có file PT riêng → dùng gcnFile chỉ nếu là file tổng hợp nhiều số (có "+")
-                            // VD: "1387+1391+1392+.pdf" → OK. "5452.pdf" → KHÔNG dùng
-                            if (!matchedFile && gcnFile && gcnFile.name.includes('+')) matchedFile = gcnFile;
-                        } else if (suffix) {
-                            matchedFile = gcnFile || null;
-                        }
+                        const matchedFile = kq.file;
+                        const warnSuffix = kq.warnSuffix;
                         // Không có suffix → matchedFile = null → log cảnh báo, không pick bừa
 
                         if (matchedFile) {

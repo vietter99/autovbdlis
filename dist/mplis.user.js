@@ -25,7 +25,7 @@
 (() => {
   // src/ma-ho-so.js
   var MA_HS_SRC = "\\b[A-Z]\\d+(?:[. \\u00a0][A-Z0-9]+)+-\\d{6}-\\d{3,}";
-  var maHoSoTenFile = (ma) => String(ma || "").replace(/[. ]/g, " ");
+  var maHoSoTenFile = (ma) => String(ma || "").replace(/[.  ]/g, " ");
 
   // src/utils.js
   function fallbackCopyTextToClipboard(text) {
@@ -726,6 +726,82 @@
     return { getTopState, writeLog, updateStatus, incrementSuccess, setLastActionTime, saveConfig };
   }
 
+  // src/chon-file.js
+  var chuan = (s) => String(s || "").toUpperCase().replace(/\.PDF$/, "").replace(/[.\s ]/g, "");
+  var MA_RE = new RegExp(MA_HS_SRC);
+  function chonFile(files, { rowText, fileType, suffix, sphNum, sphList = [], soChuSo }) {
+    let soTrung = 0;
+    const duNhat = (ds) => {
+      if (ds.length > 1) soTrung = ds.length;
+      return ds.length === 1 ? ds[0] : null;
+    };
+    const ten = (f) => f.name.toUpperCase();
+    const khopGcn = (sfx2) => files.filter((f) => {
+      const n = ten(f);
+      if (/(GT|PT)\.PDF$/.test(n)) return false;
+      if (n.endsWith(sfx2 + ".PDF") || n.endsWith(sfx2 + "+.PDF")) return true;
+      return n.replace(/\.PDF$/, "").split("+").some((p) => p && p.endsWith(sfx2));
+    });
+    let gcnFile = null;
+    if (suffix) {
+      let ds = khopGcn(suffix);
+      if (ds.length > 1 && sphNum) {
+        const hep = ds.filter((f) => chuan(f.name).replace(/\+$/, "").endsWith(sphNum));
+        if (hep.length) ds = hep;
+      }
+      gcnFile = duNhat(ds);
+    }
+    if (soTrung) return { file: null, soTrung, warnSuffix: suffix };
+    if (fileType === "GCN") return { file: gcnFile, soTrung: 0, warnSuffix: suffix };
+    let gcnRef = gcnFile;
+    for (const sph of gcnRef ? [] : sphList) {
+      const sfx2 = sph.replace(/[^0-9]/g, "").slice(-soChuSo);
+      const ds = sfx2 && sfx2 !== suffix ? khopGcn(sfx2) : [];
+      if (ds.length) {
+        gcnRef = ds.find((f) => f.name.includes("-")) || ds[0];
+        break;
+      }
+    }
+    const gcnDir = gcnRef && gcnRef.webkitRelativePath ? gcnRef.webkitRelativePath.replace(/\/[^/]+$/, "") : null;
+    const gcnBase = gcnRef && gcnRef.name.includes("-") ? gcnRef.name.replace(/-[^-]+\.pdf$/i, "") : null;
+    const loai = fileType;
+    const sfxM = rowText.match(new RegExp("\\b(\\d{3,}\\+?)-" + loai + "(?:\\.PDF)?(?![A-Z])", "i"));
+    const sfxFull = sfxM ? sfxM[1].toUpperCase() : null;
+    const sfx = sfxFull ? sfxFull.replace(/\+$/, "").slice(-soChuSo) : null;
+    const maM = rowText.match(new RegExp("(" + MA_HS_SRC + ")(\\+?)-" + loai + "(?![A-Z])", "i"));
+    const ma = maM ? chuan(maM[1]) : null;
+    const hopLe = (f) => {
+      const m = ten(f).match(MA_RE);
+      return !m || !ma || chuan(m[0]) === ma;
+    };
+    const laLoai = (f) => ten(f).endsWith(loai + ".PDF");
+    const buoc = [
+      () => maM ? files.filter((f) => chuan(f.name) === chuan(maM[1] + maM[2] + "-" + loai)) : [],
+      () => sfxFull ? files.filter((f) => hopLe(f) && ten(f).endsWith(sfxFull + "-" + loai + ".PDF")) : [],
+      // Chế độ 4 số: file "<4 số mã hồ sơ>+.pdf" hoặc file gộp nhiều mã
+      () => soChuSo === 4 && sfx ? files.filter((f) => {
+        const n = ten(f).replace(/\.PDF$/, "");
+        return n.includes("+") && n.split("+").map((s) => s.trim()).includes(sfx);
+      }) : [],
+      () => gcnBase ? files.filter((f) => [chuan(gcnBase + "-" + loai), chuan(gcnBase + "+-" + loai)].includes(chuan(f.name))) : [],
+      () => gcnDir ? files.filter((f) => hopLe(f) && laLoai(f) && (f.webkitRelativePath || "").startsWith(gcnDir + "/")) : [],
+      // Dòng không ghi sẵn tên GT/PT (chế độ 3 số): theo đuôi SPH của chính dòng này
+      () => !sfxFull && soChuSo !== 4 && suffix ? files.filter((f) => hopLe(f) && (ten(f).endsWith(suffix + "-" + loai + ".PDF") || ten(f).endsWith(suffix + "+-" + loai + ".PDF"))) : [],
+      // File tổng hợp nhiều số có chứa mã này (VD 1387+1391+1392+.pdf), trừ khi GCN đã là file gộp riêng (bước dưới)
+      () => sfx && !(gcnRef && gcnRef.name.includes("+")) ? files.filter((f) => {
+        const n = ten(f);
+        return !/(GT|PT)\.PDF$/.test(n) && n.includes(sfx + "+") && f.name.split("+").length >= 3;
+      }) : []
+    ];
+    for (const b of buoc) {
+      const f = duNhat(b());
+      if (f) return { file: f, soTrung: 0, warnSuffix: sfxFull || sfx || suffix };
+      if (soTrung) break;
+    }
+    const file = !soTrung && gcnRef && gcnRef.name.includes("+") ? gcnRef : null;
+    return { file, soTrung, warnSuffix: sfxFull || sfx || suffix };
+  }
+
   // src/bg-ticker.js
   function setFastInterval(fn, ms) {
     try {
@@ -1219,114 +1295,16 @@
               return;
             }
             if (suffix) topState._chuaCoSphTu = 0;
-            const _sameCodeFiles = !suffix ? [] : files.filter((f) => {
-              const n = f.name.toUpperCase();
-              if (/(GT|PT)\.PDF$/.test(n)) return false;
-              return n.endsWith(suffix + ".PDF") || n.endsWith(suffix + "+.PDF");
-            });
-            if (_sameCodeFiles.length > 1) {
-              writeLog(`⚠️ Mã ...${suffix}: có ${_sameCodeFiles.length} file cùng khớp. Dừng — upload thủ công.`);
+            const kq = chonFile(files, { rowText, fileType, suffix, sphNum, sphList, soChuSo });
+            if (kq.soTrung) {
+              writeLog(`⚠️ Mã ...${suffix}: có ${kq.soTrung} file cùng khớp (${fileType}). Dừng — upload thủ công.`);
               updateStatus("2 file cùng mã - Dừng", "idle");
               if (typeof topWin.MPLIS_AUTO_TOGGLE_FUNC === "function")
-                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ Mã ...${suffix} có ${_sameCodeFiles.length} file — upload thủ công`);
+                topWin.MPLIS_AUTO_TOGGLE_FUNC(`⚠️ Mã ...${suffix} có ${kq.soTrung} file ${fileType} — upload thủ công`);
               return;
             }
-            const _findGcnBySuffix = (sfx) => {
-              if (!sfx) return null;
-              const _match = (f) => {
-                const n = f.name.toUpperCase();
-                if (/(GT|PT)\.PDF$/.test(n)) return false;
-                if (n.endsWith(sfx + ".PDF") || n.endsWith(sfx + "+.PDF")) return true;
-                return n.replace(/\.PDF$/, "").split("+").some((p) => p && p.endsWith(sfx));
-              };
-              const longFmt = files.find((f) => f.name.includes("-") && _match(f));
-              if (longFmt) return longFmt;
-              return files.find((f) => _match(f));
-            };
-            let gcnFile = _findGcnBySuffix(suffix);
-            if (!gcnFile && sphList.length > 0) {
-              for (const sph of sphList) {
-                const sfx2 = sph.replace(/[^0-9]/g, "").slice(-soChuSo);
-                if (sfx2 === suffix) continue;
-                gcnFile = _findGcnBySuffix(sfx2);
-                if (gcnFile) break;
-              }
-            }
-            const gcnDir = gcnFile && gcnFile.webkitRelativePath ? gcnFile.webkitRelativePath.replace(/\/[^/]+$/, "") : null;
-            const gcnBase = gcnFile && gcnFile.name.includes("-") ? gcnFile.name.replace(/-[^-]+\.pdf$/i, "").toUpperCase() : null;
-            const _findByMaHS = (sfx) => {
-              if (!sfx) return null;
-              return files.find((f) => {
-                const n = f.name.toUpperCase().replace(/\.PDF$/, "");
-                if (!n.includes("+")) return false;
-                return n.split("+").map((s) => s.trim()).includes(sfx);
-              }) || null;
-            };
-            let matchedFile = null;
-            let warnSuffix = suffix;
-            if (fileType === "GT") {
-              const gtSfxM = rowText.match(/\b(\d{3,}\+?)-GT(?:\.PDF)?(?![A-Z])/i);
-              const gtSfxFull = gtSfxM ? gtSfxM[1] : null;
-              const gtSfx = gtSfxFull ? gtSfxFull.replace(/\+$/, "").slice(-soChuSo) : null;
-              warnSuffix = gtSfxFull || gtSfx || suffix;
-              if (gtSfxFull) matchedFile = files.find((f) => f.name.toUpperCase().endsWith(gtSfxFull.toUpperCase() + "-GT.PDF"));
-              if (!matchedFile && soChuSo === 4) matchedFile = _findByMaHS(gtSfx);
-              if (!matchedFile && gcnBase) matchedFile = files.find((f) => f.name.toUpperCase() === gcnBase + "-GT.PDF" || f.name.toUpperCase() === gcnBase + "+-GT.PDF");
-              if (!matchedFile && gcnDir) matchedFile = files.find((f) => /GT\.PDF$/i.test(f.name) && (f.webkitRelativePath || "").startsWith(gcnDir + "/"));
-              if (!matchedFile && soChuSo !== 4) {
-                for (const sph of sphList) {
-                  const sfx = sph.replace(/[^0-9]/g, "").slice(-soChuSo);
-                  if (gtSfx && sfx === gtSfx) continue;
-                  const found = files.find((f) => f.name.toUpperCase().endsWith(sfx + "-GT.PDF") || f.name.toUpperCase().endsWith(sfx + "+-GT.PDF"));
-                  if (found) {
-                    matchedFile = found;
-                    break;
-                  }
-                }
-              }
-              if (!matchedFile) matchedFile = files.find((f) => /-GT\.PDF$/i.test(f.name)) || null;
-              if (!matchedFile && gtSfx && !(gcnFile && gcnFile.name.includes("+"))) {
-                const s = gtSfx.toUpperCase();
-                matchedFile = files.find((f) => {
-                  const n = f.name.toUpperCase();
-                  if (/(GT|PT)\.PDF$/.test(n)) return false;
-                  return n.includes(s + "+") && f.name.split("+").length >= 3;
-                }) || null;
-              }
-              if (!matchedFile && gcnFile && gcnFile.name.includes("+")) matchedFile = gcnFile;
-            } else if (fileType === "PT") {
-              const ptSfxM = rowText.match(/\b(\d{3,}\+?)-PT(?:\.PDF)?(?![A-Z])/i);
-              const ptSfxFull = ptSfxM ? ptSfxM[1] : null;
-              const ptSfx = ptSfxFull ? ptSfxFull.replace(/\+$/, "").slice(-soChuSo) : null;
-              warnSuffix = ptSfxFull || ptSfx || suffix;
-              if (ptSfxFull) matchedFile = files.find((f) => f.name.toUpperCase().endsWith(ptSfxFull.toUpperCase() + "-PT.PDF"));
-              if (!matchedFile && soChuSo === 4) matchedFile = _findByMaHS(ptSfx);
-              if (!matchedFile && gcnBase) matchedFile = files.find((f) => f.name.toUpperCase() === gcnBase + "-PT.PDF" || f.name.toUpperCase() === gcnBase + "+-PT.PDF");
-              if (!matchedFile && gcnDir) matchedFile = files.find((f) => /PT\.PDF$/i.test(f.name) && (f.webkitRelativePath || "").startsWith(gcnDir + "/"));
-              if (!matchedFile && soChuSo !== 4) {
-                for (const sph of sphList) {
-                  const sfx = sph.replace(/[^0-9]/g, "").slice(-soChuSo);
-                  if (ptSfx && sfx === ptSfx) continue;
-                  const found = files.find((f) => f.name.toUpperCase().endsWith(sfx + "-PT.PDF") || f.name.toUpperCase().endsWith(sfx + "+-PT.PDF"));
-                  if (found) {
-                    matchedFile = found;
-                    break;
-                  }
-                }
-              }
-              if (!matchedFile) matchedFile = files.find((f) => /-PT\.PDF$/i.test(f.name)) || null;
-              if (!matchedFile && ptSfx && !(gcnFile && gcnFile.name.includes("+"))) {
-                const s = ptSfx.toUpperCase();
-                matchedFile = files.find((f) => {
-                  const n = f.name.toUpperCase();
-                  if (/(GT|PT)\.PDF$/.test(n)) return false;
-                  return n.includes(s + "+") && f.name.split("+").length >= 3;
-                }) || null;
-              }
-              if (!matchedFile && gcnFile && gcnFile.name.includes("+")) matchedFile = gcnFile;
-            } else if (suffix) {
-              matchedFile = gcnFile || null;
-            }
+            const matchedFile = kq.file;
+            const warnSuffix = kq.warnSuffix;
             if (matchedFile) {
               writeLog(`Auto upload ${fileType}: ${matchedFile.name}`);
               btnUpload.setAttribute("data-mplis-uploading", "true");
