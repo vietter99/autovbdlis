@@ -1,4 +1,5 @@
 import { findCurrentMaHS } from './utils.js';
+import { MA_HS_SRC } from './ma-ho-so.js';
 import { giuMoiNhat } from './gioi-han.js';
 
 // Tự điền 2 mặc định ở màn hình "Cập nhật pháp lý giấy chứng nhận":
@@ -142,7 +143,7 @@ function layKhoiBuoc(label) {
 // Số nhóm cách nhau bằng dấu chấm KHÔNG cố định: có mã 4 nhóm "H15.50.05.12-260917-1436",
 // có mã 2 nhóm "H15.50-260625-0680". Đòi từ 2 dấu chấm trở lên là mã ngắn không khớp được, rơi
 // về nhánh "lấy bước mới nhất" rồi điền tên Người ký của hồ sơ khác.
-const MA_HS_DAY_DU_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+)+-(\d{6})-(\d{3,})/i;
+const MA_HS_DAY_DU_RE = new RegExp(MA_HS_SRC.replace('-\\d{6}-\\d{3,}', '-(\\d{6})-(\\d{3,})'), 'i');
 
 function rutGonMaHS(text) {
     const m = MA_HS_DAY_DU_RE.exec(text || '');

@@ -74,7 +74,7 @@ import { setFastInterval } from './bg-ticker.js';
             if (laLenhGhi && !e.err) {
                 let raw = '';
                 try { raw = typeof e.res === 'string' ? e.res : JSON.stringify(e.res); } catch (x) { raw = String(e.res); }
-                raw = (raw || '').slice(0, 600);
+                raw = (raw || '').slice(0, 1500);
                 if (/PhapLy/i.test(ep)) writeLog('API ' + ep + ' (' + (e.status || '?') + '): ' + raw);
                 let thatBai = !!(e.res && typeof e.res === 'object' && (e.res.success === false || e.res.Success === false));
                 // Theo log thật: lệnh ghi thành công trả {success:true, value:true}; value:false là thất bại.
@@ -194,7 +194,7 @@ import { setFastInterval } from './bg-ticker.js';
                 '━━━━━━━━━━━━━━',
                 ma ? '📄 Hồ sơ: <b>' + escapeHtml(ma) + '</b>' : '',
                 '❗ ' + escapeHtml(lyDo),
-                '👉 ' + escapeHtml(huongXuLy),
+                huongXuLy ? '👉 ' + escapeHtml(huongXuLy) : '',
                 '🕒 ' + gio
             ].filter(Boolean);
             topWin.MPLIS_TG_ALERT(cs.join('\n'), ma);

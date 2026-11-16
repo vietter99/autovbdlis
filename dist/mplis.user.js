@@ -23,6 +23,10 @@
 // ==/UserScript==
 
 (() => {
+  // src/ma-ho-so.js
+  var MA_HS_SRC = "\\b[A-Z]\\d+(?:[. \\u00a0][A-Z0-9]+)+-\\d{6}-\\d{3,}";
+  var maHoSoTenFile = (ma) => String(ma || "").replace(/[. ]/g, " ");
+
   // src/utils.js
   function fallbackCopyTextToClipboard(text) {
     return new Promise((resolve, reject) => {
@@ -195,7 +199,7 @@
     const validNodes = [];
     for (let node of allNodes) {
       if (!node.textContent) continue;
-      const m = node.textContent.match(/[A-Z0-9]{2,}\.[A-Z0-9]{2,}\-\d{6}\-\d{4,}/i);
+      const m = node.textContent.match(new RegExp(MA_HS_SRC, "i"));
       if (m) {
         const rect = node.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0) {
@@ -478,10 +482,20 @@
     for (const [re, ten] of TEN_BUOC_API) if (re.test(ep)) return ten;
     return "xử lý";
   }
-  function lyDoTuServer(raw) {
+  function lyDoTuServerDong(raw) {
     const t = String(raw || "");
-    const m = /"noiDungNganChan":"([^"]+)"/.exec(t) || /"message":"([^"]+)"/.exec(t);
-    return m ? m[1].replace(/\\r|\\n/g, " ").replace(/\s+/g, " ").trim() : "";
+    const m = /"noiDungNganChan":"((?:[^"\\]|\\.)*)"/.exec(t) || /"Error":"((?:[^"\\]|\\.)*)"/.exec(t) || /"message":"((?:[^"\\]|\\.)*)"/.exec(t);
+    if (!m) return "";
+    let s = m[1];
+    try {
+      s = JSON.parse('"' + s + '"');
+    } catch (e) {
+      s = s.replace(/\\r/g, "").replace(/\\n/g, "\n");
+    }
+    return s.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").split(/\r?\n/).map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n");
+  }
+  function lyDoTuServer(raw) {
+    return lyDoTuServerDong(raw).replace(/\n/g, ". ");
   }
   function gonTen(s) {
     const t = String(s || "").replace(/\s+/g, " ").trim();
@@ -588,10 +602,10 @@
     const L = String(loai || "");
     let m;
     if (m = /^Server từ chối (\S+)/.exec(L)) {
-      const ly = lyDoTuServer(noiDung);
+      const ly = lyDoTuServerDong(noiDung);
       return {
-        lyDo: 'Cổng MPLIS không cho làm bước "' + tenBuocTuApi(m[1]) + '"' + (ly ? ", lý do: " + ly : ""),
-        huongXuLy: "Mở hồ sơ trên MPLIS, đọc thông báo của hệ thống và xử lý theo đó, xong thì làm tiếp."
+        lyDo: ly || 'Cổng MPLIS không cho làm bước "' + tenBuocTuApi(m[1]) + '"',
+        huongXuLy: ""
       };
     }
     if (/^Hộp thoại lạ/.test(L)) {
@@ -806,7 +820,7 @@
         } catch (x) {
           raw = String(e.res);
         }
-        raw = (raw || "").slice(0, 600);
+        raw = (raw || "").slice(0, 1500);
         if (/PhapLy/i.test(ep)) writeLog("API " + ep + " (" + (e.status || "?") + "): " + raw);
         let thatBai = !!(e.res && typeof e.res === "object" && (e.res.success === false || e.res.Success === false));
         if (e.res && typeof e.res === "object" && e.res.success === true && e.res.value === false) thatBai = true;
@@ -903,7 +917,7 @@
           "━━━━━━━━━━━━━━",
           ma ? "📄 Hồ sơ: <b>" + escapeHtml(ma) + "</b>" : "",
           "❗ " + escapeHtml(lyDo),
-          "👉 " + escapeHtml(huongXuLy),
+          huongXuLy ? "👉 " + escapeHtml(huongXuLy) : "",
           "🕒 " + gio
         ].filter(Boolean);
         topWin.MPLIS_TG_ALERT(cs.join("\n"), ma);
@@ -5997,7 +6011,7 @@
     const cot = label.closest(".col-md-3, .col-md-4, .col-md-6");
     return cot && cot.parentElement || label.closest(".row") || label.parentElement;
   }
-  var MA_HS_DAY_DU_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+)+-(\d{6})-(\d{3,})/i;
+  var MA_HS_DAY_DU_RE = new RegExp(MA_HS_SRC.replace("-\\d{6}-\\d{3,}", "-(\\d{6})-(\\d{3,})"), "i");
   function rutGonMaHS(text) {
     const m = MA_HS_DAY_DU_RE.exec(text || "");
     return m ? (m[1].slice(-2) + "-" + m[2]).toUpperCase() : "";
@@ -6204,7 +6218,7 @@
   var SCAN_INTERVAL_MS2 = 1e3;
   var BTN_CLASS = "mplis-btn-copy-tenfile";
   var BTN_MARK = "data-mplis-tenfile";
-  var MA_HS_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+)+-\d{6}-\d{3,}/i;
+  var MA_HS_RE = new RegExp(MA_HS_SRC, "i");
   var DUOI = "";
   var SPH_RE = /\b([A-ZĐ]{1,2})\s*(\d{5,})\b/;
   var GIAY_RE = /giấy\s+(in mới|thu hồi)/i;
@@ -6247,7 +6261,7 @@
       const text = (node.textContent || "").trim();
       if (!text || text.length > 200) continue;
       const m = MA_HS_RE.exec(text);
-      if (m && dangHien2(node)) found = m[0].toUpperCase();
+      if (m && dangHien2(node)) found = maHoSoTenFile(m[0]).toUpperCase();
     }
     return found;
   }

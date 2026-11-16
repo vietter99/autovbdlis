@@ -33,10 +33,18 @@ function tenBuocTuApi(ep) {
 }
 
 // Lấy lý do server trả về (nếu đọc được từ đoạn JSON đã cắt ngắn).
-function lyDoTuServer(raw) {
+// Lấy nguyên văn thông báo của cổng, giữ xuống dòng (mỗi dòng 1 ý như trên màn hình MPLIS).
+function lyDoTuServerDong(raw) {
     const t = String(raw || '');
-    const m = /"noiDungNganChan":"([^"]+)"/.exec(t) || /"message":"([^"]+)"/.exec(t);
-    return m ? m[1].replace(/\\r|\\n/g, ' ').replace(/\s+/g, ' ').trim() : '';
+    const m = /"noiDungNganChan":"((?:[^"\\]|\\.)*)"/.exec(t) || /"Error":"((?:[^"\\]|\\.)*)"/.exec(t) || /"message":"((?:[^"\\]|\\.)*)"/.exec(t);
+    if (!m) return '';
+    let s = m[1];
+    try { s = JSON.parse('"' + s + '"'); } catch (e) { s = s.replace(/\\r/g, '').replace(/\\n/g, '\n'); }
+    return s.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
+        .split(/\r?\n/).map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+}
+function lyDoTuServer(raw) {
+    return lyDoTuServerDong(raw).replace(/\n/g, '. ');
 }
 
 function gonTen(s) {
@@ -162,10 +170,11 @@ function moTaLoiTelegram(loai, tieuDe, noiDung) {
     const L = String(loai || '');
     let m;
     if ((m = /^Server từ chối (\S+)/.exec(L))) {
-        const ly = lyDoTuServer(noiDung);
+        const ly = lyDoTuServerDong(noiDung);
+        // Có nguyên văn thông báo của cổng thì chỉ đưa nguyên văn, không thêm lời hướng dẫn.
         return {
-            lyDo: 'Cổng MPLIS không cho làm bước "' + tenBuocTuApi(m[1]) + '"' + (ly ? ', lý do: ' + ly : ''),
-            huongXuLy: 'Mở hồ sơ trên MPLIS, đọc thông báo của hệ thống và xử lý theo đó, xong thì làm tiếp.'
+            lyDo: ly || 'Cổng MPLIS không cho làm bước "' + tenBuocTuApi(m[1]) + '"',
+            huongXuLy: ''
         };
     }
     if (/^Hộp thoại lạ/.test(L)) {

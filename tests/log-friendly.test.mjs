@@ -27,11 +27,12 @@ test('dòng lạ giữ nguyên, chỉ đổi cụm DỪNG AUTO', () => {
     assert.equal(thanThien('x — DỪNG AUTO.'), 'x Tool đã dừng.');
 });
 
-test('moTaLoiTelegram: lỗi server có lý do và hướng xử lý', () => {
-    const r = moTaLoiTelegram('Server từ chối DangKyAjax/CapNhatDuLieuPhapLy', '', '{"noiDungNganChan":"Thửa bị ngăn chặn"}');
-    assert.match(r.lyDo, /lưu dữ liệu pháp lý/);
-    assert.match(r.lyDo, /Thửa bị ngăn chặn/);
-    assert.ok(r.huongXuLy.length > 0);
+test('moTaLoiTelegram: lỗi server đưa nguyên văn thông báo của cổng, giữ xuống dòng, không lời hướng dẫn', () => {
+    // Mẫu thật lấy từ log của cổng: lỗi nằm ở trường "Error", xuống dòng bằng <br />, in đậm bằng <b>.
+    const raw = '{"success":false,"Error":"<b>HỒ SƠ CHƯA ĐÁP ỨNG LIÊN KẾT 3 KHỐI</b><br /><b>LIÊN KẾT KHÔNG GIAN</b><br />Thửa đất <b>166(213)</b> không tồn tại dữ liệu không gian"}';
+    const r = moTaLoiTelegram('Server từ chối DangKyAjax/ThucHienKetISO', '', raw);
+    assert.equal(r.lyDo, 'HỒ SƠ CHƯA ĐÁP ỨNG LIÊN KẾT 3 KHỐI\nLIÊN KẾT KHÔNG GIAN\nThửa đất 166(213) không tồn tại dữ liệu không gian');
+    assert.equal(r.huongXuLy, '');
 });
 
 test('moTaLoiTelegram: lỗi QT2 dặn kiểm tra tên file; loại lạ có hướng mặc định', () => {

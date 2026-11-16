@@ -1,3 +1,4 @@
+import { MA_HS_SRC } from './ma-ho-so.js';
     function fallbackCopyTextToClipboard(text) {
         return new Promise((resolve, reject) => {
             if (typeof GM_setClipboard !== 'undefined') {
@@ -187,7 +188,7 @@
 
         for (let node of allNodes) {
             if (!node.textContent) continue;
-            const m = node.textContent.match(/[A-Z0-9]{2,}\.[A-Z0-9]{2,}\-\d{6}\-\d{4,}/i);
+            const m = node.textContent.match(new RegExp(MA_HS_SRC, 'i'));
             if (m) {
                 const rect = node.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0) {

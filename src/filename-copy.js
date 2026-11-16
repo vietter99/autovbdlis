@@ -20,6 +20,7 @@
 // Tool chỉ tạo/copy tên; việc tích ô đồng bộ vẫn do người dùng (chưa biết id ô đó trên cổng).
 
 import { fallbackCopyTextToClipboard } from './utils.js';
+import { MA_HS_SRC, maHoSoTenFile } from './ma-ho-so.js';
 import { giuMoiNhat } from './gioi-han.js';
 
 const SCAN_INTERVAL_MS = 1000;
@@ -29,7 +30,7 @@ const BTN_MARK = 'data-mplis-tenfile';
 // "H15.50.05.12-260917-0681" - nhiều nhóm cách nhau bằng dấu chấm, rồi -6 số -4 số.
 // Mã hồ sơ có số nhóm chấm khác nhau: "H15.50.05.12-260917-1436" và "H15.50-260625-0680" đều
 // hợp lệ, nên chỉ đòi CÓ dấu chấm, không đòi số lượng.
-const MA_HS_RE = /[A-Z0-9]+(?:\.[A-Z0-9]+)+-\d{6}-\d{3,}/i;
+const MA_HS_RE = new RegExp(MA_HS_SRC, 'i');
 const DUOI = '';
 // Số phát hành: 1-2 chữ cái rồi dãy số, khoảng trắng ở giữa có hoặc không.
 // Giấy đời mới 2 chữ cái ("AA 09122325"), giấy cũ chỉ 1 chữ cái ("V 547970"). Bắt cứng 2 chữ cái
@@ -83,7 +84,7 @@ function layMaHoSoDayDu() {
         const text = (node.textContent || '').trim();
         if (!text || text.length > 200) continue;
         const m = MA_HS_RE.exec(text);
-        if (m && dangHien(node)) found = m[0].toUpperCase();
+        if (m && dangHien(node)) found = maHoSoTenFile(m[0]).toUpperCase();
     }
     return found;
 }
