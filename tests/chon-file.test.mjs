@@ -73,3 +73,28 @@ test('GCN: file của hồ sơ khác trùng đuôi không làm file đúng bị 
     const files = fs('A-AA 09125976.pdf', 'B-AA 08117976.pdf');
     assert.equal(goi(files, { rowText: '', fileType: 'GCN', suffix: '976', sphNum: '09125976' }).file.name, 'A-AA 09125976.pdf');
 });
+
+test('GT: thiếu GT của hồ sơ này, chỉ có GCN + GT của hồ sơ khác → KHÔNG lấy GT của hồ sơ khác', () => {
+    const files = fs('H15 50 05 12-261008-0555-AA 08117975.pdf', 'H15 50 05 12-261008-0555-GT.pdf');
+    const kq = goi(files, { rowText: `${MA}-GT.PDF`, fileType: 'GT', suffix: '976', sphNum: '09125976', sphList: ['AA09125976', 'AA09125975'] });
+    assert.equal(kq.file, null);
+});
+
+test('GT: GCN đúng của hồ sơ này (số khác) vẫn dùng làm gốc để tìm GT cùng tên', () => {
+    const files = fs('H15 50 05 12-261008-0119-AA 09125975.pdf', 'H15 50 05 12-261008-0119-GT.pdf');
+    const kq = goi(files, { rowText: 'GT', fileType: 'GT', suffix: '976', sphNum: '09125976', sphList: ['AA09125976', 'AA09125975'] });
+    assert.equal(kq.file.name, 'H15 50 05 12-261008-0119-GT.pdf');
+});
+
+test('tên mới "261104-0342-GT": khớp đúng tên, nhận cả file đặt tên cũ có mã đơn vị, loại file khác ngày', () => {
+    const row = '261104-0342-GT.PDF';
+    assert.equal(goi(fs('261104-0342-GT.pdf'), { rowText: row, fileType: 'GT', suffix: '976' }).file.name, '261104-0342-GT.pdf');
+    assert.equal(goi(fs('H15 50 05 12-261104-0342-GT.pdf'), { rowText: row, fileType: 'GT', suffix: '976' }).file.name, 'H15 50 05 12-261104-0342-GT.pdf');
+    assert.equal(goi(fs('261008-0342-GT.pdf'), { rowText: row, fileType: 'GT', suffix: '976', soChuSo: 4 }).file, null);
+});
+
+test('tên mới: GT lấy theo tên gốc của file GCN cùng hồ sơ', () => {
+    const files = fs('261104-0342-AA 09125976.pdf', '261104-0342-GT.pdf', '261104-0555-GT.pdf');
+    const kq = goi(files, { rowText: 'GT', fileType: 'GT', suffix: '976', sphNum: '09125976', sphList: ['AA09125976'] });
+    assert.equal(kq.file.name, '261104-0342-GT.pdf');
+});

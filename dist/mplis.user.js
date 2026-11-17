@@ -25,7 +25,12 @@
 (() => {
   // src/ma-ho-so.js
   var MA_HS_SRC = "\\b[A-Z]\\d+(?:[. \\u00a0][A-Z0-9]+)+-\\d{6}-\\d{3,}";
-  var maHoSoTenFile = (ma) => String(ma || "").replace(/[.  ]/g, " ");
+  var MA_NGAN_SRC = "\\b\\d{6}-\\d{3,}";
+  var maHoSoTenFile = (ma) => {
+    const m = new RegExp(MA_NGAN_SRC).exec(String(ma || ""));
+    return m ? m[0] : String(ma || "").replace(/[.  ]/g, " ");
+  };
+  var boTienTo = (s) => String(s || "").replace(/^.*?(?=\b\d{6}-\d{3,})/, "");
 
   // src/utils.js
   function fallbackCopyTextToClipboard(text) {
@@ -728,7 +733,7 @@
 
   // src/chon-file.js
   var chuan = (s) => String(s || "").toUpperCase().replace(/\.PDF$/, "").replace(/[.\s ]/g, "");
-  var MA_RE = new RegExp(MA_HS_SRC);
+  var MA_RE = new RegExp(MA_NGAN_SRC);
   function chonFile(files, { rowText, fileType, suffix, sphNum, sphList = [], soChuSo }) {
     let soTrung = 0;
     const duNhat = (ds) => {
@@ -736,18 +741,17 @@
       return ds.length === 1 ? ds[0] : null;
     };
     const ten = (f) => f.name.toUpperCase();
-    const khopGcn = (sfx2) => files.filter((f) => {
+    const khopGcn = (sfx2, so) => files.filter((f) => {
       const n = ten(f);
       if (/(GT|PT)\.PDF$/.test(n)) return false;
+      const full = /-\s*[A-ZĐ]{1,2}\s*(\d{5,})/.exec(n);
+      if (full && so && full[1] !== so) return false;
       if (n.endsWith(sfx2 + ".PDF") || n.endsWith(sfx2 + "+.PDF")) return true;
       return n.replace(/\.PDF$/, "").split("+").some((p) => p && p.endsWith(sfx2));
     });
     let gcnFile = null;
     if (suffix) {
-      let ds = khopGcn(suffix).filter((f) => {
-        const m = /-\s*[A-ZĐ]{1,2}\s*(\d{5,})/.exec(ten(f));
-        return !m || !sphNum || m[1] === sphNum;
-      });
+      let ds = khopGcn(suffix, sphNum);
       if (ds.length > 1 && sphNum) {
         const hep = ds.filter((f) => chuan(f.name).replace(/\+$/, "").endsWith(sphNum));
         if (hep.length) ds = hep;
@@ -758,8 +762,9 @@
     if (fileType === "GCN") return { file: gcnFile, soTrung: 0, warnSuffix: suffix };
     let gcnRef = gcnFile;
     for (const sph of gcnRef ? [] : sphList) {
-      const sfx2 = sph.replace(/[^0-9]/g, "").slice(-soChuSo);
-      const ds = sfx2 && sfx2 !== suffix ? khopGcn(sfx2) : [];
+      const so2 = sph.replace(/[^0-9]/g, "");
+      const sfx2 = so2.slice(-soChuSo);
+      const ds = sfx2 && sfx2 !== suffix ? khopGcn(sfx2, so2) : [];
       if (ds.length) {
         gcnRef = ds.find((f) => f.name.includes("-")) || ds[0];
         break;
@@ -771,22 +776,22 @@
     const sfxM = rowText.match(new RegExp("\\b(\\d{3,}\\+?)-" + loai + "(?:\\.PDF)?(?![A-Z])", "i"));
     const sfxFull = sfxM ? sfxM[1].toUpperCase() : null;
     const sfx = sfxFull ? sfxFull.replace(/\+$/, "").slice(-soChuSo) : null;
-    const maM = rowText.match(new RegExp("(" + MA_HS_SRC + ")(\\+?)-" + loai + "(?![A-Z])", "i"));
-    const ma = maM ? chuan(maM[1]) : null;
+    const maM = rowText.match(new RegExp("(" + MA_HS_SRC + "|" + MA_NGAN_SRC + ")(\\+?)-" + loai + "(?![A-Z])", "i"));
+    const ma = maM ? chuan(boTienTo(maM[1])) : null;
     const hopLe = (f) => {
       const m = ten(f).match(MA_RE);
       return !m || !ma || chuan(m[0]) === ma;
     };
     const laLoai = (f) => ten(f).endsWith(loai + ".PDF");
     const buoc = [
-      () => maM ? files.filter((f) => chuan(f.name) === chuan(maM[1] + maM[2] + "-" + loai)) : [],
+      () => maM ? files.filter((f) => chuan(boTienTo(f.name)) === chuan(boTienTo(maM[1] + maM[2] + "-" + loai))) : [],
       () => sfxFull ? files.filter((f) => hopLe(f) && ten(f).endsWith(sfxFull + "-" + loai + ".PDF")) : [],
       // Chế độ 4 số: file "<4 số mã hồ sơ>+.pdf" hoặc file gộp nhiều mã
       () => soChuSo === 4 && sfx ? files.filter((f) => {
         const n = ten(f).replace(/\.PDF$/, "");
         return n.includes("+") && n.split("+").map((s) => s.trim()).includes(sfx);
       }) : [],
-      () => gcnBase ? files.filter((f) => [chuan(gcnBase + "-" + loai), chuan(gcnBase + "+-" + loai)].includes(chuan(f.name))) : [],
+      () => gcnBase ? files.filter((f) => hopLe(f) && [chuan(boTienTo(gcnBase + "-" + loai)), chuan(boTienTo(gcnBase + "+-" + loai))].includes(chuan(boTienTo(f.name)))) : [],
       () => gcnDir ? files.filter((f) => hopLe(f) && laLoai(f) && (f.webkitRelativePath || "").startsWith(gcnDir + "/")) : [],
       // Dòng không ghi sẵn tên GT/PT (chế độ 3 số): theo đuôi SPH của chính dòng này
       () => !sfxFull && soChuSo !== 4 && suffix ? files.filter((f) => hopLe(f) && (ten(f).endsWith(suffix + "-" + loai + ".PDF") || ten(f).endsWith(suffix + "+-" + loai + ".PDF"))) : [],

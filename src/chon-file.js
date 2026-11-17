@@ -1,8 +1,8 @@
-import { MA_HS_SRC } from './ma-ho-so.js';
+import { MA_HS_SRC, MA_NGAN_SRC, boTienTo } from './ma-ho-so.js';
 
 // So tên không phân biệt hoa/thường, bỏ ".pdf", dấu chấm, dấu cách → "H15.50-1" == "h15 50-1.PDF".
 const chuan = (s) => String(s || '').toUpperCase().replace(/\.PDF$/, '').replace(/[.\s ]/g, '');
-const MA_RE = new RegExp(MA_HS_SRC);
+const MA_RE = new RegExp(MA_NGAN_SRC);
 
 // Chọn file scan cho 1 dòng upload. Nguyên tắc: chỉ trả file chắc chắn đúng; mơ hồ → soTrung>0, không có → file=null.
 // Không bao giờ lấy file GT/PT của hồ sơ khác hay file GCN của số phát hành khác để "đỡ phải upload tay".
@@ -14,9 +14,12 @@ export function chonFile(files, { rowText, fileType, suffix, sphNum, sphList = [
     const duNhat = (ds) => { if (ds.length > 1) soTrung = ds.length; return ds.length === 1 ? ds[0] : null; };
     const ten = (f) => f.name.toUpperCase();
 
-    const khopGcn = (sfx) => files.filter(f => {
+    // so = đủ số phát hành của giấy đang tìm: file ghi đủ số phát hành khác là của giấy/hồ sơ khác dù trùng đuôi.
+    const khopGcn = (sfx, so) => files.filter(f => {
         const n = ten(f);
         if (/(GT|PT)\.PDF$/.test(n)) return false;
+        const full = /-\s*[A-ZĐ]{1,2}\s*(\d{5,})/.exec(n);
+        if (full && so && full[1] !== so) return false;
         if (n.endsWith(sfx + '.PDF') || n.endsWith(sfx + '+.PDF')) return true;
         // File gộp nhiều mã: "1423+1422+.pdf" → tách theo "+", kiểm tra từng phần
         return n.replace(/\.PDF$/, '').split('+').some(p => p && p.endsWith(sfx));
@@ -25,11 +28,7 @@ export function chonFile(files, { rowText, fileType, suffix, sphNum, sphList = [
     // GCN của chính dòng này. Nhiều file cùng đuôi → thu hẹp bằng đủ số phát hành; vẫn còn nhiều → dừng.
     let gcnFile = null;
     if (suffix) {
-        // File ghi đủ số phát hành khác với dòng này là của giấy/hồ sơ khác dù trùng đuôi.
-        let ds = khopGcn(suffix).filter(f => {
-            const m = /-\s*[A-ZĐ]{1,2}\s*(\d{5,})/.exec(ten(f));
-            return !m || !sphNum || m[1] === sphNum;
-        });
+        let ds = khopGcn(suffix, sphNum);
         if (ds.length > 1 && sphNum) {
             const hep = ds.filter(f => chuan(f.name).replace(/\+$/, '').endsWith(sphNum));
             if (hep.length) ds = hep;
@@ -42,8 +41,9 @@ export function chonFile(files, { rowText, fileType, suffix, sphNum, sphList = [
     // GT/PT: file GCN chỉ dùng để suy ra thư mục / tên gốc. Được phép lấy theo SPH khác của hồ sơ (không upload nó).
     let gcnRef = gcnFile;
     for (const sph of gcnRef ? [] : sphList) {
-        const sfx2 = sph.replace(/[^0-9]/g, '').slice(-soChuSo);
-        const ds = sfx2 && sfx2 !== suffix ? khopGcn(sfx2) : [];
+        const so2 = sph.replace(/[^0-9]/g, '');
+        const sfx2 = so2.slice(-soChuSo);
+        const ds = sfx2 && sfx2 !== suffix ? khopGcn(sfx2, so2) : [];
         if (ds.length) { gcnRef = ds.find(f => f.name.includes('-')) || ds[0]; break; }
     }
     const gcnDir = gcnRef && gcnRef.webkitRelativePath ? gcnRef.webkitRelativePath.replace(/\/[^/]+$/, '') : null;
@@ -55,21 +55,21 @@ export function chonFile(files, { rowText, fileType, suffix, sphNum, sphList = [
     const sfxFull = sfxM ? sfxM[1].toUpperCase() : null;
     const sfx = sfxFull ? sfxFull.replace(/\+$/, '').slice(-soChuSo) : null;
     // Tên đầy đủ cổng đang đòi (mã hồ sơ + -GT/-PT): khớp tên này là chắc nhất.
-    const maM = rowText.match(new RegExp('(' + MA_HS_SRC + ')(\\+?)-' + loai + '(?![A-Z])', 'i'));
-    const ma = maM ? chuan(maM[1]) : null;
+    const maM = rowText.match(new RegExp('(' + MA_HS_SRC + '|' + MA_NGAN_SRC + ')(\\+?)-' + loai + '(?![A-Z])', 'i'));
+    const ma = maM ? chuan(boTienTo(maM[1])) : null;
     // File mang mã hồ sơ đầy đủ KHÁC mã đang xử lý là của hồ sơ khác (cùng 4 số cuối nhưng khác ngày).
     const hopLe = (f) => { const m = ten(f).match(MA_RE); return !m || !ma || chuan(m[0]) === ma; };
     const laLoai = (f) => ten(f).endsWith(loai + '.PDF');
 
     const buoc = [
-        () => maM ? files.filter(f => chuan(f.name) === chuan(maM[1] + maM[2] + '-' + loai)) : [],
+        () => maM ? files.filter(f => chuan(boTienTo(f.name)) === chuan(boTienTo(maM[1] + maM[2] + '-' + loai))) : [],
         () => sfxFull ? files.filter(f => hopLe(f) && ten(f).endsWith(sfxFull + '-' + loai + '.PDF')) : [],
         // Chế độ 4 số: file "<4 số mã hồ sơ>+.pdf" hoặc file gộp nhiều mã
         () => soChuSo === 4 && sfx ? files.filter(f => {
             const n = ten(f).replace(/\.PDF$/, '');
             return n.includes('+') && n.split('+').map(s => s.trim()).includes(sfx);
         }) : [],
-        () => gcnBase ? files.filter(f => [chuan(gcnBase + '-' + loai), chuan(gcnBase + '+-' + loai)].includes(chuan(f.name))) : [],
+        () => gcnBase ? files.filter(f => hopLe(f) && [chuan(boTienTo(gcnBase + '-' + loai)), chuan(boTienTo(gcnBase + '+-' + loai))].includes(chuan(boTienTo(f.name)))) : [],
         () => gcnDir ? files.filter(f => hopLe(f) && laLoai(f) && (f.webkitRelativePath || '').startsWith(gcnDir + '/')) : [],
         // Dòng không ghi sẵn tên GT/PT (chế độ 3 số): theo đuôi SPH của chính dòng này
         () => !sfxFull && soChuSo !== 4 && suffix
