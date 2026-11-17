@@ -61,3 +61,15 @@ test('GT: file gộp nhiều mã (4 số) vẫn dùng được', () => {
     const kq = goi(files, { rowText: 'H15 50-261008-0435-GT.PDF'.toUpperCase(), fileType: 'GT', suffix: '435', soChuSo: 4 });
     assert.equal(kq.file.name, '0432+0435+.pdf');
 });
+
+test('GCN: chỉ có 1 file trùng đuôi nhưng mang số phát hành khác (hồ sơ khác) → KHÔNG lấy', () => {
+    const files = fs('H15 50 05 12-261008-0555-AA 08117976.pdf');
+    const kq = goi(files, { rowText: 'AA 09125976', fileType: 'GCN', suffix: '976', sphNum: '09125976', sphList: ['AA09125976'] });
+    assert.equal(kq.file, null);
+    assert.equal(kq.soTrung, 0);
+});
+
+test('GCN: file của hồ sơ khác trùng đuôi không làm file đúng bị coi là trùng', () => {
+    const files = fs('A-AA 09125976.pdf', 'B-AA 08117976.pdf');
+    assert.equal(goi(files, { rowText: '', fileType: 'GCN', suffix: '976', sphNum: '09125976' }).file.name, 'A-AA 09125976.pdf');
+});

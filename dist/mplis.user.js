@@ -744,7 +744,10 @@
     });
     let gcnFile = null;
     if (suffix) {
-      let ds = khopGcn(suffix);
+      let ds = khopGcn(suffix).filter((f) => {
+        const m = /-\s*[A-ZĐ]{1,2}\s*(\d{5,})/.exec(ten(f));
+        return !m || !sphNum || m[1] === sphNum;
+      });
       if (ds.length > 1 && sphNum) {
         const hep = ds.filter((f) => chuan(f.name).replace(/\+$/, "").endsWith(sphNum));
         if (hep.length) ds = hep;
@@ -1213,14 +1216,6 @@
             return;
           }
         }
-        if (topState.uploadDirHandle && typeof topState.refreshUploadFolder === "function" && now2 - (topState._dirRefreshAt || 0) > 1500 && document.querySelector('#btnUploadFile.btn-success, a[type="upload"].btn-success')) {
-          topState._dirRefreshAt = now2;
-          try {
-            await topState.refreshUploadFolder();
-          } catch (e) {
-            console.log("[MPLIS Upload] Không đọc lại được thư mục (mất quyền truy cập?):", e);
-          }
-        }
         if (topState.uploadFolderFiles && topState.uploadFolderFiles.length > 0) {
           const uploadBtns = Array.from(document.querySelectorAll('#btnUploadFile.btn-success, a[type="upload"].btn-success')).filter((el) => {
             try {
@@ -1280,7 +1275,6 @@
             const sphSrc = rowSphM ? rowSphM[1] : sphList[0] || "";
             const sphNum = sphSrc.replace(/[^0-9]/g, "");
             const suffix = sphNum.slice(-soChuSo);
-            const files = topState.uploadFolderFiles;
             if (!suffix && fileType === "GCN") {
               if (!topState._chuaCoSphTu) topState._chuaCoSphTu = now2;
               if (now2 - topState._chuaCoSphTu < 15e3) {
@@ -1295,7 +1289,17 @@
               return;
             }
             if (suffix) topState._chuaCoSphTu = 0;
-            const kq = chonFile(files, { rowText, fileType, suffix, sphNum, sphList, soChuSo });
+            const chon = () => chonFile(topState.uploadFolderFiles, { rowText, fileType, suffix, sphNum, sphList, soChuSo });
+            let kq = chon();
+            if ((!kq.file || kq.soTrung) && topState.uploadDirHandle && typeof topState.refreshUploadFolder === "function" && now2 - (topState._dirRefreshAt || 0) > 1500) {
+              topState._dirRefreshAt = now2;
+              try {
+                await topState.refreshUploadFolder();
+                kq = chon();
+              } catch (e) {
+                console.log("[MPLIS Upload] Không đọc lại được thư mục (mất quyền truy cập?):", e);
+              }
+            }
             if (kq.soTrung) {
               writeLog(`⚠️ Mã ...${suffix}: có ${kq.soTrung} file cùng khớp (${fileType}). Dừng — upload thủ công.`);
               updateStatus("2 file cùng mã - Dừng", "idle");

@@ -25,7 +25,11 @@ export function chonFile(files, { rowText, fileType, suffix, sphNum, sphList = [
     // GCN của chính dòng này. Nhiều file cùng đuôi → thu hẹp bằng đủ số phát hành; vẫn còn nhiều → dừng.
     let gcnFile = null;
     if (suffix) {
-        let ds = khopGcn(suffix);
+        // File ghi đủ số phát hành khác với dòng này là của giấy/hồ sơ khác dù trùng đuôi.
+        let ds = khopGcn(suffix).filter(f => {
+            const m = /-\s*[A-ZĐ]{1,2}\s*(\d{5,})/.exec(ten(f));
+            return !m || !sphNum || m[1] === sphNum;
+        });
         if (ds.length > 1 && sphNum) {
             const hep = ds.filter(f => chuan(f.name).replace(/\+$/, '').endsWith(sphNum));
             if (hep.length) ds = hep;

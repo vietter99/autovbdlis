@@ -435,13 +435,6 @@ import { setFastInterval } from './bg-ticker.js';
 
                 // --- AUTO UPLOAD (btnUploadFile) ---
                 // Áp dụng khi tool đã nạp thư mục file. Khớp tên file theo quy tắc SPH cuối / GT / PT.
-                if (topState.uploadDirHandle && typeof topState.refreshUploadFolder === 'function' && now - (topState._dirRefreshAt || 0) > 1500
-                    && document.querySelector('#btnUploadFile.btn-success, a[type="upload"].btn-success')) {
-                    topState._dirRefreshAt = now;
-                    try { await topState.refreshUploadFolder(); } catch (e) {
-                        console.log('[MPLIS Upload] Không đọc lại được thư mục (mất quyền truy cập?):', e);
-                    }
-                }
                 if (topState.uploadFolderFiles && topState.uploadFolderFiles.length > 0) {
                     // Chỉ nhận nút Tải lên (btn-success = xanh). Sau khi upload xong MPLIS đổi
                     // thành "Xóa tệp" (btn-danger = đỏ) nhưng vẫn giữ id/type cũ - không click.
@@ -504,7 +497,6 @@ import { setFastInterval } from './bg-ticker.js';
                         const sphSrc = rowSphM ? rowSphM[1] : (sphList[0] || '');
                         const sphNum = sphSrc.replace(/[^0-9]/g, '');
                         const suffix = sphNum.slice(-soChuSo);
-                        const files = topState.uploadFolderFiles;
                         // Chưa đọc được số phát hành (bảng đang dựng lại / dòng giấy chứng nhận chưa tạo xong) → ĐỢI, đừng đoán.
                         if (!suffix && fileType === 'GCN') {
                             if (!topState._chuaCoSphTu) topState._chuaCoSphTu = now;
@@ -520,7 +512,15 @@ import { setFastInterval } from './bg-ticker.js';
                             return;
                         }
                         if (suffix) topState._chuaCoSphTu = 0;
-                        const kq = chonFile(files, { rowText, fileType, suffix, sphNum, sphList, soChuSo });
+                        const chon = () => chonFile(topState.uploadFolderFiles, { rowText, fileType, suffix, sphNum, sphList, soChuSo });
+                        let kq = chon();
+                        // Chỉ đọc lại thư mục khi không ra file / trùng file (vừa đổi tên?), tối đa 1 lần / 1,5s - thư mục lớn thì đọc liên tục rất nặng.
+                        if ((!kq.file || kq.soTrung) && topState.uploadDirHandle && typeof topState.refreshUploadFolder === 'function' && now - (topState._dirRefreshAt || 0) > 1500) {
+                            topState._dirRefreshAt = now;
+                            try { await topState.refreshUploadFolder(); kq = chon(); } catch (e) {
+                                console.log('[MPLIS Upload] Không đọc lại được thư mục (mất quyền truy cập?):', e);
+                            }
+                        }
                         if (kq.soTrung) {
                             writeLog(`⚠️ Mã ...${suffix}: có ${kq.soTrung} file cùng khớp (${fileType}). Dừng — upload thủ công.`);
                             updateStatus('2 file cùng mã - Dừng', 'idle');
